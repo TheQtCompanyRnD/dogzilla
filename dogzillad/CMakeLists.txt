@@ -41,6 +41,10 @@ qt_add_qml_module(dogzillad
         src/whisperspeechtotext.cpp
         src/telemetry.h
         src/telemetry.cpp
+        src/ollamaapi.h
+        src/ollamaapi.cpp
+        src/ollamaresponse.h
+        src/ollamaresponse.cpp
 )
 
 # Register the prebuilt QtRos2 message wrappers (std_msgs etc.) in the generator's

@@ -21,6 +21,8 @@ qt_add_qml_module(Robot_Dogzilla
     VERSION 1.0
     RESOURCE_PREFIX "/qt/qml"
     SOURCES
+        "chatmodel.h"
+        "chatmodel.cpp"
         "DogzillaControlBase.h"
         "DogzillaControlBase.cpp"
         "DogzillaControl.h"
