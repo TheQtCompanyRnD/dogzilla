@@ -43,9 +43,6 @@
 # include <turtlesim_msgs/srv/teleport_relative.hpp>
 #endif
 
-#include <QImage>
-#include <QPainter>
-#include <QPen>
 #include <QPointF>
 
 #include <memory>
@@ -64,13 +61,10 @@ public:
     turtlesim_msgs::action::RotateAbsolute>;
 
   Turtle(
-    rclcpp::Node::SharedPtr & nh, const std::string & real_name, const QImage & turtle_image,
+    rclcpp::Node::SharedPtr & nh, const std::string & real_name,
     const QPointF & pos, float orient);
 
-  bool update(
-    double dt, QPainter & path_painter, const QImage & path_image, qreal canvas_width,
-    qreal canvas_height);
-  void paint(QPainter & painter);
+  bool update(double dt, qreal canvas_width, qreal canvas_height);
 
 private:
   void velocityCallback(const geometry_msgs::msg::Twist::ConstSharedPtr vel);
@@ -85,12 +79,7 @@ private:
     turtlesim_msgs::srv::TeleportAbsolute::Response::SharedPtr);
   void rotateAbsoluteAcceptCallback(const std::shared_ptr<RotateAbsoluteGoalHandle>);
 
-  void rotateImage();
-
   rclcpp::Node::SharedPtr nh_;
-
-  QImage turtle_image_;
-  QImage turtle_rotated_image_;
 
   QPointF pos_;
   qreal orient_;
@@ -99,7 +88,6 @@ private:
   qreal lin_vel_y_;
   qreal ang_vel_;
   bool pen_on_;
-  QPen pen_;
 
   rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr velocity_sub_;
   rclcpp::Publisher<turtlesim_msgs::msg::Pose>::SharedPtr pose_pub_;

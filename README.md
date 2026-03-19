@@ -13,10 +13,11 @@ $ source /opt/ros/kilted/setup.bash
 $ cd ~/ros2_ws
 $ colcon _build_ --packages-select dogzilla --cmake-args -DCMAKE_BUILD_TYPE=Debug
 $ cd build/dogzilla
-$ ./dogzillad
+$ ./dogzillad -platform linuxfb
 ```
 The linker arguments are enormous, so linking takes a couple of minutes.
 
-For the moment it's a paralyzed dog that thinks it's a turtle.  Since the
-"daemon" is graphical, you can use `ssh -X` to connect.
+After running colcon once, it's ok to run make in the build dir.
+
+For the moment it's a paralyzed dog that thinks it's an invisible turtle.
 

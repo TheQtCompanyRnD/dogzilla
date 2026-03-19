@@ -33,10 +33,8 @@
 #include "turtle.hpp"  // NO LINT
 #endif
 
-#include <QFrame>
 #include <QImage>
 #include <QPainter>
-#include <QPaintEvent>
 #include <QTimer>
 #include <QVector>
 
@@ -55,21 +53,17 @@
 
 namespace turtlesim
 {
-class TurtleFrame : public QFrame
+class TurtleFrame : public QObject
 {
   Q_OBJECT
 
 public:
   TurtleFrame(
-    rclcpp::Node::SharedPtr & node_handle, QWidget * parent = 0,
-    Qt::WindowFlags f = Qt::WindowFlags());
+    rclcpp::Node::SharedPtr & node_handle, QObject * parent = nullptr);
   ~TurtleFrame();
 
   std::string spawnTurtle(const std::string & name, float x, float y, float angle);
   std::string spawnTurtle(const std::string & name, float x, float y, float angle, size_t index);
-
-protected:
-  void paintEvent(QPaintEvent * event);
 
 private slots:
   void onUpdate();
@@ -113,8 +107,6 @@ private:
   typedef std::map<std::string, TurtlePtr> M_Turtle;
   M_Turtle turtles_;
   uint32_t id_counter_;
-
-  QVector<QImage> turtle_images_;
 
   float meter_;
   float width_in_meters_;

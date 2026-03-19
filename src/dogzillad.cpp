@@ -1,16 +1,16 @@
-#include <QApplication>
+#include <QGuiApplication>
 
 #include <rclcpp/rclcpp.hpp>
 
 #include "turtlesim/turtle_frame.hpp"
 
-class DogzillaApp : public QApplication
+class DogzillaApp : public QGuiApplication
 {
 public:
   rclcpp::Node::SharedPtr nh_;
 
   explicit DogzillaApp(int & argc, char ** argv)
-  : QApplication(argc, argv)
+  : QGuiApplication(argc, argv)
   {
     rclcpp::init(argc, argv);
     nh_ = rclcpp::Node::make_shared("turtlesim");
@@ -26,9 +26,8 @@ public:
 	  // TODO create OLED framebuffer UI instead
 
     turtlesim::TurtleFrame frame(nh_);
-    frame.show();
 
-    return QApplication::exec();
+    return QGuiApplication::exec();
   }
 };
 

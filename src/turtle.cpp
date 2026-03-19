@@ -61,18 +61,15 @@ static double normalizeAngle(double angle)
 
 Turtle::Turtle(
   rclcpp::Node::SharedPtr & nh, const std::string & real_name,
-  const QImage & turtle_image, const QPointF & pos, float orient)
+  const QPointF & pos, float orient)
 : nh_(nh)
-  , turtle_image_(turtle_image)
   , pos_(pos)
   , orient_(orient)
   , lin_vel_x_(0.0)
   , lin_vel_y_(0.0)
   , ang_vel_(0.0)
   , pen_on_(true)
-  , pen_(QColor(DEFAULT_PEN_R, DEFAULT_PEN_G, DEFAULT_PEN_B))
 {
-  pen_.setWidth(3);
 
   const rclcpp::QoS qos = topic_qos();
   velocity_sub_ = nh_->create_subscription<geometry_msgs::msg::Twist>(
@@ -114,8 +111,7 @@ Turtle::Turtle(
 
   last_command_time_ = nh_->now();
 
-  meter_ = turtle_image_.height();
-  rotateImage();
+  meter_ = 0.1;
 }
 
 
@@ -147,12 +143,6 @@ bool Turtle::setPenCallback(
     return true;
   }
 
-  QPen pen(QColor(req->r, req->g, req->b));
-  if (req->width != 0) {
-    pen.setWidth(req->width);
-  }
-
-  pen_ = pen;
   return true;
 }
 
@@ -188,16 +178,7 @@ void Turtle::rotateAbsoluteAcceptCallback(
   rotate_absolute_start_orient_ = orient_;
 }
 
-void Turtle::rotateImage()
-{
-  QTransform transform;
-  transform.rotate(-orient_ * 180.0 / PI + 90.0);
-  turtle_rotated_image_ = turtle_image_.transformed(transform);
-}
-
-bool Turtle::update(
-  double dt, QPainter & path_painter, const QImage & path_image,
-  qreal canvas_width, qreal canvas_height)
+bool Turtle::update(double dt, qreal canvas_width, qreal canvas_height)
 {
   bool modified = false;
   qreal old_orient = orient_;
@@ -219,10 +200,6 @@ bool Turtle::update(
       orient_ = req.theta;
     }
 
-    if (pen_on_) {
-      path_painter.setPen(pen_);
-      path_painter.drawLine(pos_ * meter_, old_pos * meter_);
-    }
     modified = true;
   }
 
@@ -326,26 +303,13 @@ qDebug() << "pose" << p->x << p->y << p->theta;
     nh_->get_namespace(), pos_.x(), pos_.y(), orient_);
 
   if (orient_ != old_orient) {
-    rotateImage();
     modified = true;
   }
   if (pos_ != old_pos) {
-    if (pen_on_) {
-      path_painter.setPen(pen_);
-      path_painter.drawLine(pos_ * meter_, old_pos * meter_);
-    }
     modified = true;
   }
 
   return modified;
-}
-
-void Turtle::paint(QPainter & painter)
-{
-  QPointF p = pos_ * meter_;
-  p.rx() -= 0.5 * turtle_rotated_image_.width();
-  p.ry() -= 0.5 * turtle_rotated_image_.height();
-  painter.drawImage(p, turtle_rotated_image_);
 }
 
 }  // namespace turtlesim

@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.27)
 project(dogzilla LANGUAGES CXX)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui)
 find_package(geometry_msgs REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_action REQUIRED)
@@ -39,7 +39,6 @@ set_target_properties(dogzillad PROPERTIES
 target_link_libraries(dogzillad PRIVATE
     Qt6::Core
     Qt6::Gui
-    Qt6::Widgets
     ${geometry_msgs_LIBRARIES}
     ${rclcpp_LIBRARIES}
     ${rclcpp_action_LIBRARIES}

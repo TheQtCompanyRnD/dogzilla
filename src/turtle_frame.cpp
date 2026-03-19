@@ -28,7 +28,9 @@
 
 #include "turtlesim/turtle_frame.hpp"
 
+#include <QCoreApplication>
 #include <QPointF>
+#include <QDebug>
 
 #include <cstdlib>
 #include <ctime>
@@ -51,16 +53,13 @@
 namespace turtlesim
 {
 
-TurtleFrame::TurtleFrame(rclcpp::Node::SharedPtr & node_handle, QWidget * parent, Qt::WindowFlags f)
-: QFrame(parent, f)
+TurtleFrame::TurtleFrame(rclcpp::Node::SharedPtr & node_handle, QObject * parent)
+: QObject(parent)
   , path_image_(500, 500, QImage::Format_ARGB32)
   , path_painter_(&path_image_)
   , frame_count_(0)
   , id_counter_(0)
 {
-  setFixedSize(500, 500);
-  setWindowTitle("ModTurtleSim");
-
   srand(time(NULL));
 
   update_timer_ = new QTimer(this);
@@ -111,15 +110,7 @@ TurtleFrame::TurtleFrame(rclcpp::Node::SharedPtr & node_handle, QWidget * parent
   turtles.append("kilted.png");
   turtles.append("rolling.png");
 
-  QString images_path = "../../src/dogzilla/images/";
-    //~ (ament_index_cpp::get_package_share_directory("turtlesim") + "/images/").c_str();
-  for (int i = 0; i < turtles.size(); ++i) {
-    QImage img;
-    img.load(images_path + turtles[i]);
-    turtle_images_.append(img);
-  }
-
-  meter_ = turtle_images_[0].height();
+  meter_ = 0.1;
 
   clear();
 
@@ -148,8 +139,8 @@ TurtleFrame::TurtleFrame(rclcpp::Node::SharedPtr & node_handle, QWidget * parent
   RCLCPP_INFO(
     nh_->get_logger(), "Starting turtlesim with node name %s", nh_->get_fully_qualified_name());
 
-  width_in_meters_ = (width() - 1) / meter_;
-  height_in_meters_ = (height() - 1) / meter_;
+  width_in_meters_ = 1;
+  height_in_meters_ = 1;
   spawnTurtle("", width_in_meters_ / 2.0, height_in_meters_ / 2.0, 0);
 
   // spawn all available turtle types
@@ -197,7 +188,6 @@ bool TurtleFrame::killCallback(
   }
 
   turtles_.erase(it);
-  update();
 
   return true;
 }
@@ -208,7 +198,7 @@ void TurtleFrame::parameterEventCallback(
   // only consider events from this node
   if (event->node == nh_->get_fully_qualified_name()) {
     // since parameter events for this event aren't expected frequently just always call update()
-    update();
+    qDebug() << "FQN match: should update";
   }
 }
 
@@ -219,7 +209,7 @@ bool TurtleFrame::hasTurtle(const std::string & name)
 
 std::string TurtleFrame::spawnTurtle(const std::string & name, float x, float y, float angle)
 {
-  return spawnTurtle(name, x, y, angle, rand() % turtle_images_.size());
+  return spawnTurtle(name, x, y, angle, rand());
 }
 
 std::string TurtleFrame::spawnTurtle(
@@ -240,11 +230,10 @@ std::string TurtleFrame::spawnTurtle(
   }
 
   TurtlePtr t = std::make_shared<Turtle>(
-    nh_, real_name, turtle_images_[static_cast<int>(index)], QPointF(
+    nh_, real_name, QPointF(
       x,
       height_in_meters_ - y), angle);
   turtles_[real_name] = t;
-  update();
 
   RCLCPP_INFO(
     nh_->get_logger(), "Spawning a turtle [%s] at x=[%f], y=[%f], theta=[%f]",
@@ -257,42 +246,17 @@ void TurtleFrame::clear()
 {
   // make all pixels fully transparent
   path_image_.fill(qRgba(255, 255, 255, 0));
-  update();
 }
 
 void TurtleFrame::onUpdate()
 {
   if (!rclcpp::ok()) {
-    close();
-    return;
+  	QCoreApplication::exit(1);
   }
 
   rclcpp::spin_some(nh_);
 
   updateTurtles();
-}
-
-void TurtleFrame::paintEvent(QPaintEvent * event)
-{
-  (void)event;  // NO LINT
-  QPainter painter(this);
-
-  int r = DEFAULT_BG_R;
-  int g = DEFAULT_BG_G;
-  int b = DEFAULT_BG_B;
-  nh_->get_parameter("background_r", r);
-  nh_->get_parameter("background_g", g);
-  nh_->get_parameter("background_b", b);
-  QRgb background_color = qRgb(r, g, b);
-  painter.fillRect(0, 0, width(), height(), background_color);
-
-  painter.drawImage(QPoint(0, 0), path_image_);
-
-  M_Turtle::iterator it = turtles_.begin();
-  M_Turtle::iterator end = turtles_.end();
-  for (; it != end; ++it) {
-    it->second->paint(painter);
-  }
 }
 
 void TurtleFrame::updateTurtles()
@@ -307,11 +271,10 @@ void TurtleFrame::updateTurtles()
   M_Turtle::iterator end = turtles_.end();
   for (; it != end; ++it) {
     modified |= it->second->update(
-      0.001 * update_timer_->interval(), path_painter_, path_image_, width_in_meters_,
-      height_in_meters_);
+      0.001 * update_timer_->interval(), width_in_meters_, height_in_meters_);
   }
   if (modified) {
-    update();
+  	qDebug() << "modified: update";
   }
 
   ++frame_count_;
