@@ -26,7 +26,7 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include "turtlesim/turtle_frame.hpp"
+#include "turtle_frame.hpp"
 
 #include <QCoreApplication>
 #include <QPointF>

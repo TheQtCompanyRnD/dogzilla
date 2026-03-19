@@ -26,7 +26,7 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include "turtlesim/turtle.hpp"
+#include "turtle.hpp"
 
 #include <QColor>
 #include <QRgb>
@@ -45,7 +45,7 @@
 #include "turtlesim_msgs/srv/set_pen.hpp"
 #include "turtlesim_msgs/srv/teleport_absolute.hpp"
 #include "turtlesim_msgs/srv/teleport_relative.hpp"
-#include "turtlesim/qos.hpp"
+#include "qos.hpp"
 
 #define DEFAULT_PEN_R 0xb3
 #define DEFAULT_PEN_G 0xb8
@@ -285,7 +285,7 @@ bool Turtle::update(double dt, qreal canvas_width, qreal canvas_height)
   p->theta = orient_;
   p->linear_velocity = std::sqrt(lin_vel_x_ * lin_vel_x_ + lin_vel_y_ * lin_vel_y_);
   p->angular_velocity = ang_vel_;
-qDebug() << "pose" << p->x << p->y << p->theta;
+// qDebug() << "pose" << p->x << p->y << p->theta;
   pose_pub_->publish(std::move(p));
 
   // Figure out (and publish) the color underneath the turtle

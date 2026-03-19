@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.27)
 project(dogzilla LANGUAGES CXX)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Gui)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui SerialPort)
 find_package(geometry_msgs REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_action REQUIRED)
@@ -13,8 +13,9 @@ qt_standard_project_setup()
 
 qt_add_executable(dogzillad
     src/dogzillad.cpp
-    src/turtle.cpp include/turtlesim/turtle.hpp
-    src/turtle_frame.cpp include/turtlesim/turtle_frame.hpp
+    src/controller.cpp src/controller.h
+    src/turtle.cpp src/turtle.hpp
+    src/turtle_frame.cpp src/turtle_frame.hpp
 )
 
 target_include_directories(dogzillad PUBLIC
@@ -28,8 +29,8 @@ target_include_directories(dogzillad PUBLIC
     ${turtlesim_msgs_INCLUDE_DIRS}
 )
 
-#~ message("check include ${rosidl_typesupport_interface_INCLUDE_DIRS}")
-#~ message("check libs ${geometry_msgs_LIBRARIES}")
+#message("check include ${rosidl_typesupport_interface_INCLUDE_DIRS}")
+#message("check libs ${turtlesim_msgs_LIBRARIES}")
 
 set_target_properties(dogzillad PROPERTIES
     WIN32_EXECUTABLE TRUE
@@ -39,6 +40,7 @@ set_target_properties(dogzillad PROPERTIES
 target_link_libraries(dogzillad PRIVATE
     Qt6::Core
     Qt6::Gui
+    Qt6::SerialPort
     ${geometry_msgs_LIBRARIES}
     ${rclcpp_LIBRARIES}
     ${rclcpp_action_LIBRARIES}

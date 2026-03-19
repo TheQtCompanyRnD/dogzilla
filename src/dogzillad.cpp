@@ -2,7 +2,8 @@
 
 #include <rclcpp/rclcpp.hpp>
 
-#include "turtlesim/turtle_frame.hpp"
+#include "controller.h"
+#include "turtle_frame.hpp"
 
 class DogzillaApp : public QGuiApplication
 {
@@ -26,6 +27,8 @@ public:
 	  // TODO create OLED framebuffer UI instead
 
     turtlesim::TurtleFrame frame(nh_);
+    Controller ctl("/dev/ttyAMA0", 115200, this);
+
 
     return QGuiApplication::exec();
   }
