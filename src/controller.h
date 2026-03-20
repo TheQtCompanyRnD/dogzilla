@@ -10,6 +10,7 @@ class Controller : public QObject
 {
 	Q_OBJECT
     Q_PROPERTY(int batteryPercent READ batteryPercent NOTIFY batteryPercentChanged FINAL)
+    Q_PROPERTY(bool motorsEngaged READ motorsEngaged WRITE setMotorsEngaged NOTIFY motorsEngagedChanged FINAL)
 
 public:
 	Controller(const QString &serialPort, qint32 baudRate, QObject * parent = nullptr);
@@ -25,8 +26,8 @@ public:
        	GetFirmwareVersion,
         GaitType,
         BTName,
-        UnloadMotor,
         LoadMotor,
+        UnloadMotor,
         VX,
         VY,
         VYaw,
@@ -48,9 +49,14 @@ public:
     };
 
     int batteryPercent() const { return m_batteryPercent; }
+    bool motorsEngaged() const { return m_motorsEngaged; }
+
+public slots:
+    void setMotorsEngaged(bool v);
 
 signals:
     void batteryPercentChanged(int pct);
+    void motorsEngagedChanged(bool e);
 
 private slots:
 	void onError(QSerialPort::SerialPortError err);
@@ -62,6 +68,7 @@ private slots:
 private:
 	QSerialPort m_port;
     uint8_t m_batteryPercent = 0;
+    bool m_motorsEngaged = true; // it starts up in standing position
 
     static QByteArray m_commands[int(Command::Count)];
 };

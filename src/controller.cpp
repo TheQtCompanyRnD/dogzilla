@@ -6,6 +6,7 @@
 QByteArray Controller::m_commands[] {
     {}, // None
     // mode, addr, read_len
+    // mode 1: send (command); mode 2: read (value)
     QByteArrayLiteral("\x02\x01\x01"), // GetBatteryLevel; expect to read 1 byte
     QByteArrayLiteral("\x03\x00"), // Perform
     QByteArrayLiteral("\x04\x00"), // Calibrate
@@ -14,8 +15,8 @@ QByteArray Controller::m_commands[] {
     QByteArrayLiteral("\x07"), // GetFirmwareVersion
     QByteArrayLiteral("\x09\x00"), // GaitType
     QByteArrayLiteral("\x13\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"), // BTName
-    QByteArrayLiteral("\x20\x00"), // UnloadMotor
-    QByteArrayLiteral("\x20\x00"), // LoadMotor
+    QByteArrayLiteral("\x01\x20\x00"), // LoadMotor:   0 means all; otherwise use 0x20 + leg ID
+    QByteArrayLiteral("\x01\x20\x01"), // UnloadMotor: 1 means all; otherwise use 0x10 + leg ID
     QByteArrayLiteral("\x30\x80"), // VX
     QByteArrayLiteral("\x31\x80"), // VY
     QByteArrayLiteral("\x32\x80"), // VYaw
@@ -45,6 +46,7 @@ Controller::Controller(const QString &serialPort, qint32 baudRate, QObject * par
     const bool success = m_port.open(QIODevice::ReadWrite);
     qDebug() << m_port.portName() << m_port.baudRate() << "opened successfully?" << success;
     pollBattery(); // TODO periodically when otherwise idle
+    setMotorsEngaged(false); // TODO after being idle for some minutes
 }
 
 Controller::~Controller() {}
@@ -103,4 +105,40 @@ void Controller::readAndHandle()
 				break;
 		}
     }
+}
+
+/*
+"UNLOAD_MOTOR": [0x20, 0],
+
+def __send(self, key, index=1, len=1):
+    mode = 0x01
+    order = ORDER[key][0] + index - 1
+    value = []
+    value_sum = 0
+    for i in range(0, len):
+        value.append(ORDER[key][index + i])
+        value_sum = value_sum + ORDER[key][index + i]
+    sum_data = ((len + 0x08) + mode + order + value_sum) % 256
+    sum_data = 255 - sum_data
+    tx = [0x55, 0x00, (len + 0x08), mode, order]
+    tx.extend(value)
+    tx.extend([sum_data, 0x00, 0xAA])
+    self.ser.write(tx)
+
+def unload_allmotor(self):
+    ORDER["UNLOAD_MOTOR"][1] = 0x01
+                               self.__send("UNLOAD_MOTOR")
+*/
+
+// from python: load all [0x55 0x0 0x9 0x1 0x20 0x0 0xd5 0x0 0xaa]
+//            unload all [0x55 0x0 0x9 0x1 0x20 0x1 0xd4 0x0 0xaa]
+void Controller::setMotorsEngaged(bool v)
+{
+    if (m_motorsEngaged == v)
+        return;
+
+qDebug() << m_motorsEngaged << "->" << v;
+    sendThunkCommand(v ? Command::LoadMotor : Command::UnloadMotor);
+    m_motorsEngaged = v;
+    emit motorsEngagedChanged(v);
 }
