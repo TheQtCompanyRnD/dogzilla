@@ -3,6 +3,7 @@
 #include <rclcpp/rclcpp.hpp>
 
 #include "controller.h"
+#include "joystick.h"
 #include "turtle_frame.hpp"
 
 class DogzillaApp : public QGuiApplication
@@ -28,7 +29,7 @@ public:
 
     turtlesim::TurtleFrame frame(nh_);
     Controller ctl("/dev/ttyAMA0", 115200, this);
-
+    JoystickHandler joy(&ctl);
 
     return QGuiApplication::exec();
   }

@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.27)
 project(dogzilla LANGUAGES CXX)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Gui SerialPort)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui SerialPort UniversalInput)
 find_package(geometry_msgs REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_action REQUIRED)
@@ -14,6 +14,7 @@ qt_standard_project_setup()
 qt_add_executable(dogzillad
     src/dogzillad.cpp
     src/controller.cpp src/controller.h
+    src/joystick.cpp src/joystick.h
     src/turtle.cpp src/turtle.hpp
     src/turtle_frame.cpp src/turtle_frame.hpp
 )
@@ -41,6 +42,7 @@ target_link_libraries(dogzillad PRIVATE
     Qt6::Core
     Qt6::Gui
     Qt6::SerialPort
+    Qt::UniversalInput
     ${geometry_msgs_LIBRARIES}
     ${rclcpp_LIBRARIES}
     ${rclcpp_action_LIBRARIES}
