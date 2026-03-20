@@ -1,6 +1,7 @@
 // Copyright (C) 2026 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR BSD-3-Clause
 #include "joystick.h"
+#include "controller.h"
 #include <QDebug>
 
 JoystickHandler::JoystickHandler(Controller *controller, QObject * parent)
@@ -28,7 +29,18 @@ void JoystickHandler::onButtonEvent(int device, JoyButton button, bool pressed)
 	// Nintendo-pad: up 0 down 12 left 13 right 14
 	// upper shoulders: 9 left 10 right
 	// select 4 start 6
-	// x 2 y 3 a 0 b 1
+    // x 2 y 3 a 0 b
+
+    if (pressed) {
+        switch (button) {
+        case JoyButton::Start: {
+            const bool wasEngaged = m_controller->motorsEngaged();
+            m_controller->setMotorsEngaged(!wasEngaged);
+            if (wasEngaged)
+                m_controller->setWalkingSpeed(0);
+        }
+        }
+    }
 }
 
 void JoystickHandler::onAxisEvent(int device, JoyAxis axis, float value)
@@ -39,4 +51,12 @@ void JoystickHandler::onAxisEvent(int device, JoyAxis axis, float value)
 	// right joystick not working!
 	// lower shoulder left: axis 4
 	// lower shoulder right: axis 5
+	switch (axis) {
+    case JoyAxis::LeftX:
+		// TODO turn
+		break;
+    case JoyAxis::LeftY:
+        m_controller->setWalkingSpeed(value * -50.0f);
+		break;
+	}
 }

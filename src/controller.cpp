@@ -8,7 +8,7 @@ QByteArray Controller::m_commands[] {
     // mode, addr, read_len
     // mode 1: send (command); mode 2: read (value)
     QByteArrayLiteral("\x02\x01\x01"), // GetBatteryLevel; expect to read 1 byte
-    QByteArrayLiteral("\x03\x00"), // Perform
+    QByteArrayLiteral("\x01\x03\x00"), // Perform
     QByteArrayLiteral("\x04\x00"), // Calibrate
     QByteArrayLiteral("\x05\x00"), // Upgrade
     QByteArrayLiteral("\x06\x01"), // MoveTest
@@ -17,7 +17,7 @@ QByteArray Controller::m_commands[] {
     QByteArrayLiteral("\x13\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"), // BTName
     QByteArrayLiteral("\x01\x20\x00"), // LoadMotor:   0 means all; otherwise use 0x20 + leg ID
     QByteArrayLiteral("\x01\x20\x01"), // UnloadMotor: 1 means all; otherwise use 0x10 + leg ID
-    QByteArrayLiteral("\x30\x80"), // VX
+    QByteArrayLiteral("\x01\x30\x80"), // VX
     QByteArrayLiteral("\x31\x80"), // VY
     QByteArrayLiteral("\x32\x80"), // VYaw
     QByteArrayLiteral("\x33\x00\x00\x00"), // Translation
@@ -46,7 +46,7 @@ Controller::Controller(const QString &serialPort, qint32 baudRate, QObject * par
     const bool success = m_port.open(QIODevice::ReadWrite);
     qDebug() << m_port.portName() << m_port.baudRate() << "opened successfully?" << success;
     pollBattery(); // TODO periodically when otherwise idle
-    setMotorsEngaged(false); // TODO after being idle for some minutes
+    // setMotorsEngaged(false); // TODO after being idle for some minutes
 }
 
 Controller::~Controller() {}
@@ -67,6 +67,19 @@ uint8_t Controller::checksum(const QByteArray &buf)
 void Controller::sendThunkCommand(Command cmd)
 {
     QByteArray buf(m_commands[int(cmd)]);
+    QByteArray header = QByteArrayLiteral("\x55\x00\x00");
+    header[2] = buf.size() + 6;
+    QByteArray footer = QByteArrayLiteral("\x00\x00\xaa");
+    footer[0] = checksum(buf);
+    buf.prepend(header);
+    buf.append(footer);
+    qDebug() << "wrote" << m_port.write(buf) << "bytes:" << m_commands[int(cmd)].toHex() << buf.toHex();
+}
+
+void Controller::sendOneArgCommand(Command cmd, int8_t arg)
+{
+    QByteArray buf(m_commands[int(cmd)]);
+    buf[buf.size() - 1] = arg;
     QByteArray header = QByteArrayLiteral("\x55\x00\x00");
     header[2] = buf.size() + 6;
     QByteArray footer = QByteArrayLiteral("\x00\x00\xaa");
@@ -107,29 +120,6 @@ void Controller::readAndHandle()
     }
 }
 
-/*
-"UNLOAD_MOTOR": [0x20, 0],
-
-def __send(self, key, index=1, len=1):
-    mode = 0x01
-    order = ORDER[key][0] + index - 1
-    value = []
-    value_sum = 0
-    for i in range(0, len):
-        value.append(ORDER[key][index + i])
-        value_sum = value_sum + ORDER[key][index + i]
-    sum_data = ((len + 0x08) + mode + order + value_sum) % 256
-    sum_data = 255 - sum_data
-    tx = [0x55, 0x00, (len + 0x08), mode, order]
-    tx.extend(value)
-    tx.extend([sum_data, 0x00, 0xAA])
-    self.ser.write(tx)
-
-def unload_allmotor(self):
-    ORDER["UNLOAD_MOTOR"][1] = 0x01
-                               self.__send("UNLOAD_MOTOR")
-*/
-
 // from python: load all [0x55 0x0 0x9 0x1 0x20 0x0 0xd5 0x0 0xaa]
 //            unload all [0x55 0x0 0x9 0x1 0x20 0x1 0xd4 0x0 0xaa]
 void Controller::setMotorsEngaged(bool v)
@@ -137,8 +127,24 @@ void Controller::setMotorsEngaged(bool v)
     if (m_motorsEngaged == v)
         return;
 
+    // TODO crouch down before disengaging
 qDebug() << m_motorsEngaged << "->" << v;
     sendThunkCommand(v ? Command::LoadMotor : Command::UnloadMotor);
     m_motorsEngaged = v;
     emit motorsEngagedChanged(v);
+}
+
+// from python: speed 10 [0x55 0x0 0x9 0x1 0x30 0xb3 0x12 0x0 0xaa]
+//                  stop [0x55 0x0 0x9 0x1 0x30 0x80 0x45 0x0 0xaa]
+void Controller::setWalkingSpeed(qreal speed)
+{
+    if (qFuzzyCompare(m_walkingSpeed, speed))
+        return;
+
+    setMotorsEngaged(true);
+    m_walkingSpeed = speed;
+    uint8_t arg = 0x80 + lroundf(m_walkingSpeed);
+    qDebug() << "move_x" << m_walkingSpeed << lroundf(m_walkingSpeed) << arg;
+    sendOneArgCommand(Command::VX, arg);
+    emit walkingSpeedChanged(m_walkingSpeed);
 }

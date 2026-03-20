@@ -19,5 +19,6 @@ The linker arguments are enormous, so linking takes a couple of minutes.
 
 After running colcon once, it's ok to run make in the build dir.
 
-For the moment it's a paralyzed dog that thinks it's an invisible turtle.
+For now, it's a dog that can be partially remote-controlled via the game
+controller, and plays an invisible turtle on ~~TV~~ the network.
 

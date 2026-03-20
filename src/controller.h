@@ -11,6 +11,7 @@ class Controller : public QObject
 	Q_OBJECT
     Q_PROPERTY(int batteryPercent READ batteryPercent NOTIFY batteryPercentChanged FINAL)
     Q_PROPERTY(bool motorsEngaged READ motorsEngaged WRITE setMotorsEngaged NOTIFY motorsEngagedChanged FINAL)
+    Q_PROPERTY(qreal walkingSpeed READ walkingSpeed WRITE setWalkingSpeed NOTIFY walkingSpeedChanged FINAL)
 
 public:
 	Controller(const QString &serialPort, qint32 baudRate, QObject * parent = nullptr);
@@ -50,23 +51,28 @@ public:
 
     int batteryPercent() const { return m_batteryPercent; }
     bool motorsEngaged() const { return m_motorsEngaged; }
+    qreal walkingSpeed() const { return m_walkingSpeed; }
 
 public slots:
     void setMotorsEngaged(bool v);
+    void setWalkingSpeed(qreal newWalkingSpeed);
 
 signals:
     void batteryPercentChanged(int pct);
     void motorsEngagedChanged(bool e);
+    void walkingSpeedChanged(qreal speed);
 
 private slots:
 	void onError(QSerialPort::SerialPortError err);
     uint8_t checksum(const QByteArray &buf);
     void sendThunkCommand(Command cmd);
+    void sendOneArgCommand(Command cmd, int8_t arg);
 	void readAndHandle();
     void pollBattery();
 
 private:
 	QSerialPort m_port;
+    qreal m_walkingSpeed = 0;
     uint8_t m_batteryPercent = 0;
     bool m_motorsEngaged = true; // it starts up in standing position
 
