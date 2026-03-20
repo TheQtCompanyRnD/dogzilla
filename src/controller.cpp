@@ -3,36 +3,104 @@
 #include "controller.h"
 #include <QDebug>
 
+QByteArray Controller::m_commands[] {
+    {}, // None
+    // mode, addr, read_len
+    QByteArrayLiteral("\x02\x01\x01"), // GetBatteryLevel; expect to read 1 byte
+    QByteArrayLiteral("\x03\x00"), // Perform
+    QByteArrayLiteral("\x04\x00"), // Calibrate
+    QByteArrayLiteral("\x05\x00"), // Upgrade
+    QByteArrayLiteral("\x06\x01"), // MoveTest
+    QByteArrayLiteral("\x07"), // GetFirmwareVersion
+    QByteArrayLiteral("\x09\x00"), // GaitType
+    QByteArrayLiteral("\x13\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"), // BTName
+    QByteArrayLiteral("\x20\x00"), // UnloadMotor
+    QByteArrayLiteral("\x20\x00"), // LoadMotor
+    QByteArrayLiteral("\x30\x80"), // VX
+    QByteArrayLiteral("\x31\x80"), // VY
+    QByteArrayLiteral("\x32\x80"), // VYaw
+    QByteArrayLiteral("\x33\x00\x00\x00"), // Translation
+    QByteArrayLiteral("\x36\x00\x00\x00"), // Attitude
+    QByteArrayLiteral("\x39\x00\x00\x00"), // PeriodicRotation
+    QByteArrayLiteral("\x3c\x00"), // MarkTime
+    QByteArrayLiteral("\x3d\x00"), // MoveMode
+    QByteArrayLiteral("\x3e\x00"), // Action
+    QByteArrayLiteral("\x80\x00\x00\x00"), // PeriodicTranslate
+    QByteArrayLiteral("\x50\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80"), // MotorAngle
+    QByteArrayLiteral("\x5c\x01"), // MotorSpeed
+    QByteArrayLiteral("\x40\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"), // LegPos
+    QByteArrayLiteral("\x61\x00"), // GetIMU
+    QByteArrayLiteral("\x62\x00"), // Roll
+    QByteArrayLiteral("\x63\x00"), // Pitch
+    QByteArrayLiteral("\x64\x00"), // Yaw
+};
+
 Controller::Controller(const QString &serialPort, qint32 baudRate, QObject * parent)
   : QObject(parent), m_port(serialPort, this)
 {
-	m_port.setBaudRate(baudRate);
-	connect(&m_port, &QSerialPort::errorOccurred, this, &Controller::onError);
-	connect(&m_port, &QIODevice::readyRead, this, &Controller::readAndHandle);
-	// connect(this, &QSerialPort::dataTerminalReadyChanged, this, &Controller::emitReadySend);
-	const bool success = m_port.open(QIODevice::ReadWrite);
-	qDebug() << m_port.portName() << m_port.baudRate() << "opened successfully?" << success;
-	poll();
+    m_port.setBaudRate(baudRate);
+    connect(&m_port, &QSerialPort::errorOccurred, this, &Controller::onError);
+    connect(&m_port, &QIODevice::readyRead, this, &Controller::readAndHandle);
+    // connect(this, &QSerialPort::dataTerminalReadyChanged, this, &Controller::emitReadySend);
+    const bool success = m_port.open(QIODevice::ReadWrite);
+    qDebug() << m_port.portName() << m_port.baudRate() << "opened successfully?" << success;
+    pollBattery(); // TODO periodically when otherwise idle
 }
 
 Controller::~Controller() {}
 
 void Controller::onError(QSerialPort::SerialPortError err)
 {
-	qDebug() << err;
+    qDebug() << err;
 }
 
-void Controller::poll()
+uint8_t Controller::checksum(const QByteArray &buf)
 {
-	QByteArray cmd = QByteArrayLiteral("\x55\x00\x09\x02\x50\x0C\x98\x00\xAA");
-	qDebug() << "wrote" << m_port.write(cmd);
+    uint8_t sum = buf.size() + 6;
+    for (const auto byte : buf)
+        sum += uint8_t(byte);
+    return uint8_t(255) - sum;
+}
+
+void Controller::sendThunkCommand(Command cmd)
+{
+    QByteArray buf(m_commands[int(cmd)]);
+    QByteArray header = QByteArrayLiteral("\x55\x00\x00");
+    header[2] = buf.size() + 6;
+    QByteArray footer = QByteArrayLiteral("\x00\x00\xaa");
+    footer[0] = checksum(buf);
+    buf.prepend(header);
+    buf.append(footer);
+    qDebug() << "wrote" << m_port.write(buf) << "bytes:" << m_commands[int(cmd)].toHex() << buf.toHex();
+}
+
+void Controller::pollBattery()
+{
+    // should be (from python) [0x55 0x0 0x9  0x2 0x1 0x1 0xf2 0x0 0xaa]
+    sendThunkCommand(Command::GetBatteryLevel);
 }
 
 void Controller::readAndHandle()
 {
-	QByteArray buf = m_port.readAll();
-	qDebug() << buf.toHex();
-	// e.g. "5500171250a1af829eae83a4c282a5c38200ff001400aa"
-	// 55 00 17 are header and length; 14 00 aa are checksum and footer
-	// meaning: command 0x12 and its data 50 a1 af 82 9e ae 83 a4 c2 82 a5 c3 82 00 ff 00
+    QByteArray buf = m_port.readAll();
+    // e.g. for battery level: 550009 12 01 18 cb 00aa"
+    // 55 00 09 are header and length; cb 00 aa are checksum and footer
+    // meaning: response 0x12 from addr 0x01: its data is 0x18, i.e. 24% battery
+    uint8_t len = buf.at(2);
+    uint8_t expectedChecksum = checksum(buf.sliced(3, buf.size() - 6));
+    if (expectedChecksum != uint8_t(buf.at(buf.size() - 3))) {
+        qWarning() << "ignoring message with bad checksum: expected" << Qt::hex << expectedChecksum << buf.toHex();
+        return;
+    }
+    qDebug() << buf.toHex() << "len" << len << "exchk" << Qt::hex << expectedChecksum;
+    if (buf.at(3) == 0x12) {
+	    const uint8_t addr = buf.at(4);
+		switch(addr) {
+			case 0x01:
+                m_batteryPercent = buf.at(5);
+                qDebug() << "batt" << m_batteryPercent << "pct";
+                emit batteryPercentChanged(m_batteryPercent);
+				break;
+		}
+    }
 }
