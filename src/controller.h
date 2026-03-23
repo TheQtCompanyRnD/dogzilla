@@ -11,7 +11,9 @@ class Controller : public QObject
 	Q_OBJECT
     Q_PROPERTY(int batteryPercent READ batteryPercent NOTIFY batteryPercentChanged FINAL)
     Q_PROPERTY(bool motorsEngaged READ motorsEngaged WRITE setMotorsEngaged NOTIFY motorsEngagedChanged FINAL)
-    Q_PROPERTY(qreal walkingSpeed READ walkingSpeed WRITE setWalkingSpeed NOTIFY walkingSpeedChanged FINAL)
+    Q_PROPERTY(qreal walkSpeed READ walkSpeed WRITE setWalkSpeed NOTIFY walkSpeedChanged FINAL)
+    Q_PROPERTY(qreal steerAngle READ steerAngle WRITE setSteerAngle NOTIFY steerAngleChanged FINAL)
+    Q_PROPERTY(qreal sideStepSpeed READ sideStepSpeed WRITE setSideStepSpeed NOTIFY sideStepSpeedChanged FINAL)
 
 public:
 	Controller(const QString &serialPort, qint32 baudRate, QObject * parent = nullptr);
@@ -29,9 +31,9 @@ public:
         BTName,
         LoadMotor,
         UnloadMotor,
-        VX,
-        VY,
-        VYaw,
+        VelX,
+        VelY,
+        VelYaw,
         Translation,
         Attitude,
         PeriodicRotation,
@@ -51,16 +53,23 @@ public:
 
     int batteryPercent() const { return m_batteryPercent; }
     bool motorsEngaged() const { return m_motorsEngaged; }
-    qreal walkingSpeed() const { return m_walkingSpeed; }
+    qreal walkSpeed() const { return m_walkSpeed; }
+    qreal steerAngle() const { return m_steerAngle; }
+    qreal sideStepSpeed() const { return m_sideStepSpeed; }
 
 public slots:
     void setMotorsEngaged(bool v);
-    void setWalkingSpeed(qreal newWalkingSpeed);
+    void stop();
+    void setWalkSpeed(qreal v);
+    void setSteerAngle(qreal v);
+    void setSideStepSpeed(qreal v);
 
 signals:
     void batteryPercentChanged(int pct);
-    void motorsEngagedChanged(bool e);
-    void walkingSpeedChanged(qreal speed);
+    void motorsEngagedChanged(bool engaged);
+    void walkSpeedChanged(qreal speed);
+    void steerAngleChanged(qreal angle);
+    void sideStepSpeedChanged(qreal angle);
 
 private slots:
 	void onError(QSerialPort::SerialPortError err);
@@ -72,7 +81,9 @@ private slots:
 
 private:
 	QSerialPort m_port;
-    qreal m_walkingSpeed = 0;
+    qreal m_walkSpeed = 0;
+    qreal m_steerAngle;
+    qreal m_sideStepSpeed = 0;
     uint8_t m_batteryPercent = 0;
     bool m_motorsEngaged = true; // it starts up in standing position
 

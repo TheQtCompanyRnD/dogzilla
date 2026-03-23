@@ -17,9 +17,9 @@ QByteArray Controller::m_commands[] {
     QByteArrayLiteral("\x13\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"), // BTName
     QByteArrayLiteral("\x01\x20\x00"), // LoadMotor:   0 means all; otherwise use 0x20 + leg ID
     QByteArrayLiteral("\x01\x20\x01"), // UnloadMotor: 1 means all; otherwise use 0x10 + leg ID
-    QByteArrayLiteral("\x01\x30\x80"), // VX
-    QByteArrayLiteral("\x31\x80"), // VY
-    QByteArrayLiteral("\x32\x80"), // VYaw
+    QByteArrayLiteral("\x01\x30\x80"), // VelX
+    QByteArrayLiteral("\x01\x31\x80"), // VelY
+    QByteArrayLiteral("\x01\x32\x80"), // VYaw
     QByteArrayLiteral("\x33\x00\x00\x00"), // Translation
     QByteArrayLiteral("\x36\x00\x00\x00"), // Attitude
     QByteArrayLiteral("\x39\x00\x00\x00"), // PeriodicRotation
@@ -128,23 +128,58 @@ void Controller::setMotorsEngaged(bool v)
         return;
 
     // TODO crouch down before disengaging
+    if (!v)
+        stop();
 qDebug() << m_motorsEngaged << "->" << v;
     sendThunkCommand(v ? Command::LoadMotor : Command::UnloadMotor);
     m_motorsEngaged = v;
     emit motorsEngagedChanged(v);
 }
 
+void Controller::stop()
+{
+    qDebug() << "STOP ALL";
+    sendOneArgCommand(Command::VelX, 0x80);
+    sendOneArgCommand(Command::VelY, 0x80);
+    // TODO mark_time(0), turn(0)
+}
+
 // from python: speed 10 [0x55 0x0 0x9 0x1 0x30 0xb3 0x12 0x0 0xaa]
 //                  stop [0x55 0x0 0x9 0x1 0x30 0x80 0x45 0x0 0xaa]
-void Controller::setWalkingSpeed(qreal speed)
+void Controller::setWalkSpeed(qreal v)
 {
-    if (qFuzzyCompare(m_walkingSpeed, speed))
+    if (qFuzzyCompare(m_walkSpeed, v))
         return;
 
     setMotorsEngaged(true);
-    m_walkingSpeed = speed;
-    uint8_t arg = 0x80 + lroundf(m_walkingSpeed);
-    qDebug() << "move_x" << m_walkingSpeed << lroundf(m_walkingSpeed) << arg;
-    sendOneArgCommand(Command::VX, arg);
-    emit walkingSpeedChanged(m_walkingSpeed);
+    m_walkSpeed = v;
+    uint8_t arg = 0x80 + lroundf(m_walkSpeed);
+    qDebug() << "move_x" << m_walkSpeed << lroundf(m_walkSpeed) << arg;
+    sendOneArgCommand(Command::VelX, arg);
+    emit walkSpeedChanged(m_walkSpeed);
+}
+
+void Controller::setSteerAngle(qreal v)
+{
+    if (qFuzzyCompare(m_steerAngle, v))
+        return;
+
+    m_steerAngle = v;
+    // TODO is v in degrees? convert it properly to what the controller firmware expects
+    uint8_t arg = 0x80 + lroundf(v);
+    qDebug() << "steer" << m_steerAngle << lroundf(v) << arg;
+    sendOneArgCommand(Command::VelYaw, arg);
+    emit steerAngleChanged(v);
+}
+
+void Controller::setSideStepSpeed(qreal v)
+{
+    if (qFuzzyCompare(m_steerAngle, v))
+        return;
+
+    m_sideStepSpeed = v;
+    uint8_t arg = 0x80 + lroundf(v);
+    qDebug() << "move_y" << m_sideStepSpeed << lroundf(v) << arg;
+    sendOneArgCommand(Command::VelY, arg);
+    emit sideStepSpeedChanged(v);
 }
