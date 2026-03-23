@@ -31,13 +31,12 @@
 
 #include <rclcpp/rclcpp.hpp>
 
-namespace turtlesim
-{
+namespace turtlesim {
 // Return the QoS used for all publishers/subscriptions.
 inline rclcpp::QoS topic_qos()
 {
-  return rclcpp::QoS(rclcpp::KeepLast(7)).reliable();
+    return rclcpp::QoS(rclcpp::KeepLast(7)).reliable();
 }
-}  // namespace turtlesim
+} // namespace turtlesim
 
-#endif  // TURTLESIM__QOS_HPP_
+#endif // TURTLESIM__QOS_HPP_

@@ -20,13 +20,13 @@ public:
 	~Controller();
 
 	enum class Command {
-		None,
-		GetBatteryLevel,
-		Perform,
-   		Calibrate,
-     	Upgrade,
-      	MoveTest,
-       	GetFirmwareVersion,
+        None,
+        GetBatteryLevel,
+        Perform,
+        Calibrate,
+        Upgrade,
+        MoveTest,
+        GetFirmwareVersion,
         GaitType,
         BTName,
         LoadMotor,

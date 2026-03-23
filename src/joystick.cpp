@@ -22,24 +22,24 @@ JoystickHandler::JoystickHandler(Controller *controller, QObject * parent)
 			this, &JoystickHandler::onAxisEvent);
 }
 
-JoystickHandler::~JoystickHandler() {}
+JoystickHandler::~JoystickHandler() { }
 
 void JoystickHandler::onConnectionChanged(int joyId, bool connected)
 {
-	qDebug() << "joy" << joyId << "connected:" << connected;
+    qDebug() << "joy" << joyId << "connected:" << connected;
 }
 
 void JoystickHandler::onButtonEvent(int device, JoyButton button, bool pressed)
 {
-	qDebug() << "Device: " << device << "button: " << int(button) << ( pressed ? "pressed" : "released");
-	// Nintendo-pad: up 0 down 12 left 13 right 14
-	// upper shoulders: 9 left 10 right
+    qDebug() << "Device: " << device << "button: " << int(button) << (pressed ? "pressed" : "released");
+    // Nintendo-pad: up 0 down 12 left 13 right 14
+    // upper shoulders: 9 left 10 right
     // select 4 start 6 mode 5
     // x 2 y 3 a 0 b 1
 
     if (pressed) {
         switch (button) {
-        case JoyButton::Back:   //labeled Select on the actual controller
+        case JoyButton::Back: // labeled Select on the actual controller
             m_controller->stop();
             break;
         case JoyButton::Start:
@@ -51,25 +51,22 @@ void JoystickHandler::onButtonEvent(int device, JoyButton button, bool pressed)
 
 void JoystickHandler::onAxisEvent(int device, JoyAxis axis, float value)
 {
-	qDebug() << "Device: " << device << "axis: " << int(axis) << "value: " << value;
-	// left: axis 0 horizontal, left negative right positive
-	//       axis 1 vertical, up negative down positive
+    qDebug() << "Device: " << device << "axis: " << int(axis) << "value: " << value;
+    // left: axis 0 horizontal, left negative right positive
+    //       axis 1 vertical, up negative down positive
     // right: axis 2 horizontal, left 0 middle 0.5 right 0
     //       axis 4 vertical, up negative down positive
     // lower shoulder left: axis 3
-	// lower shoulder right: axis 5
-	switch (axis) {
+    // lower shoulder right: axis 5
+    switch (axis) {
     case JoyAxis::LeftX:
-        qDebug() << "sidestep";
         m_controller->setSideStepSpeed(value * -50.0f);
         break;
     case JoyAxis::RightX:
-        qDebug() << "walk";
         m_controller->setWalkSpeed(value * -50.0f);
         break;
     case JoyAxis::TriggerLeft: // bug workaround: should be RightY
-        qDebug() << "turn" << value;
-        m_controller->setSteerAngle((value - 0.5) * 90.0f);
+        m_controller->setSteerAngle((value - 0.5) * -90.0f);
         break;
-	}
+    }
 }

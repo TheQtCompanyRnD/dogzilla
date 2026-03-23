@@ -4,7 +4,7 @@
 #include <QDebug>
 
 QByteArray Controller::m_commands[] {
-    {}, // None
+    { }, // None
     // mode, addr, read_len
     // mode 1: send (command); mode 2: read (value)
     QByteArrayLiteral("\x02\x01\x01"), // GetBatteryLevel; expect to read 1 byte
@@ -49,7 +49,7 @@ Controller::Controller(const QString &serialPort, qint32 baudRate, QObject * par
     // setMotorsEngaged(false); // TODO after being idle for some minutes
 }
 
-Controller::~Controller() {}
+Controller::~Controller() { }
 
 void Controller::onError(QSerialPort::SerialPortError err)
 {
@@ -109,14 +109,14 @@ void Controller::readAndHandle()
     }
     qDebug() << buf.toHex() << "len" << len << "exchk" << Qt::hex << expectedChecksum;
     if (buf.at(3) == 0x12) {
-	    const uint8_t addr = buf.at(4);
-		switch(addr) {
-			case 0x01:
-                m_batteryPercent = buf.at(5);
-                qDebug() << "batt" << m_batteryPercent << "pct";
-                emit batteryPercentChanged(m_batteryPercent);
-				break;
-		}
+        const uint8_t addr = buf.at(4);
+        switch (addr) {
+        case 0x01:
+            m_batteryPercent = buf.at(5);
+            qDebug() << "batt" << m_batteryPercent << "pct";
+            emit batteryPercentChanged(m_batteryPercent);
+            break;
+        }
     }
 }
 
@@ -130,7 +130,7 @@ void Controller::setMotorsEngaged(bool v)
     // TODO crouch down before disengaging
     if (!v)
         stop();
-qDebug() << m_motorsEngaged << "->" << v;
+    qDebug() << m_motorsEngaged << "->" << v;
     sendThunkCommand(v ? Command::LoadMotor : Command::UnloadMotor);
     m_motorsEngaged = v;
     emit motorsEngagedChanged(v);

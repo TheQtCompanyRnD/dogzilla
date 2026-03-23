@@ -29,8 +29,8 @@
 #ifndef TURTLESIM__TURTLE_FRAME_HPP_
 #define TURTLESIM__TURTLE_FRAME_HPP_
 
-#ifndef Q_MOC_RUN  // See: https://bugreports.qt-project.org/browse/QTBUG-22829
-#include "turtle.hpp"  // NO LINT
+#ifndef Q_MOC_RUN // See: https://bugreports.qt-project.org/browse/QTBUG-22829
+#include "turtle.hpp" // NO LINT
 #endif
 
 #include <QImage>
@@ -39,7 +39,7 @@
 #include <QVector>
 
 // This prevents a MOC error with versions of boost >= 1.48
-#ifndef Q_MOC_RUN  // See: https://bugreports.qt-project.org/browse/QTBUG-22829
+#ifndef Q_MOC_RUN // See: https://bugreports.qt-project.org/browse/QTBUG-22829
 #include <map>
 #include <string>
 #include <rclcpp/rclcpp.hpp>
@@ -51,66 +51,56 @@
 #include <turtlesim_msgs/srv/kill.hpp>
 #endif
 
-namespace turtlesim
-{
+namespace turtlesim {
 class TurtleFrame : public QObject
 {
-  Q_OBJECT
+    Q_OBJECT
 
 public:
-  TurtleFrame(
-    rclcpp::Node::SharedPtr & node_handle, QObject * parent = nullptr);
-  ~TurtleFrame();
+    TurtleFrame(rclcpp::Node::SharedPtr &node_handle, QObject *parent = nullptr);
+    ~TurtleFrame();
 
-  std::string spawnTurtle(const std::string & name, float x, float y, float angle);
-  std::string spawnTurtle(const std::string & name, float x, float y, float angle, size_t index);
+    std::string spawnTurtle(const std::string &name, float x, float y, float angle);
+    std::string spawnTurtle(const std::string &name, float x, float y, float angle, size_t index);
 
 private slots:
-  void onUpdate();
+    void onUpdate();
 
 private:
-  void updateTurtles();
-  void clear();
-  bool hasTurtle(const std::string & name);
+    void updateTurtles();
+    void clear();
+    bool hasTurtle(const std::string &name);
 
-  bool clearCallback(
-    const std_srvs::srv::Empty::Request::SharedPtr,
-    std_srvs::srv::Empty::Response::SharedPtr);
-  bool resetCallback(
-    const std_srvs::srv::Empty::Request::SharedPtr,
-    std_srvs::srv::Empty::Response::SharedPtr);
-  bool spawnCallback(
-    const turtlesim_msgs::srv::Spawn::Request::SharedPtr,
-    turtlesim_msgs::srv::Spawn::Response::SharedPtr);
-  bool killCallback(
-    const turtlesim_msgs::srv::Kill::Request::SharedPtr,
-    turtlesim_msgs::srv::Kill::Response::SharedPtr);
+    bool clearCallback(const std_srvs::srv::Empty::Request::SharedPtr, std_srvs::srv::Empty::Response::SharedPtr);
+    bool resetCallback(const std_srvs::srv::Empty::Request::SharedPtr, std_srvs::srv::Empty::Response::SharedPtr);
+    bool spawnCallback(const turtlesim_msgs::srv::Spawn::Request::SharedPtr, turtlesim_msgs::srv::Spawn::Response::SharedPtr);
+    bool killCallback(const turtlesim_msgs::srv::Kill::Request::SharedPtr, turtlesim_msgs::srv::Kill::Response::SharedPtr);
 
-  void parameterEventCallback(const rcl_interfaces::msg::ParameterEvent::ConstSharedPtr);
+    void parameterEventCallback(const rcl_interfaces::msg::ParameterEvent::ConstSharedPtr);
 
-  rclcpp::Node::SharedPtr nh_;
+    rclcpp::Node::SharedPtr nh_;
 
-  QTimer * update_timer_;
-  QImage path_image_;
-  QPainter path_painter_;
+    QTimer *update_timer_;
+    QImage path_image_;
+    QPainter path_painter_;
 
-  uint64_t frame_count_;
+    uint64_t frame_count_;
 
-  rclcpp::Time last_turtle_update_;
+    rclcpp::Time last_turtle_update_;
 
-  rclcpp::Service<std_srvs::srv::Empty>::SharedPtr clear_srv_;
-  rclcpp::Service<std_srvs::srv::Empty>::SharedPtr reset_srv_;
-  rclcpp::Service<turtlesim_msgs::srv::Spawn>::SharedPtr spawn_srv_;
-  rclcpp::Service<turtlesim_msgs::srv::Kill>::SharedPtr kill_srv_;
-  rclcpp::Subscription<rcl_interfaces::msg::ParameterEvent>::SharedPtr parameter_event_sub_;
+    rclcpp::Service<std_srvs::srv::Empty>::SharedPtr clear_srv_;
+    rclcpp::Service<std_srvs::srv::Empty>::SharedPtr reset_srv_;
+    rclcpp::Service<turtlesim_msgs::srv::Spawn>::SharedPtr spawn_srv_;
+    rclcpp::Service<turtlesim_msgs::srv::Kill>::SharedPtr kill_srv_;
+    rclcpp::Subscription<rcl_interfaces::msg::ParameterEvent>::SharedPtr parameter_event_sub_;
 
-  typedef std::map<std::string, TurtlePtr> M_Turtle;
-  M_Turtle turtles_;
-  uint32_t id_counter_;
+    typedef std::map<std::string, TurtlePtr> M_Turtle;
+    M_Turtle turtles_;
+    uint32_t id_counter_;
 
-  float meter_;
-  float width_in_meters_;
-  float height_in_meters_;
+    float meter_;
+    float width_in_meters_;
+    float height_in_meters_;
 };
-}  // namespace turtlesim
-#endif  // TURTLESIM__TURTLE_FRAME_HPP_
+} // namespace turtlesim
+#endif // TURTLESIM__TURTLE_FRAME_HPP_

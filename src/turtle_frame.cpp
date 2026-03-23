@@ -50,8 +50,7 @@
 #define DEFAULT_BG_G 0x56
 #define DEFAULT_BG_B 0xff
 
-namespace turtlesim
-{
+namespace turtlesim {
 
 TurtleFrame::TurtleFrame(rclcpp::Node::SharedPtr & node_handle, QObject * parent)
 : QObject(parent)
@@ -60,246 +59,235 @@ TurtleFrame::TurtleFrame(rclcpp::Node::SharedPtr & node_handle, QObject * parent
   , frame_count_(0)
   , id_counter_(0)
 {
-  srand(time(NULL));
+    srand(time(NULL));
 
-  update_timer_ = new QTimer(this);
-  update_timer_->setInterval(16);
-  update_timer_->start();
+    update_timer_ = new QTimer(this);
+    update_timer_->setInterval(16);
+    update_timer_->start();
 
-  connect(update_timer_, SIGNAL(timeout()), this, SLOT(onUpdate()));
+    connect(update_timer_, SIGNAL(timeout()), this, SLOT(onUpdate()));
 
-  nh_ = node_handle;
-  rcl_interfaces::msg::IntegerRange range;
-  range.from_value = 0;
-  range.step = 1;
-  range.to_value = 255;
-  rcl_interfaces::msg::ParameterDescriptor background_r_descriptor;
-  background_r_descriptor.description = "Red channel of the background color";
-  background_r_descriptor.integer_range.push_back(range);
-  rcl_interfaces::msg::ParameterDescriptor background_g_descriptor;
-  background_g_descriptor.description = "Green channel of the background color";
-  background_g_descriptor.integer_range.push_back(range);
-  rcl_interfaces::msg::ParameterDescriptor background_b_descriptor;
-  background_b_descriptor.description = "Blue channel of the background color";
-  background_b_descriptor.integer_range.push_back(range);
-  nh_->declare_parameter(
-    "background_r", rclcpp::ParameterValue(
-      DEFAULT_BG_R), background_r_descriptor);
-  nh_->declare_parameter(
-    "background_g", rclcpp::ParameterValue(
-      DEFAULT_BG_G), background_g_descriptor);
-  nh_->declare_parameter(
-    "background_b", rclcpp::ParameterValue(
-      DEFAULT_BG_B), background_b_descriptor);
+    nh_ = node_handle;
+    rcl_interfaces::msg::IntegerRange range;
+    range.from_value = 0;
+    range.step = 1;
+    range.to_value = 255;
+    rcl_interfaces::msg::ParameterDescriptor background_r_descriptor;
+    background_r_descriptor.description = "Red channel of the background color";
+    background_r_descriptor.integer_range.push_back(range);
+    rcl_interfaces::msg::ParameterDescriptor background_g_descriptor;
+    background_g_descriptor.description = "Green channel of the background color";
+    background_g_descriptor.integer_range.push_back(range);
+    rcl_interfaces::msg::ParameterDescriptor background_b_descriptor;
+    background_b_descriptor.description = "Blue channel of the background color";
+    background_b_descriptor.integer_range.push_back(range);
+    nh_->declare_parameter("background_r", rclcpp::ParameterValue(DEFAULT_BG_R), background_r_descriptor);
+    nh_->declare_parameter("background_g", rclcpp::ParameterValue(DEFAULT_BG_G), background_g_descriptor);
+    nh_->declare_parameter("background_b", rclcpp::ParameterValue(DEFAULT_BG_B), background_b_descriptor);
 
-  rcl_interfaces::msg::ParameterDescriptor holonomic_descriptor;
-  holonomic_descriptor.description = "If true, then turtles will be holonomic";
-  nh_->declare_parameter("holonomic", rclcpp::ParameterValue(false), holonomic_descriptor);
+    rcl_interfaces::msg::ParameterDescriptor holonomic_descriptor;
+    holonomic_descriptor.description = "If true, then turtles will be holonomic";
+    nh_->declare_parameter("holonomic", rclcpp::ParameterValue(false), holonomic_descriptor);
 
-  QVector<QString> turtles;
-  turtles.append("ardent.png");
-  turtles.append("bouncy.png");
-  turtles.append("crystal.png");
-  turtles.append("dashing.png");
-  turtles.append("eloquent.png");
-  turtles.append("foxy.png");
-  turtles.append("galactic.png");
-  turtles.append("humble.png");
-  turtles.append("iron.png");
-  turtles.append("jazzy.png");
-  turtles.append("kilted.png");
-  turtles.append("rolling.png");
+    QVector<QString> turtles;
+    turtles.append("ardent.png");
+    turtles.append("bouncy.png");
+    turtles.append("crystal.png");
+    turtles.append("dashing.png");
+    turtles.append("eloquent.png");
+    turtles.append("foxy.png");
+    turtles.append("galactic.png");
+    turtles.append("humble.png");
+    turtles.append("iron.png");
+    turtles.append("jazzy.png");
+    turtles.append("kilted.png");
+    turtles.append("rolling.png");
 
-  meter_ = 0.1;
+    meter_ = 0.1;
 
-  clear();
+    clear();
 
-  clear_srv_ =
-    nh_->create_service<std_srvs::srv::Empty>(
-    "clear",
-    std::bind(&TurtleFrame::clearCallback, this, std::placeholders::_1, std::placeholders::_2));
-  reset_srv_ =
-    nh_->create_service<std_srvs::srv::Empty>(
-    "reset",
-    std::bind(&TurtleFrame::resetCallback, this, std::placeholders::_1, std::placeholders::_2));
-  spawn_srv_ =
-    nh_->create_service<turtlesim_msgs::srv::Spawn>(
-    "spawn",
-    std::bind(&TurtleFrame::spawnCallback, this, std::placeholders::_1, std::placeholders::_2));
-  kill_srv_ =
-    nh_->create_service<turtlesim_msgs::srv::Kill>(
-    "kill",
-    std::bind(&TurtleFrame::killCallback, this, std::placeholders::_1, std::placeholders::_2));
+    clear_srv_ = nh_->create_service<std_srvs::srv::Empty>("clear",
+                                                           std::bind(&TurtleFrame::clearCallback,
+                                                                     this,
+                                                                     std::placeholders::_1,
+                                                                     std::placeholders::_2));
+    reset_srv_ = nh_->create_service<std_srvs::srv::Empty>("reset",
+                                                           std::bind(&TurtleFrame::resetCallback,
+                                                                     this,
+                                                                     std::placeholders::_1,
+                                                                     std::placeholders::_2));
+    spawn_srv_ = nh_->create_service<turtlesim_msgs::srv::Spawn>("spawn",
+                                                                 std::bind(&TurtleFrame::spawnCallback,
+                                                                           this,
+                                                                           std::placeholders::_1,
+                                                                           std::placeholders::_2));
+    kill_srv_ = nh_->create_service<turtlesim_msgs::srv::Kill>("kill",
+                                                               std::bind(&TurtleFrame::killCallback,
+                                                                         this,
+                                                                         std::placeholders::_1,
+                                                                         std::placeholders::_2));
 
-  rclcpp::QoS qos(rclcpp::KeepLast(100), rmw_qos_profile_sensor_data);
-  parameter_event_sub_ = nh_->create_subscription<rcl_interfaces::msg::ParameterEvent>(
-    "/parameter_events", qos,
-    std::bind(&TurtleFrame::parameterEventCallback, this, std::placeholders::_1));
+    rclcpp::QoS qos(rclcpp::KeepLast(100), rmw_qos_profile_sensor_data);
+    parameter_event_sub_ = nh_->create_subscription<rcl_interfaces::msg::ParameterEvent>("/parameter_events",
+                                                                                         qos,
+                                                                                         std::bind(&TurtleFrame::parameterEventCallback,
+                                                                                                   this,
+                                                                                                   std::placeholders::_1));
 
-  RCLCPP_INFO(
-    nh_->get_logger(), "Starting turtlesim with node name %s", nh_->get_fully_qualified_name());
+    RCLCPP_INFO(nh_->get_logger(), "Starting turtlesim with node name %s", nh_->get_fully_qualified_name());
 
-  width_in_meters_ = 1;
-  height_in_meters_ = 1;
-  spawnTurtle("", width_in_meters_ / 2.0, height_in_meters_ / 2.0, 0);
+    width_in_meters_ = 1;
+    height_in_meters_ = 1;
+    spawnTurtle("", width_in_meters_ / 2.0, height_in_meters_ / 2.0, 0);
 
-  // spawn all available turtle types
-  if (false) {
-    for (int index = 0; index < turtles.size(); ++index) {
-      QString name = turtles[index];
-      name = name.split(".").first();
-      name.replace(QString("-"), QString(""));
-      spawnTurtle(
-        name.toStdString(), 1.0f + 1.5f * (index % 7), 1.0f + 1.5f * (index / 7),
-        static_cast<float>(PI) / 2.0f, index);
+    // spawn all available turtle types
+    if (false) {
+        for (int index = 0; index < turtles.size(); ++index) {
+            QString name = turtles[index];
+            name = name.split(".").first();
+            name.replace(QString("-"), QString(""));
+            spawnTurtle(name.toStdString(), 1.0f + 1.5f * (index % 7), 1.0f + 1.5f * (index / 7), static_cast<float>(PI) / 2.0f, index);
+        }
     }
-  }
 }
 
 TurtleFrame::~TurtleFrame()
 {
-  delete update_timer_;
+    delete update_timer_;
 }
 
 bool TurtleFrame::spawnCallback(
   const turtlesim_msgs::srv::Spawn::Request::SharedPtr req,
   turtlesim_msgs::srv::Spawn::Response::SharedPtr res)
 {
-  std::string name = spawnTurtle(req->name, req->x, req->y, req->theta);
-  if (name.empty()) {
-    RCLCPP_ERROR(nh_->get_logger(), "A turtle named [%s] already exists", req->name.c_str());
-    return false;
-  }
+    std::string name = spawnTurtle(req->name, req->x, req->y, req->theta);
+    if (name.empty()) {
+        RCLCPP_ERROR(nh_->get_logger(), "A turtle named [%s] already exists", req->name.c_str());
+        return false;
+    }
 
-  res->name = name;
+    res->name = name;
 
-  return true;
+    return true;
 }
 
 bool TurtleFrame::killCallback(
   const turtlesim_msgs::srv::Kill::Request::SharedPtr req,
   turtlesim_msgs::srv::Kill::Response::SharedPtr)
 {
-  M_Turtle::iterator it = turtles_.find(req->name);
-  if (it == turtles_.end()) {
-    RCLCPP_ERROR(
-      nh_->get_logger(), "Tried to kill turtle [%s], which does not exist", req->name.c_str());
-    return false;
-  }
+    M_Turtle::iterator it = turtles_.find(req->name);
+    if (it == turtles_.end()) {
+        RCLCPP_ERROR(nh_->get_logger(), "Tried to kill turtle [%s], which does not exist", req->name.c_str());
+        return false;
+    }
 
-  turtles_.erase(it);
+    turtles_.erase(it);
 
-  return true;
+    return true;
 }
 
 void TurtleFrame::parameterEventCallback(
   const rcl_interfaces::msg::ParameterEvent::ConstSharedPtr event)
 {
-  // only consider events from this node
-  if (event->node == nh_->get_fully_qualified_name()) {
-    // since parameter events for this event aren't expected frequently just always call update()
-    qDebug() << "FQN match: should update";
-  }
+    // only consider events from this node
+    if (event->node == nh_->get_fully_qualified_name()) {
+        // since parameter events for this event aren't expected frequently just always call update()
+        qDebug() << "FQN match: should update";
+    }
 }
 
-bool TurtleFrame::hasTurtle(const std::string & name)
+bool TurtleFrame::hasTurtle(const std::string &name)
 {
-  return turtles_.find(name) != turtles_.end();
+    return turtles_.find(name) != turtles_.end();
 }
 
-std::string TurtleFrame::spawnTurtle(const std::string & name, float x, float y, float angle)
+std::string TurtleFrame::spawnTurtle(const std::string &name, float x, float y, float angle)
 {
-  return spawnTurtle(name, x, y, angle, rand());
+    return spawnTurtle(name, x, y, angle, rand());
 }
 
 std::string TurtleFrame::spawnTurtle(
   const std::string & name, float x, float y, float angle,
   size_t index)
 {
-  std::string real_name = name;
-  if (real_name.empty()) {
-    do{
-      std::stringstream ss;
-      ss << "turtle" << ++id_counter_;
-      real_name = ss.str();
-    } while (hasTurtle(real_name));
-  } else {
-    if (hasTurtle(real_name)) {
-      return "";
+    std::string real_name = name;
+    if (real_name.empty()) {
+        do {
+            std::stringstream ss;
+            ss << "turtle" << ++id_counter_;
+            real_name = ss.str();
+        } while (hasTurtle(real_name));
+    } else {
+        if (hasTurtle(real_name)) {
+            return "";
+        }
     }
-  }
 
-  TurtlePtr t = std::make_shared<Turtle>(
-    nh_, real_name, QPointF(
-      x,
-      height_in_meters_ - y), angle);
-  turtles_[real_name] = t;
+    TurtlePtr t = std::make_shared<Turtle>(nh_, real_name, QPointF(x, height_in_meters_ - y), angle);
+    turtles_[real_name] = t;
 
-  RCLCPP_INFO(
-    nh_->get_logger(), "Spawning a turtle [%s] at x=[%f], y=[%f], theta=[%f]",
-    real_name.c_str(), x, y, angle);
+    RCLCPP_INFO(nh_->get_logger(), "Spawning a turtle [%s] at x=[%f], y=[%f], theta=[%f]", real_name.c_str(), x, y, angle);
 
-  return real_name;
+    return real_name;
 }
 
 void TurtleFrame::clear()
 {
-  // make all pixels fully transparent
-  path_image_.fill(qRgba(255, 255, 255, 0));
+    // make all pixels fully transparent
+    path_image_.fill(qRgba(255, 255, 255, 0));
 }
 
 void TurtleFrame::onUpdate()
 {
-  if (!rclcpp::ok()) {
-  	QCoreApplication::exit(1);
-  }
+    if (!rclcpp::ok()) {
+        QCoreApplication::exit(1);
+    }
 
-  rclcpp::spin_some(nh_);
+    rclcpp::spin_some(nh_);
 
-  updateTurtles();
+    updateTurtles();
 }
 
 void TurtleFrame::updateTurtles()
 {
-  if (last_turtle_update_.nanoseconds() == 0) {
-    last_turtle_update_ = nh_->now();
-    return;
-  }
+    if (last_turtle_update_.nanoseconds() == 0) {
+        last_turtle_update_ = nh_->now();
+        return;
+    }
 
-  bool modified = false;
-  M_Turtle::iterator it = turtles_.begin();
-  M_Turtle::iterator end = turtles_.end();
-  for (; it != end; ++it) {
-    modified |= it->second->update(
-      0.001 * update_timer_->interval(), width_in_meters_, height_in_meters_);
-  }
-  if (modified) {
-  	qDebug() << "modified: update";
-  }
+    bool modified = false;
+    M_Turtle::iterator it = turtles_.begin();
+    M_Turtle::iterator end = turtles_.end();
+    for (; it != end; ++it) {
+        modified |= it->second->update(0.001 * update_timer_->interval(), width_in_meters_, height_in_meters_);
+    }
+    if (modified) {
+        qDebug() << "modified: update";
+    }
 
-  ++frame_count_;
+    ++frame_count_;
 }
-
 
 bool TurtleFrame::clearCallback(
   const std_srvs::srv::Empty::Request::SharedPtr,
   std_srvs::srv::Empty::Response::SharedPtr)
 {
-  RCLCPP_INFO(nh_->get_logger(), "Clearing turtlesim.");
-  clear();
-  return true;
+    RCLCPP_INFO(nh_->get_logger(), "Clearing turtlesim.");
+    clear();
+    return true;
 }
 
 bool TurtleFrame::resetCallback(
   const std_srvs::srv::Empty::Request::SharedPtr,
   std_srvs::srv::Empty::Response::SharedPtr)
 {
-  RCLCPP_INFO(nh_->get_logger(), "Resetting turtlesim.");
-  turtles_.clear();
-  id_counter_ = 0;
-  spawnTurtle("", width_in_meters_ / 2.0, height_in_meters_ / 2.0, 0);
-  clear();
-  return true;
+    RCLCPP_INFO(nh_->get_logger(), "Resetting turtlesim.");
+    turtles_.clear();
+    id_counter_ = 0;
+    spawnTurtle("", width_in_meters_ / 2.0, height_in_meters_ / 2.0, 0);
+    clear();
+    return true;
 }
 
-}  // namespace turtlesim
+} // namespace turtlesim

@@ -30,17 +30,17 @@
 #define TURTLESIM__TURTLE_HPP_
 
 // This prevents a MOC error with versions of boost >= 1.48
-#ifndef Q_MOC_RUN  // See: https://bugreports.qt-project.org/browse/QTBUG-22829
-# include <rclcpp/rclcpp.hpp>
-# include <rclcpp_action/rclcpp_action.hpp>
+#ifndef Q_MOC_RUN // See: https://bugreports.qt-project.org/browse/QTBUG-22829
+#include <rclcpp/rclcpp.hpp>
+#include <rclcpp_action/rclcpp_action.hpp>
 
-# include <geometry_msgs/msg/twist.hpp>
-# include <turtlesim_msgs/action/rotate_absolute.hpp>
-# include <turtlesim_msgs/msg/color.hpp>
-# include <turtlesim_msgs/msg/pose.hpp>
-# include <turtlesim_msgs/srv/set_pen.hpp>
-# include <turtlesim_msgs/srv/teleport_absolute.hpp>
-# include <turtlesim_msgs/srv/teleport_relative.hpp>
+#include <geometry_msgs/msg/twist.hpp>
+#include <turtlesim_msgs/action/rotate_absolute.hpp>
+#include <turtlesim_msgs/msg/color.hpp>
+#include <turtlesim_msgs/msg/pose.hpp>
+#include <turtlesim_msgs/srv/set_pen.hpp>
+#include <turtlesim_msgs/srv/teleport_absolute.hpp>
+#include <turtlesim_msgs/srv/teleport_relative.hpp>
 #endif
 
 #include <QPointF>
@@ -52,80 +52,68 @@
 #define PI 3.14159265
 #define TWO_PI 2.0 * PI
 
-namespace turtlesim
-{
+namespace turtlesim {
 class Turtle
 {
 public:
-  using RotateAbsoluteGoalHandle = rclcpp_action::ServerGoalHandle<
-    turtlesim_msgs::action::RotateAbsolute>;
+    using RotateAbsoluteGoalHandle = rclcpp_action::ServerGoalHandle<turtlesim_msgs::action::RotateAbsolute>;
 
-  Turtle(
-    rclcpp::Node::SharedPtr & nh, const std::string & real_name,
-    const QPointF & pos, float orient);
+    Turtle(rclcpp::Node::SharedPtr &nh, const std::string &real_name, const QPointF &pos, float orient);
 
-  bool update(double dt, qreal canvas_width, qreal canvas_height);
+    bool update(double dt, qreal canvas_width, qreal canvas_height);
 
 private:
-  void velocityCallback(const geometry_msgs::msg::Twist::ConstSharedPtr vel);
-  bool setPenCallback(
-    const turtlesim_msgs::srv::SetPen::Request::SharedPtr,
-    turtlesim_msgs::srv::SetPen::Response::SharedPtr);
-  bool teleportRelativeCallback(
-    const turtlesim_msgs::srv::TeleportRelative::Request::SharedPtr,
-    turtlesim_msgs::srv::TeleportRelative::Response::SharedPtr);
-  bool teleportAbsoluteCallback(
-    const turtlesim_msgs::srv::TeleportAbsolute::Request::SharedPtr,
-    turtlesim_msgs::srv::TeleportAbsolute::Response::SharedPtr);
-  void rotateAbsoluteAcceptCallback(const std::shared_ptr<RotateAbsoluteGoalHandle>);
+    void velocityCallback(const geometry_msgs::msg::Twist::ConstSharedPtr vel);
+    bool setPenCallback(const turtlesim_msgs::srv::SetPen::Request::SharedPtr, turtlesim_msgs::srv::SetPen::Response::SharedPtr);
+    bool teleportRelativeCallback(const turtlesim_msgs::srv::TeleportRelative::Request::SharedPtr,
+                                  turtlesim_msgs::srv::TeleportRelative::Response::SharedPtr);
+    bool teleportAbsoluteCallback(const turtlesim_msgs::srv::TeleportAbsolute::Request::SharedPtr,
+                                  turtlesim_msgs::srv::TeleportAbsolute::Response::SharedPtr);
+    void rotateAbsoluteAcceptCallback(const std::shared_ptr<RotateAbsoluteGoalHandle>);
 
-  rclcpp::Node::SharedPtr nh_;
+    rclcpp::Node::SharedPtr nh_;
 
-  QPointF pos_;
-  qreal orient_;
+    QPointF pos_;
+    qreal orient_;
 
-  qreal lin_vel_x_;
-  qreal lin_vel_y_;
-  qreal ang_vel_;
-  bool pen_on_;
+    qreal lin_vel_x_;
+    qreal lin_vel_y_;
+    qreal ang_vel_;
+    bool pen_on_;
 
-  rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr velocity_sub_;
-  rclcpp::Publisher<turtlesim_msgs::msg::Pose>::SharedPtr pose_pub_;
-  rclcpp::Publisher<turtlesim_msgs::msg::Color>::SharedPtr color_pub_;
-  rclcpp::Service<turtlesim_msgs::srv::SetPen>::SharedPtr set_pen_srv_;
-  rclcpp::Service<turtlesim_msgs::srv::TeleportRelative>::SharedPtr teleport_relative_srv_;
-  rclcpp::Service<turtlesim_msgs::srv::TeleportAbsolute>::SharedPtr teleport_absolute_srv_;
-  rclcpp_action::Server<turtlesim_msgs::action::RotateAbsolute>
-  ::SharedPtr rotate_absolute_action_server_;
+    rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr velocity_sub_;
+    rclcpp::Publisher<turtlesim_msgs::msg::Pose>::SharedPtr pose_pub_;
+    rclcpp::Publisher<turtlesim_msgs::msg::Color>::SharedPtr color_pub_;
+    rclcpp::Service<turtlesim_msgs::srv::SetPen>::SharedPtr set_pen_srv_;
+    rclcpp::Service<turtlesim_msgs::srv::TeleportRelative>::SharedPtr teleport_relative_srv_;
+    rclcpp::Service<turtlesim_msgs::srv::TeleportAbsolute>::SharedPtr teleport_absolute_srv_;
+    rclcpp_action::Server<turtlesim_msgs::action::RotateAbsolute>::SharedPtr rotate_absolute_action_server_;
 
-  std::shared_ptr<RotateAbsoluteGoalHandle> rotate_absolute_goal_handle_;
-  std::shared_ptr<turtlesim_msgs::action::RotateAbsolute::Feedback> rotate_absolute_feedback_;
-  std::shared_ptr<turtlesim_msgs::action::RotateAbsolute::Result> rotate_absolute_result_;
-  qreal rotate_absolute_start_orient_;
+    std::shared_ptr<RotateAbsoluteGoalHandle> rotate_absolute_goal_handle_;
+    std::shared_ptr<turtlesim_msgs::action::RotateAbsolute::Feedback> rotate_absolute_feedback_;
+    std::shared_ptr<turtlesim_msgs::action::RotateAbsolute::Result> rotate_absolute_result_;
+    qreal rotate_absolute_start_orient_;
 
-  rclcpp::Time last_command_time_;
+    rclcpp::Time last_command_time_;
 
-  float meter_;
+    float meter_;
 
-  struct TeleportRequest
-  {
-    TeleportRequest(float x, float y, qreal _theta, qreal _linear, bool _relative)
-    : pos(x, y),
-      theta(_theta),
-      linear(_linear),
-      relative(_relative)
+    struct TeleportRequest
     {
-    }
+        TeleportRequest(float x, float y, qreal _theta, qreal _linear, bool _relative)
+            : pos(x, y), theta(_theta), linear(_linear), relative(_relative)
+        {
+        }
 
-    QPointF pos;
-    qreal theta;
-    qreal linear;
-    bool relative;
-  };
-  typedef std::vector<TeleportRequest> V_TeleportRequest;
-  V_TeleportRequest teleport_requests_;
+        QPointF pos;
+        qreal theta;
+        qreal linear;
+        bool relative;
+    };
+    typedef std::vector<TeleportRequest> V_TeleportRequest;
+    V_TeleportRequest teleport_requests_;
 };
 typedef std::shared_ptr<Turtle> TurtlePtr;
-}  // namespace turtlesim
+} // namespace turtlesim
 
-#endif  // TURTLESIM__TURTLE_HPP_
+#endif // TURTLESIM__TURTLE_HPP_
