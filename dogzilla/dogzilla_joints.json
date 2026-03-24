@@ -1,0 +1,134 @@
+[
+  {
+    "name": "lfHipJointAngle",
+    "type": "revolute",
+    "axis": [
+      -1.0,
+      0.0,
+      0.0
+    ],
+    "lower": -180.00000002350313,
+    "upper": 180.00000002350313
+  },
+  {
+    "name": "lfUpperLegJointAngle",
+    "type": "revolute",
+    "axis": [
+      0.0,
+      1.0,
+      0.0
+    ],
+    "lower": -180.00000002350313,
+    "upper": 180.00000002350313
+  },
+  {
+    "name": "lfLowerLegJointAngle",
+    "type": "revolute",
+    "axis": [
+      0.0,
+      1.0,
+      0.0
+    ],
+    "lower": -180.00000002350313,
+    "upper": 180.00000002350313
+  },
+  {
+    "name": "rfHipJointAngle",
+    "type": "revolute",
+    "axis": [
+      -1.0,
+      0.0,
+      0.0
+    ],
+    "lower": -180.00000002350313,
+    "upper": 180.00000002350313
+  },
+  {
+    "name": "rfUpperLegJointAngle",
+    "type": "revolute",
+    "axis": [
+      0.0,
+      -1.0,
+      0.0
+    ],
+    "lower": -180.00000002350313,
+    "upper": 180.00000002350313
+  },
+  {
+    "name": "rfLowerLegJointAngle",
+    "type": "revolute",
+    "axis": [
+      0.0,
+      -1.0,
+      0.0
+    ],
+    "lower": -180.00000002350313,
+    "upper": 180.00000002350313
+  },
+  {
+    "name": "lhHipJointAngle",
+    "type": "revolute",
+    "axis": [
+      1.0,
+      0.0,
+      0.0
+    ],
+    "lower": -180.00000002350313,
+    "upper": 180.00000002350313
+  },
+  {
+    "name": "lhUpperLegJointAngle",
+    "type": "revolute",
+    "axis": [
+      0.0,
+      1.0,
+      0.0
+    ],
+    "lower": -180.00000002350313,
+    "upper": 180.00000002350313
+  },
+  {
+    "name": "lhLowerLegJointAngle",
+    "type": "revolute",
+    "axis": [
+      0.0,
+      1.0,
+      0.0
+    ],
+    "lower": -180.00000002350313,
+    "upper": 180.00000002350313
+  },
+  {
+    "name": "rhHipJointAngle",
+    "type": "revolute",
+    "axis": [
+      1.0,
+      0.0,
+      0.0
+    ],
+    "lower": -180.00000002350313,
+    "upper": 180.00000002350313
+  },
+  {
+    "name": "rhUpperLegJointAngle",
+    "type": "revolute",
+    "axis": [
+      0.0,
+      -1.0,
+      0.0
+    ],
+    "lower": -180.00000002350313,
+    "upper": 180.00000002350313
+  },
+  {
+    "name": "rhLowerLegJointAngle",
+    "type": "revolute",
+    "axis": [
+      0.0,
+      -1.0,
+      0.0
+    ],
+    "lower": -180.00000002350313,
+    "upper": 180.00000002350313
+  }
+]
