@@ -4,6 +4,7 @@
 #define CONTROLLER_H
 
 #include <QSerialPort>
+#include <QTimerEvent>
 #include <cstdint>
 
 class Controller : public QObject
@@ -51,6 +52,8 @@ public:
         Count // count of commands in array
     };
 
+    typedef QPair<qreal, qreal> RealPair;
+
     int batteryPercent() const { return m_batteryPercent; }
     bool motorsEngaged() const { return m_motorsEngaged; }
     qreal walkSpeed() const { return m_walkSpeed; }
@@ -71,23 +74,33 @@ signals:
     void steerAngleChanged(qreal angle);
     void sideStepSpeedChanged(qreal angle);
 
+protected:
+    virtual void timerEvent(QTimerEvent *ev);
+
 private slots:
 	void onError(QSerialPort::SerialPortError err);
     uint8_t checksum(const QByteArray &buf);
     void sendThunkCommand(Command cmd);
     void sendOneArgCommand(Command cmd, int8_t arg);
 	void readAndHandle();
+    void pollMotorAngles();
     void pollBattery();
 
 private:
-	QSerialPort m_port;
+    void handleMotorAngles(const QByteArray &packet);
+
+private:
+    QSerialPort m_port;
     qreal m_walkSpeed = 0;
     qreal m_steerAngle;
     qreal m_sideStepSpeed = 0;
+    std::array<qreal, 12> m_motorAngles;
+    int m_motorPollTimerId = -1;
     uint8_t m_batteryPercent = 0;
-    bool m_motorsEngaged = true; // it starts up in standing position
+    bool m_motorsEngaged = false; // we want to explicitly engage to start moving
 
     static QByteArray m_commands[int(Command::Count)];
+    static RealPair m_motorLimits[3]; // lower, middle, upper motors on each leg
 };
 
 #endif  // CONTROLLER_H
