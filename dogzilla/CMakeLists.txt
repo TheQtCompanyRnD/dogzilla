@@ -20,8 +20,11 @@ qt_add_qml_module(Robot_Dogzilla
         "DogzillaControlBase.cpp"
         "DogzillaControl.h"
         "DogzillaControl.cpp"
+        materials/MetalFlakePaint.qml
     RESOURCES
         "dogzilla_joints.json"
+        materials/paint-tile.png
+        materials/paint-tile-bumpmap.png
 )
 
 target_link_libraries(Robot_Dogzilla PUBLIC Qt6::Gui)
