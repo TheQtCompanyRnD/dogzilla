@@ -824,16 +824,15 @@
     </inertial>
     <visual>
       <origin
-        xyz="0 0 0"
+        xyz="0 0 -0.04"
         rpy="0 0 0" />
       <geometry>
-        <mesh
-          filename="meshes/laser_link.STL" />
+		<box size="0.02 0.020 0.001" />
       </geometry>
       <material
         name="">
         <color
-          rgba="1 1 1 1" />
+          rgba="1 1 0.1 0.1" />
       </material>
     </visual>
     <collision>
