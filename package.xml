@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>dogzilla</name>
+  <version>0.0.1</version>
+  <description>Qt experiments on the Dogzilla robot</description>
+  <maintainer email="shawn.rutledge@qt.io">Shawn Rutledge</maintainer>
+  <license>BSD-3-Clause</license>
+
+  <build_depend>qt6-qmake</build_depend>
+  <build_depend>qtbase6-dev</build_depend>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <depend>ament_index_cpp</depend>
+  <depend>geometry_msgs</depend>
+  <depend>rclcpp</depend>
+  <depend>rclcpp_action</depend>
+  <depend>std_msgs</depend>
+  <depend>std_srvs</depend>
+  <depend>turtlesim_msgs</depend>
+
+  <exec_depend>libqt6-core</exec_depend>
+  <exec_depend>libqt6-gui</exec_depend>
+
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
