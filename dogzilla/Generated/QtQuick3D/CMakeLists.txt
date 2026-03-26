@@ -53,13 +53,13 @@ function(add_generated_qtquick3d_module module_name)
         list(APPEND module_resources "${module_name}/${file_name}")
     endforeach()
 
-    qt_add_library(${target_name} STATIC)
+    qt_add_library(${target_name})
     if(module_resources)
         qt6_add_qml_module(${target_name}
             URI "Generated.QtQuick3D.${module_name}"
             VERSION 1.0
             RESOURCE_PREFIX "/qt/qml"
-            OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/${module_name}"
+            # OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/${module_name}" # same as default
             QML_FILES
                 "${module_name}/${module_name}.qml"
             RESOURCES
