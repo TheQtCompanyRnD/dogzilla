@@ -12,39 +12,14 @@ qt_add_qml_module(Robot_Dogzilla
     URI "Dogzilla"
     VERSION 1.0
     RESOURCE_PREFIX "/qt/qml"
-#    OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/Dogzilla" # same as the default
-    QML_FILES
-        "Dogzilla.qml"
     SOURCES
         "DogzillaControlBase.h"
         "DogzillaControlBase.cpp"
         "DogzillaControl.h"
         "DogzillaControl.cpp"
-        materials/MetalFlakePaint.qml
     RESOURCES
         "dogzilla_joints.json"
-        materials/paint-tile.png
-        materials/paint-tile-bumpmap.png
 )
 
 target_link_libraries(Robot_Dogzilla PUBLIC Qt6::Gui)
-add_subdirectory(Generated)
 
-set(ROBOT_Dogzilla_PLUGIN
-    Robot_Dogzillaplugin
-    Generated_QtQuick3D_BaseLinkplugin
-    Generated_QtQuick3D_LfHipLinkplugin
-    Generated_QtQuick3D_LfUpperLegLinkplugin
-    Generated_QtQuick3D_LfLowerLegLinkplugin
-    Generated_QtQuick3D_RfHipLinkplugin
-    Generated_QtQuick3D_RfUpperLegLinkplugin
-    Generated_QtQuick3D_RfLowerLegLinkplugin
-    Generated_QtQuick3D_LhHipLinkplugin
-    Generated_QtQuick3D_LhUpperLegLinkplugin
-    Generated_QtQuick3D_LhLowerLegLinkplugin
-    Generated_QtQuick3D_RhHipLinkplugin
-    Generated_QtQuick3D_RhUpperLegLinkplugin
-    Generated_QtQuick3D_RhLowerLegLinkplugin
-    Generated_QtQuick3D_CameraLinkplugin
-    Generated_QtQuick3D_LaserLinkplugin
-)
