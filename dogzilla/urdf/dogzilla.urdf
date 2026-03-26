@@ -1,7 +1,10 @@
 <?xml version="1.0"?>
 <!-- This URDF was automatically created by SolidWorks to URDF Exporter! Originally created by Stephen Brawner (brawner@gmail.com)
      Commit Version: 1.6.0-1-g15f4949  Build Version: 1.6.7594.29634
-     For more information, please see http://wiki.ros.org/sw_urdf_exporter -->
+     For more information, please see http://wiki.ros.org/sw_urdf_exporter
+     Motor limits in degrees (lower, upper, hip joints on each leg) from Python code:
+       {-73, 57}, {-66, 93}, {-31, 31}
+-->
 <robot name="dogzilla" xmlns:xacro="http://ros.org/wiki/xacro">
   <link name="base_footprint"/>
   <joint name="base_joint" type="fixed">
@@ -102,7 +105,7 @@
       link="lf_hip_link" />
     <axis
       xyz="-1 0 0" />
-    <limit effort="25" lower="-3.141592654" upper="3.141592654" velocity="1.5" />
+    <limit effort="25" lower="-0.541052068" upper="0.541052068" velocity="1.5" />
   </joint>
   <link
     name="lf_upper_leg_link">
@@ -156,7 +159,7 @@
       link="lf_upper_leg_link" />
     <axis
       xyz="0 1 0" />
-    <limit effort="25" lower="-3.141592654" upper="3.141592654" velocity="1.5" />
+    <limit effort="25" lower="-1.151917306" upper="1.623156204" velocity="1.5" />
   </joint>
   <link
     name="lf_lower_leg_link">
@@ -210,7 +213,7 @@
       link="lf_lower_leg_link" />
     <axis
       xyz="0 1 0" />
-    <limit effort="25" lower="-3.141592654" upper="3.141592654" velocity="1.5" />
+    <limit effort="25" lower="-3.054326191" upper="-0.9948376737" velocity="1.5" />
   </joint>
   <link
     name="rf_hip_link">
@@ -264,7 +267,7 @@
       link="rf_hip_link" />
     <axis
       xyz="-1 0 0" />
-    <limit effort="25" lower="-3.141592654" upper="3.141592654" velocity="1.5" />
+    <limit effort="25" lower="-0.541052068" upper="0.541052068" velocity="1.5" />
   </joint>
   <link
     name="rf_upper_leg_link">
@@ -318,7 +321,7 @@
       link="rf_upper_leg_link" />
     <axis
       xyz="0 -1 0" />
-    <limit effort="25" lower="-3.141592654" upper="3.141592654" velocity="1.5" />
+    <limit effort="25" lower="-1.151917306" upper="1.623156204" velocity="1.5" />
   </joint>
   <link
     name="rf_lower_leg_link">
@@ -372,7 +375,7 @@
       link="rf_lower_leg_link" />
     <axis
       xyz="0 -1 0" />
-     <limit effort="25" lower="-3.141592654" upper="3.141592654" velocity="1.5" />
+    <limit effort="25" lower="-3.054326191" upper="-0.9948376737" velocity="1.5" />
   </joint>
   <link
     name="lh_hip_link">
@@ -426,7 +429,7 @@
       link="lh_hip_link" />
     <axis
       xyz="1 0 0" />
-    <limit effort="25" lower="-3.141592654" upper="3.141592654" velocity="1.5" />
+    <limit effort="25" lower="-0.541052068" upper="0.541052068" velocity="1.5" />
   </joint>
   <link
     name="lh_upper_leg_link">
@@ -480,7 +483,7 @@
       link="lh_upper_leg_link" />
     <axis
       xyz="0 1 0" />
-    <limit effort="25" lower="-3.141592654" upper="3.141592654" velocity="1.5" />
+    <limit effort="25" lower="-1.151917306" upper="1.623156204" velocity="1.5" />
   </joint>
   <link
     name="lh_lower_leg_link">
@@ -534,7 +537,7 @@
       link="lh_lower_leg_link" />
     <axis
       xyz="0 1 0" />
-    <limit effort="25" lower="-3.141592654" upper="3.141592654" velocity="1.5" />
+    <limit effort="25" lower="-3.054326191" upper="-0.9948376737" velocity="1.5" />
   </joint>
   <link
     name="rh_hip_link">
@@ -588,7 +591,7 @@
       link="rh_hip_link" />
     <axis
       xyz="1 0 0" />
-    <limit effort="25" lower="-3.141592654" upper="3.141592654" velocity="1.5" />
+    <limit effort="25" lower="-0.541052068" upper="0.541052068" velocity="1.5" />
   </joint>
   <link
     name="rh_upper_leg_link">
@@ -642,7 +645,7 @@
       link="rh_upper_leg_link" />
     <axis
       xyz="0 -1 0" />
-    <limit effort="25" lower="-3.141592654" upper="3.141592654" velocity="1.5" />
+    <limit effort="25" lower="-1.151917306" upper="1.623156204" velocity="1.5" />
   </joint>
   <link
     name="rh_lower_leg_link">
@@ -696,7 +699,7 @@
       link="rh_lower_leg_link" />
     <axis
       xyz="0 -1 0" />
-    <limit effort="25" lower="-3.141592654" upper="3.141592654" velocity="1.5" />
+    <limit effort="25" lower="-3.054326191" upper="-0.9948376737" velocity="1.5" />
   </joint>
   <link
     name="camera_link">
