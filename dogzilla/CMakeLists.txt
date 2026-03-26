@@ -4,8 +4,8 @@ project(Robot_Dogzilla)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(QT_QML_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
-find_package(Qt6 REQUIRED COMPONENTS Gui Qml)
-qt_standard_project_setup(REQUIRES 6.5)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Quick Quick3D)
+qt_standard_project_setup(REQUIRES 6.8)
 
 qt_add_library(Robot_Dogzilla)
 qt_add_qml_module(Robot_Dogzilla
@@ -44,5 +44,4 @@ set(ROBOT_Dogzilla_PLUGIN
     Generated_QtQuick3D_RhLowerLegLinkplugin
     Generated_QtQuick3D_CameraLinkplugin
     Generated_QtQuick3D_LaserLinkplugin
-    PARENT_SCOPE
 )
