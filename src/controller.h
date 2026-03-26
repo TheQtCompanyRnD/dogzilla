@@ -9,12 +9,15 @@
 
 class Controller : public QObject
 {
-	Q_OBJECT
+    Q_OBJECT
     Q_PROPERTY(int batteryPercent READ batteryPercent NOTIFY batteryPercentChanged FINAL)
     Q_PROPERTY(bool motorsEngaged READ motorsEngaged WRITE setMotorsEngaged NOTIFY motorsEngagedChanged FINAL)
     Q_PROPERTY(qreal walkSpeed READ walkSpeed WRITE setWalkSpeed NOTIFY walkSpeedChanged FINAL)
     Q_PROPERTY(qreal steerAngle READ steerAngle WRITE setSteerAngle NOTIFY steerAngleChanged FINAL)
     Q_PROPERTY(qreal sideStepSpeed READ sideStepSpeed WRITE setSideStepSpeed NOTIFY sideStepSpeedChanged FINAL)
+    Q_PROPERTY(qreal translationX READ translationX WRITE setTranslationX NOTIFY translationXChanged FINAL)
+    Q_PROPERTY(qreal translationY READ translationY WRITE setTranslationY NOTIFY translationYChanged FINAL)
+    Q_PROPERTY(qreal translationZ READ translationZ WRITE setTranslationZ NOTIFY translationZChanged FINAL)
 
 public:
 	Controller(const QString &serialPort, qint32 baudRate, QObject * parent = nullptr);
@@ -35,7 +38,9 @@ public:
         VelX,
         VelY,
         VelYaw,
-        Translation,
+        TranslationX,
+        TranslationY,
+        TranslationZ,
         Attitude,
         PeriodicRotation,
         MarkTime,
@@ -59,6 +64,9 @@ public:
     qreal walkSpeed() const { return m_walkSpeed; }
     qreal steerAngle() const { return m_steerAngle; }
     qreal sideStepSpeed() const { return m_sideStepSpeed; }
+    qreal translationX() const { return m_translationX; }
+    qreal translationY() const { return m_translationY; }
+    qreal translationZ() const { return m_translationZ; }
 
 public slots:
     void setMotorsEngaged(bool v);
@@ -66,6 +74,9 @@ public slots:
     void setWalkSpeed(qreal v);
     void setSteerAngle(qreal v);
     void setSideStepSpeed(qreal v);
+    void setTranslationX(qreal v);
+    void setTranslationY(qreal v);
+    void setTranslationZ(qreal v);
 
 signals:
     void batteryPercentChanged(int pct);
@@ -73,6 +84,9 @@ signals:
     void walkSpeedChanged(qreal speed);
     void steerAngleChanged(qreal angle);
     void sideStepSpeedChanged(qreal angle);
+    void translationXChanged(qreal translationX);
+    void translationYChanged(qreal translationY);
+    void translationZChanged(qreal translationZ);
 
 protected:
     virtual void timerEvent(QTimerEvent *ev);
@@ -94,8 +108,12 @@ private:
     qreal m_walkSpeed = 0;
     qreal m_steerAngle;
     qreal m_sideStepSpeed = 0;
+    qreal m_translationX;
+    qreal m_translationY;
+    qreal m_translationZ;
     std::array<qreal, 12> m_motorAngles;
     int m_motorPollTimerId = -1;
+    int m_disengageCountdown = 0;
     uint8_t m_batteryPercent = 0;
     bool m_motorsEngaged = false; // we want to explicitly engage to start moving
 

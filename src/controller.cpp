@@ -20,7 +20,9 @@ QByteArray Controller::m_commands[] {
     QByteArrayLiteral("\x01\x30\x80"), // VelX
     QByteArrayLiteral("\x01\x31\x80"), // VelY
     QByteArrayLiteral("\x01\x32\x80"), // VYaw
-    QByteArrayLiteral("\x33\x00\x00\x00"), // Translation
+    QByteArrayLiteral("\x01\x33\x00"), // TranslationX
+    QByteArrayLiteral("\x01\x34\x00"), // TranslationY
+    QByteArrayLiteral("\x01\x35\x00"), // TranslationZ
     QByteArrayLiteral("\x36\x00\x00\x00"), // Attitude
     QByteArrayLiteral("\x39\x00\x00\x00"), // PeriodicRotation
     QByteArrayLiteral("\x3c\x00"), // MarkTime
@@ -121,6 +123,17 @@ void Controller::sendOneArgCommand(Command cmd, int8_t arg)
 
 void Controller::pollMotorAngles()
 {
+    if (m_disengageCountdown > 0 && --m_disengageCountdown <= 0) {
+        stop();
+        killTimer(m_motorPollTimerId);
+        m_motorPollTimerId = -1;
+        sendThunkCommand(Command::UnloadMotor);
+        m_motorsEngaged = false;
+        qDebug() << m_motorsEngaged << "->" << false;
+        emit motorsEngagedChanged(false);
+        return;
+    }
+
     //                           "55 00 09 02 01 50 a3 00 aa"
     // should be (from python) [0x55 0x0 0x9 0x2 0x50 0xc 0x98 0x0 0xaa]
     // response in standing pos \xb3\xaa\x80\xb1\xab\x7f\xb4\xb4\x83\xb4\xb4\x7f\x00\xff\x00 ...
@@ -210,18 +223,18 @@ void Controller::setMotorsEngaged(bool v)
     if (m_motorsEngaged == v)
         return;
 
-    // TODO crouch down before disengaging
     if (v) {
-        m_motorPollTimerId = startTimer(1000);
+        if (m_motorPollTimerId < 0)
+            m_motorPollTimerId = startTimer(1000);
+        setTranslationZ(255); // stand up; TODO this doesn't go high enough
+        sendThunkCommand(Command::LoadMotor);
+        m_motorsEngaged = v;
+        qDebug() << m_motorsEngaged << "->" << v;
+        emit motorsEngagedChanged(v);
     } else {
-        stop();
-        killTimer(m_motorPollTimerId);
-        m_motorPollTimerId = -1;
+        setTranslationZ(0); // crouch; TODO this doesn't go low enough
+        m_disengageCountdown = 2; // ticks
     }
-qDebug() << m_motorsEngaged << "->" << v;
-    sendThunkCommand(v ? Command::LoadMotor : Command::UnloadMotor);
-    m_motorsEngaged = v;
-    emit motorsEngagedChanged(v);
 }
 
 void Controller::stop()
@@ -272,4 +285,39 @@ void Controller::setSideStepSpeed(qreal v)
     qDebug() << "move_y" << m_sideStepSpeed << lroundf(v) << arg;
     sendOneArgCommand(Command::VelY, arg);
     emit sideStepSpeedChanged(v);
+}
+
+void Controller::setTranslationX(qreal v)
+{
+    if (qFuzzyCompare(m_translationX, v))
+        return;
+    m_translationX = v;
+    uint8_t arg = 0x80 + lroundf(v);
+    qDebug() << "trans_x" << m_translationX << lroundf(v) << arg;
+    sendOneArgCommand(Command::TranslationX, arg);
+    emit translationXChanged(v);
+}
+
+void Controller::setTranslationY(qreal v)
+{
+    if (qFuzzyCompare(m_translationY, v))
+        return;
+    m_translationY = v;
+    uint8_t arg = 0x80 + lroundf(v);
+    qDebug() << "trans_y" << m_translationY << lroundf(v) << arg;
+    sendOneArgCommand(Command::TranslationY, arg);
+    emit translationYChanged(v);
+}
+
+// TODO define the allowed range;
+// since the minimum is not low enough, calculate angles and set them directly
+void Controller::setTranslationZ(qreal v)
+{
+    if (qFuzzyCompare(m_translationZ, v))
+        return;
+    m_translationZ = v;
+    uint8_t arg = lroundf(v);
+    qDebug() << "trans_z" << m_translationZ << lroundf(v) << arg;
+    sendOneArgCommand(Command::TranslationZ, arg);
+    emit translationZChanged(v);
 }

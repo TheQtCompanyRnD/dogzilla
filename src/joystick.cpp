@@ -62,6 +62,9 @@ void JoystickHandler::onAxisEvent(int device, JoyAxis axis, float value)
     case JoyAxis::LeftX:
         m_controller->setSideStepSpeed(value * -50.0f);
         break;
+    case JoyAxis::LeftY:
+        m_controller->setTranslationX(value * 100.0f);
+        break;
     case JoyAxis::RightX:
         m_controller->setWalkSpeed(value * -50.0f);
         break;
