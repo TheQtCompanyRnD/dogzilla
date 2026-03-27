@@ -63,10 +63,19 @@ Controller::RealPair Controller::m_motorLimits[] {
     {-31, 31}
 };
 
-Controller::Controller(const QString &serialPort, qint32 baudRate, QObject * parent)
-  : QObject(parent), m_port(serialPort, this)
+QString Controller::m_portPath;
+qint32 Controller::m_baudRate(-1);
+
+void Controller::setPortAndBaudRate(const QString &serialPort, qint32 baudRate)
 {
-    m_port.setBaudRate(baudRate);
+    m_portPath = serialPort;
+    m_baudRate = baudRate;
+}
+
+Controller::Controller(QObject * parent)
+  : QObject(parent), m_port(m_portPath, this)
+{
+    m_port.setBaudRate(m_baudRate);
     connect(&m_port, &QSerialPort::errorOccurred, this, &Controller::onError);
     connect(&m_port, &QIODevice::readyRead, this, &Controller::readAndHandle);
     // connect(this, &QSerialPort::dataTerminalReadyChanged, this, &Controller::emitReadySend);

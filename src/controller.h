@@ -3,6 +3,7 @@
 #ifndef CONTROLLER_H
 #define CONTROLLER_H
 
+#include <QtQmlIntegration/qqmlintegration.h>
 #include <QSerialPort>
 #include <QTimerEvent>
 #include <cstdint>
@@ -10,6 +11,8 @@
 class Controller : public QObject
 {
     Q_OBJECT
+    QML_ELEMENT
+    QML_SINGLETON
     Q_PROPERTY(int batteryPercent READ batteryPercent NOTIFY batteryPercentChanged FINAL)
     Q_PROPERTY(bool motorsEngaged READ motorsEngaged WRITE setMotorsEngaged NOTIFY motorsEngagedChanged FINAL)
     Q_PROPERTY(qreal walkSpeed READ walkSpeed WRITE setWalkSpeed NOTIFY walkSpeedChanged FINAL)
@@ -20,10 +23,12 @@ class Controller : public QObject
     Q_PROPERTY(qreal translationZ READ translationZ WRITE setTranslationZ NOTIFY translationZChanged FINAL)
 
 public:
-	Controller(const QString &serialPort, qint32 baudRate, QObject * parent = nullptr);
-	~Controller();
+    static void setPortAndBaudRate(const QString &serialPort, qint32 baudRate);
 
-	enum class Command {
+    Controller(QObject * parent = nullptr);
+    ~Controller();
+
+    enum class Command {
         None,
         GetBatteryLevel,
         Perform,
@@ -119,6 +124,8 @@ private:
 
     static QByteArray m_commands[int(Command::Count)];
     static RealPair m_motorLimits[3]; // lower, middle, upper motors on each leg
+    static QString m_portPath;
+    static qint32 m_baudRate;
 };
 
 #endif  // CONTROLLER_H
