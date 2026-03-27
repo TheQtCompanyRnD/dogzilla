@@ -104,7 +104,7 @@
     <child
       link="lf_hip_link" />
     <axis
-      xyz="-1 0 0" />
+      xyz="1 0 0" />
     <limit effort="25" lower="-0.541052068" upper="0.541052068" velocity="1.5" />
   </joint>
   <link
@@ -320,7 +320,7 @@
     <child
       link="rf_upper_leg_link" />
     <axis
-      xyz="0 -1 0" />
+      xyz="0 1 0" />
     <limit effort="25" lower="-1.151917306" upper="1.623156204" velocity="1.5" />
   </joint>
   <link
@@ -374,7 +374,7 @@
     <child
       link="rf_lower_leg_link" />
     <axis
-      xyz="0 -1 0" />
+      xyz="0 1 0" />
     <limit effort="25" lower="-3.054326191" upper="-0.9948376737" velocity="1.5" />
   </joint>
   <link
@@ -590,7 +590,7 @@
     <child
       link="rh_hip_link" />
     <axis
-      xyz="1 0 0" />
+      xyz="-1 0 0" />
     <limit effort="25" lower="-0.541052068" upper="0.541052068" velocity="1.5" />
   </joint>
   <link
@@ -644,7 +644,7 @@
     <child
       link="rh_upper_leg_link" />
     <axis
-      xyz="0 -1 0" />
+      xyz="0 1 0" />
     <limit effort="25" lower="-1.151917306" upper="1.623156204" velocity="1.5" />
   </joint>
   <link
@@ -698,7 +698,7 @@
     <child
       link="rh_lower_leg_link" />
     <axis
-      xyz="0 -1 0" />
+      xyz="0 1 0" />
     <limit effort="25" lower="-3.054326191" upper="-0.9948376737" velocity="1.5" />
   </joint>
   <link

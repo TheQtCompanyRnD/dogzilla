@@ -52,7 +52,7 @@ Node {
                 position: Qt.vector3d(9.332, 2.2407, 1.454)
                 Node {
                     id: lf_hip_jointPivot
-                    readonly property vector3d axis: Qt.vector3d(-1.0, 0.0, 0.0)
+                    readonly property vector3d axis: Qt.vector3d(1.0, 0.0, 0.0)
                     rotation: Quaternion.fromAxisAndAngle(axis, rootNode.control.lfHipJointAngle)
                     LfHipLink {
                         id: lf_hip_link
@@ -102,7 +102,7 @@ Node {
                         position: Qt.vector3d(-1.8325, -4.9313, 0.0)
                         Node {
                             id: rf_upper_leg_jointPivot
-                            readonly property vector3d axis: Qt.vector3d(0.0, -1.0, 0.0)
+                            readonly property vector3d axis: Qt.vector3d(0.0, 1.0, 0.0)
                             rotation: Quaternion.fromAxisAndAngle(axis, rootNode.control.rfUpperLegJointAngle)
                             RfUpperLegLink {
                                 id: rf_upper_leg_link
@@ -113,7 +113,7 @@ Node {
                                 position: Qt.vector3d(0.0, 0.0, -5.9896)
                                 Node {
                                     id: rf_lower_leg_jointPivot
-                                    readonly property vector3d axis: Qt.vector3d(0.0, -1.0, 0.0)
+                                    readonly property vector3d axis: Qt.vector3d(0.0, 1.0, 0.0)
                                     rotation: Quaternion.fromAxisAndAngle(axis, rootNode.control.rfLowerLegJointAngle)
                                     RfLowerLegLink {
                                         id: rf_lower_leg_link
@@ -169,7 +169,7 @@ Node {
                 position: Qt.vector3d(-5.668, -2.2517, 1.454)
                 Node {
                     id: rh_hip_jointPivot
-                    readonly property vector3d axis: Qt.vector3d(1.0, 0.0, 0.0)
+                    readonly property vector3d axis: Qt.vector3d(-1.0, 0.0, 0.0)
                     rotation: Quaternion.fromAxisAndAngle(axis, rootNode.control.rhHipJointAngle)
                     RhHipLink {
                         id: rh_hip_link
@@ -180,7 +180,7 @@ Node {
                         position: Qt.vector3d(-1.8325, -4.9313, 0.0)
                         Node {
                             id: rh_upper_leg_jointPivot
-                            readonly property vector3d axis: Qt.vector3d(0.0, -1.0, 0.0)
+                            readonly property vector3d axis: Qt.vector3d(0.0, 1.0, 0.0)
                             rotation: Quaternion.fromAxisAndAngle(axis, rootNode.control.rhUpperLegJointAngle)
                             RhUpperLegLink {
                                 id: rh_upper_leg_link
@@ -191,7 +191,7 @@ Node {
                                 position: Qt.vector3d(0.0, 0.0, -5.9896)
                                 Node {
                                     id: rh_lower_leg_jointPivot
-                                    readonly property vector3d axis: Qt.vector3d(0.0, -1.0, 0.0)
+                                    readonly property vector3d axis: Qt.vector3d(0.0, 1.0, 0.0)
                                     rotation: Quaternion.fromAxisAndAngle(axis, rootNode.control.rhLowerLegJointAngle)
                                     RhLowerLegLink {
                                         id: rh_lower_leg_link
