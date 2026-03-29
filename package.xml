@@ -14,14 +14,15 @@
 
   <depend>ament_index_cpp</depend>
   <depend>geometry_msgs</depend>
+  <depend>sensor_msgs</depend>
   <depend>rclcpp</depend>
   <depend>rclcpp_action</depend>
   <depend>std_msgs</depend>
   <depend>std_srvs</depend>
-  <depend>turtlesim_msgs</depend>
 
   <exec_depend>libqt6-core</exec_depend>
   <exec_depend>libqt6-gui</exec_depend>
+  <exec_depend>libqtros2</exec_depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>

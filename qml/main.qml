@@ -3,9 +3,52 @@
 import QtQml
 import QtUniversalInput
 import Dogzilla
+import QtRos2.GeometryMsgs
+import QtRos2.SensorMsgs
 
 QtObject {
-	Component.onCompleted: console.log("hello objects", Controller, univin)
+	id: root
+	property string baseName: "dogzilla"
+	Component.onCompleted: {
+		console.log("hello objects", Controller, univin, jsp)
+		console.log("topics", jsp.topic, twp.topic)
+	}
+
+	property ROS2Node node: ROS2Node {
+		id: rootRosNode
+		nodeName: "dogzilla_node"
+
+		TwistPublisher {
+			id: twp
+			topic: `/${root.baseName}/cmd_vel`
+		}
+		JointStatePublisher {
+			topic: `/${root.baseName}/joint_states`
+		}
+	}
+
+	function publishTwist() {
+		twp.publish({
+						"linear": {
+							"x": Controller.walkSpeed,
+							"y": Controller.sideStepSpeed,
+							"z": 0
+						},
+						"angular": {
+							"x": 0,
+							"y": 0,
+							"z": 0
+						}
+					})
+	}
+	property Connections conn: Connections {
+		target: Controller
+		onWalkSpeedChanged: (speed) => {
+			publishTwist()
+			console.log("Walk speed changed", speed);
+		}
+		onSideStepSpeedChanged: publishTwist()
+	}
 
 	property UniversalInput univin: UniversalInput {
 		/*!
