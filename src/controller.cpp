@@ -176,7 +176,7 @@ void Controller::pollBattery()
 //                                   else:
 //                                          angle.append(index)
 
-qreal byteToReal(uint8_t b, const Controller::RealPair &limits)
+double byteToReal(uint8_t b, const Controller::RealPair &limits)
 {
     const auto limitMin = limits.first;
     const auto limitMax = limits.second;
@@ -193,8 +193,7 @@ void Controller::handleMotorAngles(const QByteArray &packet)
     for (int i = 0; i < 12; ++i)
         m_motorAngles[i] = byteToReal(packet.at(i + 5), m_motorLimits[i % 3]);
     qDebug() << m_motorAngles;
-
-    // TODO update ROS topic
+    emit jointAnglesChanged();
 }
 
 void Controller::readAndHandle()
@@ -329,4 +328,11 @@ void Controller::setTranslationZ(qreal v)
     qDebug() << "trans_z" << m_translationZ << lroundf(v) << arg;
     sendOneArgCommand(Command::TranslationZ, arg);
     emit translationZChanged(v);
+}
+
+void Controller::setJointAngles(const QList<double> &angles)
+{
+    if (jointAngles() == angles)
+        return;
+    // TODO send commands to change them
 }

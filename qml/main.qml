@@ -19,11 +19,6 @@ ROS2Node {
 		topic: `/${root.nodeName}/cmd_vel`
 	}
 
-	JointStatePublisher {
-		id: jsp
-		topic: `/${root.nodeName}/joint_states`
-	}
-
 	function publishTwist() {
 		twp.publish({
 						"linear": {
@@ -39,6 +34,33 @@ ROS2Node {
 					})
 	}
 
+	JointStatePublisher {
+		id: jsp
+		topic: `/${root.nodeName}/joint_states`
+	}
+
+	function publishJointState() {
+		const msg = {
+			"name": [
+				"lf_hip_joint",
+				"lf_upper_leg_joint",
+				"lf_lower_leg_joint",
+				"rf_hip_joint",
+				"rf_upper_leg_joint",
+				"rf_lower_leg_joint",
+				"lh_hip_joint",
+				"lh_upper_leg_joint",
+				"lh_lower_leg_joint",
+				"rh_hip_joint",
+				"rh_upper_leg_joint",
+				"rh_lower_leg_joint"
+			],
+			"position": Controller.jointAngles
+			// could also include velocity, effort
+		}
+		jsp.publish(msg)
+	}
+
 	// ROS2Node apparently only allows childEntities as children:
 	// if we don't declare a property, we get
 	// Cannot assign object of type "QQmlConnections" to list property "childEntities"; expected "QRos2Entity"
@@ -52,6 +74,7 @@ ROS2Node {
 			console.log("Walk speed changed", speed);
 		}
 		onSideStepSpeedChanged: publishTwist()
+		onJointAnglesChanged: publishJointState()
 	}
 
 	property UniversalInput univin: UniversalInput {

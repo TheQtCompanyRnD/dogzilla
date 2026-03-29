@@ -21,6 +21,7 @@ class Controller : public QObject
     Q_PROPERTY(qreal translationX READ translationX WRITE setTranslationX NOTIFY translationXChanged FINAL)
     Q_PROPERTY(qreal translationY READ translationY WRITE setTranslationY NOTIFY translationYChanged FINAL)
     Q_PROPERTY(qreal translationZ READ translationZ WRITE setTranslationZ NOTIFY translationZChanged FINAL)
+    Q_PROPERTY(QList<double> jointAngles READ jointAngles WRITE setJointAngles NOTIFY jointAnglesChanged FINAL)
 
 public:
     static void setPortAndBaudRate(const QString &serialPort, qint32 baudRate);
@@ -72,6 +73,7 @@ public:
     qreal translationX() const { return m_translationX; }
     qreal translationY() const { return m_translationY; }
     qreal translationZ() const { return m_translationZ; }
+    QList<double> jointAngles() const { return {m_motorAngles.begin(), m_motorAngles.end()}; }
 
 public slots:
     void setMotorsEngaged(bool v);
@@ -82,6 +84,7 @@ public slots:
     void setTranslationX(qreal v);
     void setTranslationY(qreal v);
     void setTranslationZ(qreal v);
+    void setJointAngles(const QList<double> &angles);
 
 signals:
     void batteryPercentChanged(int pct);
@@ -92,12 +95,13 @@ signals:
     void translationXChanged(qreal translationX);
     void translationYChanged(qreal translationY);
     void translationZChanged(qreal translationZ);
+    void jointAnglesChanged();
 
 protected:
     virtual void timerEvent(QTimerEvent *ev);
 
 private slots:
-	void onError(QSerialPort::SerialPortError err);
+    void onError(QSerialPort::SerialPortError err);
     uint8_t checksum(const QByteArray &buf);
     void sendThunkCommand(Command cmd);
     void sendOneArgCommand(Command cmd, int8_t arg);
@@ -116,7 +120,7 @@ private:
     qreal m_translationX;
     qreal m_translationY;
     qreal m_translationZ;
-    std::array<qreal, 12> m_motorAngles;
+    std::array<double, 12> m_motorAngles;
     int m_motorPollTimerId = -1;
     int m_disengageCountdown = 0;
     uint8_t m_batteryPercent = 0;
