@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR BSD-3-Clause
 #include "controller.h"
 #include <QDebug>
+#include <QLoggingCategory>
+
+Q_STATIC_LOGGING_CATEGORY(lcCtrl, "dogzilla.controller")
 
 QByteArray Controller::m_commands[] {
     { }, // None
@@ -92,13 +95,13 @@ void Controller::maybeOpenSerialPort()
         m_port.setPortName(m_serialPort);
         m_port.setBaudRate(m_baudRate);
         const bool success = m_port.open(QIODevice::ReadWrite);
-        qDebug() << m_port.portName() << m_port.baudRate() << "opened successfully?" << success;
+        qCDebug(lcCtrl) << m_port.portName() << m_port.baudRate() << "opened successfully?" << success;
     }
 }
 
 void Controller::onError(QSerialPort::SerialPortError err)
 {
-    qDebug() << err;
+    qCWarning(lcCtrl) << err;
 }
 
 uint8_t Controller::checksum(const QByteArray &buf)
@@ -124,7 +127,7 @@ void Controller::sendThunkCommand(Command cmd)
     footer[0] = checksum(buf);
     buf.prepend(header);
     buf.append(footer);
-    qDebug() << "wrote" << m_port.write(buf) << "bytes:" << m_commands[int(cmd)].toHex() << buf.toHex();
+    qCDebug(lcCtrl) << "wrote" << m_port.write(buf) << "bytes:" << m_commands[int(cmd)].toHex() << buf.toHex();
 }
 
 void Controller::sendOneArgCommand(Command cmd, int8_t arg)
@@ -137,7 +140,7 @@ void Controller::sendOneArgCommand(Command cmd, int8_t arg)
     footer[0] = checksum(buf);
     buf.prepend(header);
     buf.append(footer);
-    qDebug() << "wrote" << m_port.write(buf) << "bytes:" << m_commands[int(cmd)].toHex() << buf.toHex();
+    qCDebug(lcCtrl) << "wrote" << m_port.write(buf) << "bytes:" << m_commands[int(cmd)].toHex() << buf.toHex();
 }
 
 void Controller::pollMotorAngles()
@@ -148,7 +151,7 @@ void Controller::pollMotorAngles()
         m_motorPollTimerId = -1;
         sendThunkCommand(Command::UnloadMotor);
         m_motorsEngaged = false;
-        qDebug() << m_motorsEngaged << "->" << false;
+        qCDebug(lcCtrl) << m_motorsEngaged << "->" << false;
         emit motorsEngagedChanged(false);
         return;
     }
@@ -224,13 +227,13 @@ void Controller::readAndHandle()
         qWarning() << "ignoring message with bad checksum: expected" << Qt::hex << expectedChecksum << buf.toHex();
         return;
     }
-    qDebug() << buf.toHex() << "len" << len << "exchk" << Qt::hex << expectedChecksum;
+    qCDebug(lcCtrl) << buf.toHex() << "len" << len << "exchk" << Qt::hex << expectedChecksum;
     if (buf.at(3) == 0x12) {
         const uint8_t addr = buf.at(4);
         switch(addr) {
         case 0x01:
             m_batteryPercent = buf.at(5);
-            qDebug() << "batt" << m_batteryPercent << "pct";
+            qCDebug(lcCtrl) << "batt" << m_batteryPercent << "pct";
             emit batteryPercentChanged(m_batteryPercent);
             break;
         case 0x50:
@@ -253,7 +256,7 @@ void Controller::setMotorsEngaged(bool v)
         setTranslationZ(255); // stand up; TODO this doesn't go high enough
         sendThunkCommand(Command::LoadMotor);
         m_motorsEngaged = v;
-        qDebug() << m_motorsEngaged << "->" << v;
+        qCDebug(lcCtrl) << m_motorsEngaged << "->" << v;
         emit motorsEngagedChanged(v);
     } else {
         setTranslationZ(0); // crouch; TODO this doesn't go low enough
@@ -263,7 +266,7 @@ void Controller::setMotorsEngaged(bool v)
 
 void Controller::stop()
 {
-    qDebug() << "STOP ALL";
+    qCDebug(lcCtrl) << "STOP ALL";
     sendOneArgCommand(Command::VelX, 0x80);
     sendOneArgCommand(Command::VelY, 0x80);
     // TODO mark_time(0), turn(0)
@@ -279,7 +282,7 @@ void Controller::setWalkSpeed(qreal v)
     setMotorsEngaged(true);
     m_walkSpeed = v;
     uint8_t arg = 0x80 + lroundf(m_walkSpeed);
-    qDebug() << "move_x" << m_walkSpeed << lroundf(m_walkSpeed) << arg;
+    qCDebug(lcCtrl) << "move_x" << m_walkSpeed << lroundf(m_walkSpeed) << arg;
     sendOneArgCommand(Command::VelX, arg);
     emit walkSpeedChanged(m_walkSpeed);
 }
@@ -293,7 +296,7 @@ void Controller::setSteerAngle(qreal v)
     m_steerAngle = v;
     // TODO is v in degrees? convert it properly to what the controller firmware expects
     uint8_t arg = 0x80 + lroundf(v);
-    qDebug() << "steer" << m_steerAngle << lroundf(v) << arg;
+    qCDebug(lcCtrl) << "steer" << m_steerAngle << lroundf(v) << arg;
     sendOneArgCommand(Command::VelYaw, arg);
     emit steerAngleChanged(v);
 }
@@ -306,7 +309,7 @@ void Controller::setSideStepSpeed(qreal v)
     setMotorsEngaged(true);
     m_sideStepSpeed = v;
     uint8_t arg = 0x80 + lroundf(v);
-    qDebug() << "move_y" << m_sideStepSpeed << lroundf(v) << arg;
+    qCDebug(lcCtrl) << "move_y" << m_sideStepSpeed << lroundf(v) << arg;
     sendOneArgCommand(Command::VelY, arg);
     emit sideStepSpeedChanged(v);
 }
@@ -317,7 +320,7 @@ void Controller::setTranslationX(qreal v)
         return;
     m_translationX = v;
     uint8_t arg = 0x80 + lroundf(v);
-    qDebug() << "trans_x" << m_translationX << lroundf(v) << arg;
+    qCDebug(lcCtrl) << "trans_x" << m_translationX << lroundf(v) << arg;
     sendOneArgCommand(Command::TranslationX, arg);
     emit translationXChanged(v);
 }
@@ -328,7 +331,7 @@ void Controller::setTranslationY(qreal v)
         return;
     m_translationY = v;
     uint8_t arg = 0x80 + lroundf(v);
-    qDebug() << "trans_y" << m_translationY << lroundf(v) << arg;
+    qCDebug(lcCtrl) << "trans_y" << m_translationY << lroundf(v) << arg;
     sendOneArgCommand(Command::TranslationY, arg);
     emit translationYChanged(v);
 }
@@ -341,7 +344,7 @@ void Controller::setTranslationZ(qreal v)
         return;
     m_translationZ = v;
     uint8_t arg = lroundf(v);
-    qDebug() << "trans_z" << m_translationZ << lroundf(v) << arg;
+    qCDebug(lcCtrl) << "trans_z" << m_translationZ << lroundf(v) << arg;
     sendOneArgCommand(Command::TranslationZ, arg);
     emit translationZChanged(v);
 }
