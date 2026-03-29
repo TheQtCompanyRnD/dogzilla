@@ -63,28 +63,38 @@ Controller::RealPair Controller::m_motorLimits[] {
     {-31, 31}
 };
 
-QString Controller::m_portPath;
-qint32 Controller::m_baudRate(-1);
-
-void Controller::setPortAndBaudRate(const QString &serialPort, qint32 baudRate)
-{
-    m_portPath = serialPort;
-    m_baudRate = baudRate;
-}
-
 Controller::Controller(QObject * parent)
-  : QObject(parent), m_port(m_portPath, this)
+  : QObject(parent)
 {
-    m_port.setBaudRate(m_baudRate);
     connect(&m_port, &QSerialPort::errorOccurred, this, &Controller::onError);
     connect(&m_port, &QIODevice::readyRead, this, &Controller::readAndHandle);
     // connect(this, &QSerialPort::dataTerminalReadyChanged, this, &Controller::emitReadySend);
-    const bool success = m_port.open(QIODevice::ReadWrite);
-    qDebug() << m_port.portName() << m_port.baudRate() << "opened successfully?" << success;
     pollBattery(); // TODO periodically when otherwise idle
 }
 
 Controller::~Controller() { }
+
+void Controller::setSerialPort(const QString &path)
+{
+    m_serialPort = path;
+    maybeOpenSerialPort();
+}
+
+void Controller::setBaudRate(int baud)
+{
+    m_baudRate = baud;
+    maybeOpenSerialPort();
+}
+
+void Controller::maybeOpenSerialPort()
+{
+    if (!m_serialPort.isEmpty() && m_baudRate > 0) {
+        m_port.setPortName(m_serialPort);
+        m_port.setBaudRate(m_baudRate);
+        const bool success = m_port.open(QIODevice::ReadWrite);
+        qDebug() << m_port.portName() << m_port.baudRate() << "opened successfully?" << success;
+    }
+}
 
 void Controller::onError(QSerialPort::SerialPortError err)
 {

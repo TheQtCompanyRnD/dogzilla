@@ -7,7 +7,6 @@ int main(int argc, char **argv)
 {
     QRos2Context::init(argc, argv);
     QCoreApplication app(argc, argv);
-    Controller::setPortAndBaudRate("/dev/ttyAMA0", 115200);
     QQmlApplicationEngine engine;
     qDebug() << "import paths" << engine.importPathList();
     QObject::connect(

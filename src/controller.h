@@ -12,7 +12,9 @@ class Controller : public QObject
 {
     Q_OBJECT
     QML_ELEMENT
-    QML_SINGLETON
+    Q_PROPERTY(QString serialPort READ serialPort WRITE setSerialPort CONSTANT FINAL)
+    Q_PROPERTY(int baudRate READ baudRate WRITE setBaudRate CONSTANT FINAL)
+
     Q_PROPERTY(int batteryPercent READ batteryPercent NOTIFY batteryPercentChanged FINAL)
     Q_PROPERTY(bool motorsEngaged READ motorsEngaged WRITE setMotorsEngaged NOTIFY motorsEngagedChanged FINAL)
     Q_PROPERTY(qreal walkSpeed READ walkSpeed WRITE setWalkSpeed NOTIFY walkSpeedChanged FINAL)
@@ -24,8 +26,6 @@ class Controller : public QObject
     Q_PROPERTY(QList<double> jointAngles READ jointAngles WRITE setJointAngles NOTIFY jointAnglesChanged FINAL)
 
 public:
-    static void setPortAndBaudRate(const QString &serialPort, qint32 baudRate);
-
     Controller(QObject * parent = nullptr);
     ~Controller();
 
@@ -65,6 +65,9 @@ public:
 
     typedef QPair<qreal, qreal> RealPair;
 
+    QString serialPort() const { return m_serialPort; }
+    int baudRate() const { return m_baudRate; }
+
     int batteryPercent() const { return m_batteryPercent; }
     bool motorsEngaged() const { return m_motorsEngaged; }
     qreal walkSpeed() const { return m_walkSpeed; }
@@ -76,6 +79,9 @@ public:
     QList<double> jointAngles() const { return {m_motorAngles.begin(), m_motorAngles.end()}; }
 
 public slots:
+    void setSerialPort(const QString &path);
+    void setBaudRate(int baud);
+
     void setMotorsEngaged(bool v);
     void stop();
     void setWalkSpeed(qreal v);
@@ -110,9 +116,12 @@ private slots:
     void pollBattery();
 
 private:
+    void maybeOpenSerialPort();
     void handleMotorAngles(const QByteArray &packet);
 
 private:
+    QString m_serialPort;
+    qint32 m_baudRate = -1;
     QSerialPort m_port;
     qreal m_walkSpeed = 0;
     qreal m_steerAngle;
@@ -128,8 +137,6 @@ private:
 
     static QByteArray m_commands[int(Command::Count)];
     static RealPair m_motorLimits[3]; // lower, middle, upper motors on each leg
-    static QString m_portPath;
-    static qint32 m_baudRate;
 };
 
 #endif  // CONTROLLER_H

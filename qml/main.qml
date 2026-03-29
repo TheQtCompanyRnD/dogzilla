@@ -9,10 +9,6 @@ import QtRos2.SensorMsgs
 ROS2Node {
 	id: root
 	nodeName: "dogzilla"
-	Component.onCompleted: {
-		console.log("hello objects", Controller, univin, jsp)
-		console.log("topics", jsp.topic, twp.topic)
-	}
 
 	TwistPublisher {
 		id: twp
@@ -22,8 +18,8 @@ ROS2Node {
 	function publishTwist() {
 		twp.publish({
 						"linear": {
-							"x": Controller.walkSpeed,
-							"y": Controller.sideStepSpeed,
+							"x": controller.walkSpeed,
+							"y": controller.sideStepSpeed,
 							"z": 0
 						},
 						"angular": {
@@ -55,7 +51,7 @@ ROS2Node {
 				"rh_upper_leg_joint",
 				"rh_lower_leg_joint"
 			],
-			"position": Controller.jointAngles
+			"position": controller.jointAngles
 			// could also include velocity, effort
 		}
 		jsp.publish(msg)
@@ -64,11 +60,10 @@ ROS2Node {
 	// ROS2Node apparently only allows childEntities as children:
 	// if we don't declare a property, we get
 	// Cannot assign object of type "QQmlConnections" to list property "childEntities"; expected "QRos2Entity"
-	// And we need Connections only because Controller is a singleton
-	property Connections conn: Connections {
-		target: Controller
+	property Controller controller: Controller {
+		serialPort: "/dev/ttyAMA0"
+		baudRate: 115200
 
-		// sigh: Implicitly defined onFoo properties in Connections are deprecated. Use this syntax instead: function onFoo(<arguments>) { ... }
 		onWalkSpeedChanged: (speed) => {
 			publishTwist()
 			console.log("Walk speed changed", speed);
@@ -88,16 +83,16 @@ ROS2Node {
 				console.log("axis", axis, value)
 				switch (axis) {
 					case 0: // JoyAxis.LeftX
-						Controller.sideStepSpeed = value * -50
+						controller.sideStepSpeed = value * -50
 						break;
 					case 1: // JoyAxis.LeftY
-						Controller.translationX = value * 100
+						controller.translationX = value * 100
 						break;
 					case 2: // JoyAxis.RightX
-						Controller.walkSpeed = value * -50
+						controller.walkSpeed = value * -50
 						break;
 					case 4: // should be RightY
-						Controller.steerAngle = (value - 0.5) * -90
+						controller.steerAngle = (value - 0.5) * -90
 						break;
 				}
 			}
@@ -108,10 +103,10 @@ ROS2Node {
 					return
 				switch (button) {
 					case 6: // JoyButton.Start
-						Controller.motorsEngaged = !Controller.motorsEngaged
+						controller.motorsEngaged = !controller.motorsEngaged
 						break
 					case 4: // JoyButton.Back
-						Controller.stop()
+						controller.stop()
 						break
 				}
 			}
