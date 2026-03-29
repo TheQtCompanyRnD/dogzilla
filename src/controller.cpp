@@ -197,13 +197,19 @@ void Controller::handleMotorAngles(const QByteArray &packet)
 {
     if (packet.size() < 18)
         return;
+
+    bool changed = false;
     // example: 5500171250 b2 aa 7f b1 aa 80 b4 b6 7f b2 b4 7e 00ff000400aa
     // meaning: lower, middle, upper motor position on each leg (but we have more than 12?)
     // 17.7451, 40, -0.121569, 17.2353, 40, 0.121569, 18.7647, 47.4824, -0.121569, 17.7451, 46.2353, -0.364706
-    for (int i = 0; i < 12; ++i)
-        m_motorAngles[i] = byteToReal(packet.at(i + 5), m_motorLimits[i % 3]);
-    qDebug() << m_motorAngles;
-    emit jointAnglesChanged();
+    for (int i = 0; i < 12; ++i) {
+        double v = byteToReal(packet.at(i + 5), m_motorLimits[i % 3]);
+        if (!changed && m_motorAngles[i] != v)
+            changed = true;
+        m_motorAngles[i] = v;
+    }
+    if (changed)
+        emit jointAnglesChanged();
 }
 
 void Controller::readAndHandle()
