@@ -6,25 +6,22 @@ import Dogzilla
 import QtRos2.GeometryMsgs
 import QtRos2.SensorMsgs
 
-QtObject {
+ROS2Node {
 	id: root
-	property string baseName: "dogzilla"
+	nodeName: "dogzilla"
 	Component.onCompleted: {
 		console.log("hello objects", Controller, univin, jsp)
 		console.log("topics", jsp.topic, twp.topic)
 	}
 
-	property ROS2Node node: ROS2Node {
-		id: rootRosNode
-		nodeName: "dogzilla_node"
+	TwistPublisher {
+		id: twp
+		topic: `/${root.nodeName}/cmd_vel`
+	}
 
-		TwistPublisher {
-			id: twp
-			topic: `/${root.baseName}/cmd_vel`
-		}
-		JointStatePublisher {
-			topic: `/${root.baseName}/joint_states`
-		}
+	JointStatePublisher {
+		id: jsp
+		topic: `/${root.nodeName}/joint_states`
 	}
 
 	function publishTwist() {
@@ -41,8 +38,15 @@ QtObject {
 						}
 					})
 	}
+
+	// ROS2Node apparently only allows childEntities as children:
+	// if we don't declare a property, we get
+	// Cannot assign object of type "QQmlConnections" to list property "childEntities"; expected "QRos2Entity"
+	// And we need Connections only because Controller is a singleton
 	property Connections conn: Connections {
 		target: Controller
+
+		// sigh: Implicitly defined onFoo properties in Connections are deprecated. Use this syntax instead: function onFoo(<arguments>) { ... }
 		onWalkSpeedChanged: (speed) => {
 			publishTwist()
 			console.log("Walk speed changed", speed);
