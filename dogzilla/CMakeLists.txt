@@ -21,5 +21,10 @@ qt_add_qml_module(Robot_Dogzilla
         "dogzilla_joints.json"
 )
 
+file(GLOB_RECURSE QML_SOURCES "*.qml")
+add_custom_target(QmlFiles
+    SOURCES ${QML_SOURCES}
+)
+
 target_link_libraries(Robot_Dogzilla PUBLIC Qt6::Gui)
 
