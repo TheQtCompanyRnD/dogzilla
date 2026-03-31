@@ -38,7 +38,7 @@ DogzillaControlBase::DogzillaControlBase(QObject *parent)
         axis << 0.0 << 1.0 << 0.0;
         map.insert(QStringLiteral("axis"), axis);
         map.insert(QStringLiteral("lower"), -175.00000000056855);
-        map.insert(QStringLiteral("upper"), -57.00000000362294);
+        map.insert(QStringLiteral("upper"), -43.0);
         m_jointInfos.append(map);
     }
     {
@@ -71,7 +71,7 @@ DogzillaControlBase::DogzillaControlBase(QObject *parent)
         axis << 0.0 << 1.0 << 0.0;
         map.insert(QStringLiteral("axis"), axis);
         map.insert(QStringLiteral("lower"), -175.00000000056855);
-        map.insert(QStringLiteral("upper"), -57.00000000362294);
+        map.insert(QStringLiteral("upper"), -43.0);
         m_jointInfos.append(map);
     }
     {
@@ -104,7 +104,7 @@ DogzillaControlBase::DogzillaControlBase(QObject *parent)
         axis << 0.0 << 1.0 << 0.0;
         map.insert(QStringLiteral("axis"), axis);
         map.insert(QStringLiteral("lower"), -175.00000000056855);
-        map.insert(QStringLiteral("upper"), -57.00000000362294);
+        map.insert(QStringLiteral("upper"), -43.0);
         m_jointInfos.append(map);
     }
     {
@@ -137,7 +137,7 @@ DogzillaControlBase::DogzillaControlBase(QObject *parent)
         axis << 0.0 << 1.0 << 0.0;
         map.insert(QStringLiteral("axis"), axis);
         map.insert(QStringLiteral("lower"), -175.00000000056855);
-        map.insert(QStringLiteral("upper"), -57.00000000362294);
+        map.insert(QStringLiteral("upper"), -43.0);
         m_jointInfos.append(map);
     }
 }

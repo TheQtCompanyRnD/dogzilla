@@ -225,8 +225,14 @@ void Controller::handleMotorAngles(const QByteArray &packet)
     // meaning: lower, middle, upper motor position on each leg (but we have more than 12?)
     // 17.7451, 40, -0.121569, 17.2353, 40, 0.121569, 18.7647, 47.4824, -0.121569, 17.7451, 46.2353, -0.364706
     for (int i = 0; i < 12; ++i) {
-        double v = byteToReal(packet.at(i + 5), m_motorLimits[i % 3]);
-		qCDebug(lcCrLow) << "   " << i << jointNames.at(i) << m_motorAngles[i] << "->" << Qt::hex << int(packet.at(i + 5)) << ":" << v;
+        const int perLegIdx = i % 3;
+        int rawAngle = packet.at(i + 5);
+        double v = byteToReal(rawAngle, m_motorLimits[perLegIdx]);
+        // to put the lower leg at a 90 degree angle to the thigh, use +16 (from the range -73..57)
+        // at that position, we report joint_state 90, not 0
+        if (perLegIdx == 0)
+            v -= 106.0;
+        qCDebug(lcCrLow) << "   " << i << jointNames.at(i) << m_motorAngles[i] << "->" << Qt::hex << rawAngle << ":" << v;
         if (!changed && m_motorAngles[i] != v)
             changed = true;
         m_motorAngles[i] = v;

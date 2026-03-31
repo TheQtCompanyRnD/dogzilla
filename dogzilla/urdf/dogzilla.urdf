@@ -213,7 +213,7 @@
       link="lf_lower_leg_link" />
     <axis
       xyz="0 1 0" />
-    <limit effort="25" lower="-3.054326191" upper="-0.9948376737" velocity="1.5" />
+    <limit effort="25" lower="-3.054326191" upper="-0.750491578455556" velocity="1.5" />
   </joint>
   <link
     name="rf_hip_link">
@@ -375,7 +375,7 @@
       link="rf_lower_leg_link" />
     <axis
       xyz="0 1 0" />
-    <limit effort="25" lower="-3.054326191" upper="-0.9948376737" velocity="1.5" />
+    <limit effort="25" lower="-3.054326191" upper="-0.750491578455556" velocity="1.5" />
   </joint>
   <link
     name="lh_hip_link">
@@ -537,7 +537,7 @@
       link="lh_lower_leg_link" />
     <axis
       xyz="0 1 0" />
-    <limit effort="25" lower="-3.054326191" upper="-0.9948376737" velocity="1.5" />
+    <limit effort="25" lower="-3.054326191" upper="-0.750491578455556" velocity="1.5" />
   </joint>
   <link
     name="rh_hip_link">
@@ -699,7 +699,7 @@
       link="rh_lower_leg_link" />
     <axis
       xyz="0 1 0" />
-    <limit effort="25" lower="-3.054326191" upper="-0.9948376737" velocity="1.5" />
+    <limit effort="25" lower="-3.054326191" upper="-0.750491578455556" velocity="1.5" />
   </joint>
   <link
     name="camera_link">
