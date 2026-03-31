@@ -13,6 +13,8 @@ class DogzillaControl : public DogzillaControlBase
 
 public:
     explicit DogzillaControl(QObject *parent = nullptr);
+
+    Q_INVOKABLE void updateJointState(QStringList names, QList<qreal> values);
 };
 
 #endif // DOGZILLA_CONTROL_H

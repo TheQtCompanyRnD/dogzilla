@@ -3,6 +3,9 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick3D
 import QtQuick3D.Helpers
+import QtRos2.SensorMsgs as SensorMsgs
+import QtRos2.Core
+import Dogzilla
 
 Item {
     id: root
@@ -45,7 +48,25 @@ Item {
 
         Dogzilla {
             id: robotRoot
-            control: DogzillaControl {}
+            control: DogzillaControl { id: ctl }
+        }
+    }
+
+    ROS2Node {
+        id: rosNode
+        nodeName: "dogzilla"
+
+        SensorMsgs.JointStateSubscriber {
+            id: jointStateSubscriber
+            topic: `/${rosNode.nodeName}/joint_states`
+            qos.queueSize: 1
+            qos.reliability: SensorMsgs.JointStateSubscriber.ReliabilityBestEffort
+            qos.history: SensorMsgs.JointStateSubscriber.HistoryKeepLast
+
+            onMessageReceived: function(msg) {
+                // console.log("JointStateSubscriber got", msg.name, msg.position, JSON.stringify(msg))
+                robotRoot.control.updateJointState(msg.name, msg.position);
+            }
         }
     }
 

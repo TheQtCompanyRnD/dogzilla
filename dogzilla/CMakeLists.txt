@@ -4,7 +4,7 @@ project(Robot_Dogzilla)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(QT_QML_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Quick Quick3D)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Quick Quick3D Ros2Core)
 qt_standard_project_setup(REQUIRES 6.8)
 
 qt_add_library(Robot_Dogzilla)
@@ -26,5 +26,10 @@ add_custom_target(QmlFiles
     SOURCES ${QML_SOURCES}
 )
 
-target_link_libraries(Robot_Dogzilla PUBLIC Qt6::Gui)
+qt_ros2_application(
+    TARGET Robot_Dogzilla
+    TYPE PUBLISHER SUBSCRIBER SERVICE ACTION
+    PACKAGES QtRos2GeometryMessages QtRos2SensorMessages
+)
 
+target_link_libraries(Robot_Dogzilla PUBLIC Qt6::Gui Qt6::Quick)
