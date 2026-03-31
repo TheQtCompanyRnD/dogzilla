@@ -34,7 +34,7 @@ QByteArray Controller::m_commands[] {
     QByteArrayLiteral("\x3e\x00"), // Action
     QByteArrayLiteral("\x80\x00\x00\x00"), // PeriodicTranslate
     QByteArrayLiteral("\x02\x50\x0c"), // get MotorAngle; expect to read 12 bytes
-    QByteArrayLiteral("\x5c\x01"), // MotorSpeed
+    QByteArrayLiteral("\x01\x5c\x01"), // MotorSpeed
     QByteArrayLiteral("\x40\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"), // LegPos
     QByteArrayLiteral("\x61\x00"), // GetIMU
     QByteArrayLiteral("\x62\x00"), // Roll
@@ -166,15 +166,20 @@ void Controller::sendOneArgCommand(Command cmd, int8_t arg)
 
 void Controller::pollMotorAngles()
 {
-    if (m_disengageCountdown > 0 && --m_disengageCountdown <= 0) {
-        stop();
-        killTimer(m_motorPollTimerId);
-        m_motorPollTimerId = -1;
-        sendThunkCommand(Command::UnloadMotor);
-        m_motorsEngaged = false;
-        qCDebug(lcCtrl) << m_motorsEngaged << "->" << false;
-        emit motorsEngagedChanged(false);
-        return;
+    if (m_disengageCountdown > 0) {
+        --m_disengageCountdown;
+        if (m_disengageCountdown <= 10) {
+                stop();
+            sendThunkCommand(Command::UnloadMotor);
+            m_motorsEngaged = false;
+            qCDebug(lcCtrl) << m_motorsEngaged << "->" << false;
+            emit motorsEngagedChanged(false);
+        }
+        if (m_disengageCountdown == 0) {
+            killTimer(m_motorPollTimerId);
+            m_motorPollTimerId = -1;
+            return;
+        }
     }
 
     //                           "55 00 09 02 01 50 a3 00 aa"
@@ -280,15 +285,16 @@ void Controller::setMotorsEngaged(bool v)
 
     if (v) {
         if (m_motorPollTimerId < 0)
-            m_motorPollTimerId = startTimer(1000);
-        setTranslationZ(255); // stand up; TODO this doesn't go high enough
+            m_motorPollTimerId = startTimer(100);
+        setMotorSpeed(50);
+        setTranslationZ(100); // stand up; TODO this doesn't go high enough
         sendThunkCommand(Command::LoadMotor);
         m_motorsEngaged = v;
         qCDebug(lcCtrl) << m_motorsEngaged << "->" << v;
         emit motorsEngagedChanged(v);
     } else {
         setTranslationZ(0); // crouch; TODO this doesn't go low enough
-        m_disengageCountdown = 2; // ticks
+        m_disengageCountdown = 25; // ticks
     }
 }
 
@@ -340,6 +346,16 @@ void Controller::setSideStepSpeed(qreal v)
     qCDebug(lcCtrl) << "move_y" << m_sideStepSpeed << lroundf(v) << arg;
     sendOneArgCommand(Command::VelY, arg);
     emit sideStepSpeedChanged(v);
+}
+
+void Controller::setMotorSpeed(qreal v)
+{
+    if (qFuzzyCompare(m_steerAngle, v))
+        return;
+
+    uint8_t arg = 0x80 + lroundf(v);
+    qCDebug(lcCtrl) << "speed" << lroundf(v) << arg;
+    sendOneArgCommand(Command::MotorSpeed, arg);
 }
 
 void Controller::setTranslationX(qreal v)

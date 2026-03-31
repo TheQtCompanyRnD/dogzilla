@@ -87,6 +87,7 @@ public slots:
     void setWalkSpeed(qreal v);
     void setSteerAngle(qreal v);
     void setSideStepSpeed(qreal v);
+    void setMotorSpeed(qreal v);
     void setTranslationX(qreal v);
     void setTranslationY(qreal v);
     void setTranslationZ(qreal v);
