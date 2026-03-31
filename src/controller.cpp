@@ -146,7 +146,8 @@ void Controller::sendThunkCommand(Command cmd)
     footer[0] = checksum(buf);
     buf.prepend(header);
     buf.append(footer);
-    qCDebug(lcCrLow) << "wrote" << m_port.write(buf) << "bytes:" << m_commands[int(cmd)].toHex() << buf.toHex();
+    const auto len = m_port.write(buf);
+    qCDebug(lcCrLow) << "wrote" << len << "bytes:" << m_commands[int(cmd)].toHex() << buf.toHex();
 }
 
 void Controller::sendOneArgCommand(Command cmd, int8_t arg)
@@ -159,7 +160,8 @@ void Controller::sendOneArgCommand(Command cmd, int8_t arg)
     footer[0] = checksum(buf);
     buf.prepend(header);
     buf.append(footer);
-    qCDebug(lcCrLow) << "wrote" << m_port.write(buf) << "bytes:" << m_commands[int(cmd)].toHex() << buf.toHex();
+    const auto len = m_port.write(buf);
+    qCDebug(lcCrLow) << "wrote" << len << "bytes:" << m_commands[int(cmd)].toHex() << buf.toHex();
 }
 
 void Controller::pollMotorAngles()
