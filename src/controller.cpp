@@ -5,6 +5,7 @@
 #include <QLoggingCategory>
 
 Q_STATIC_LOGGING_CATEGORY(lcCtrl, "dogzilla.controller")
+Q_STATIC_LOGGING_CATEGORY(lcCrLow, "dogzilla.controller.lolevel")
 
 QByteArray Controller::m_commands[] {
     { }, // None
@@ -64,6 +65,24 @@ Controller::RealPair Controller::m_motorLimits[] {
     {-73, 57},
     {-66, 93},
     {-31, 31}
+};
+
+static const QList<QByteArray> jointNames = {
+	"lfLowerLeg",
+	"lfUpperLeg",
+	"lfHip",
+
+	"rfLowerLeg",
+	"rfUpperLeg",
+	"rfHip",
+
+	"lhLowerLeg",
+	"lhUpperLeg",
+	"lhHip",
+
+	"rhLowerLeg",
+	"rhUpperLeg",
+	"rhHip",
 };
 
 Controller::Controller(QObject * parent)
@@ -127,7 +146,7 @@ void Controller::sendThunkCommand(Command cmd)
     footer[0] = checksum(buf);
     buf.prepend(header);
     buf.append(footer);
-    qCDebug(lcCtrl) << "wrote" << m_port.write(buf) << "bytes:" << m_commands[int(cmd)].toHex() << buf.toHex();
+    qCDebug(lcCrLow) << "wrote" << m_port.write(buf) << "bytes:" << m_commands[int(cmd)].toHex() << buf.toHex();
 }
 
 void Controller::sendOneArgCommand(Command cmd, int8_t arg)
@@ -140,7 +159,7 @@ void Controller::sendOneArgCommand(Command cmd, int8_t arg)
     footer[0] = checksum(buf);
     buf.prepend(header);
     buf.append(footer);
-    qCDebug(lcCtrl) << "wrote" << m_port.write(buf) << "bytes:" << m_commands[int(cmd)].toHex() << buf.toHex();
+    qCDebug(lcCrLow) << "wrote" << m_port.write(buf) << "bytes:" << m_commands[int(cmd)].toHex() << buf.toHex();
 }
 
 void Controller::pollMotorAngles()
@@ -207,6 +226,7 @@ void Controller::handleMotorAngles(const QByteArray &packet)
     // 17.7451, 40, -0.121569, 17.2353, 40, 0.121569, 18.7647, 47.4824, -0.121569, 17.7451, 46.2353, -0.364706
     for (int i = 0; i < 12; ++i) {
         double v = byteToReal(packet.at(i + 5), m_motorLimits[i % 3]);
+		qCDebug(lcCrLow) << "   " << i << jointNames.at(i) << m_motorAngles[i] << "->" << Qt::hex << int(packet.at(i + 5)) << ":" << v;
         if (!changed && m_motorAngles[i] != v)
             changed = true;
         m_motorAngles[i] = v;
@@ -227,7 +247,7 @@ void Controller::readAndHandle()
         qWarning() << "ignoring message with bad checksum: expected" << Qt::hex << expectedChecksum << buf.toHex();
         return;
     }
-    qCDebug(lcCtrl) << buf.toHex() << "len" << len << "exchk" << Qt::hex << expectedChecksum;
+    qCDebug(lcCrLow) << buf.toHex() << "len" << len << "exchk" << Qt::hex << expectedChecksum;
     if (buf.at(3) == 0x12) {
         const uint8_t addr = buf.at(4);
         switch(addr) {

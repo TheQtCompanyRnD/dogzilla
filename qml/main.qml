@@ -38,18 +38,21 @@ ROS2Node {
 	function publishJointState() {
 		const msg = {
 			"name": [
-				"lf_hip_joint",
-				"lf_upper_leg_joint",
 				"lf_lower_leg_joint",
-				"rf_hip_joint",
-				"rf_upper_leg_joint",
+				"lf_upper_leg_joint",
+				"lf_hip_joint",
+
 				"rf_lower_leg_joint",
-				"lh_hip_joint",
-				"lh_upper_leg_joint",
+				"rf_upper_leg_joint",
+				"rf_hip_joint",
+
 				"lh_lower_leg_joint",
-				"rh_hip_joint",
+				"lh_upper_leg_joint",
+				"lh_hip_joint",
+
+				"rh_lower_leg_joint",
 				"rh_upper_leg_joint",
-				"rh_lower_leg_joint"
+				"rh_hip_joint",
 			],
 			"position": controller.jointAngles
 			// could also include velocity, effort
