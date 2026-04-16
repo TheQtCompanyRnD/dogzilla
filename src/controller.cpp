@@ -91,7 +91,6 @@ Controller::Controller(QObject * parent)
     connect(&m_port, &QSerialPort::errorOccurred, this, &Controller::onError);
     connect(&m_port, &QIODevice::readyRead, this, &Controller::readAndHandle);
     // connect(this, &QSerialPort::dataTerminalReadyChanged, this, &Controller::emitReadySend);
-    pollBattery(); // TODO periodically when otherwise idle
 }
 
 Controller::~Controller() { }
@@ -115,6 +114,8 @@ void Controller::maybeOpenSerialPort()
         m_port.setBaudRate(m_baudRate);
         const bool success = m_port.open(QIODevice::ReadWrite);
         qCDebug(lcCtrl) << m_port.portName() << m_port.baudRate() << "opened successfully?" << success;
+        if (success)
+            pollBattery(); // TODO periodically when otherwise idle
     }
 }
 
