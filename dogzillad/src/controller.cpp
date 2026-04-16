@@ -252,7 +252,7 @@ void Controller::handleMotorAngles(const QByteArray &packet)
         qCDebug(lcCrLow) << "   " << i << jointNames.at(i) << m_motorAngles[i] << "->" << Qt::hex << rawAngle << ":" << v;
         if (!changed && m_motorAngles[i] != v)
             changed = true;
-        m_motorAngles[i] = v;
+        m_motorAngles[i] = v * M_PI / 180;
     }
     if (changed)
         emit jointAnglesChanged();
