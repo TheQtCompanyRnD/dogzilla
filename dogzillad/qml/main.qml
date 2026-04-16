@@ -6,7 +6,7 @@ import Dogzilla
 import QtRos2.GeometryMsgs
 import QtRos2.SensorMsgs
 
-ROS2Node {
+Ros2Node {
 	id: root
 	nodeName: "dogzilla"
 
@@ -60,7 +60,7 @@ ROS2Node {
 		jsp.publish(msg)
 	}
 
-	// ROS2Node apparently only allows childEntities as children:
+	// Ros2Node apparently only allows childEntities as children:
 	// if we don't declare a property, we get
 	// Cannot assign object of type "QQmlConnections" to list property "childEntities"; expected "QRos2Entity"
 	property Controller controller: Controller {

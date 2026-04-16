@@ -52,7 +52,7 @@ Item {
         }
     }
 
-    ROS2Node {
+    Ros2Node {
         id: rosNode
         nodeName: "dogzilla"
 

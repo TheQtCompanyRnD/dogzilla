@@ -26,10 +26,10 @@ add_custom_target(QmlFiles
     SOURCES ${QML_SOURCES}
 )
 
-qt_ros2_application(
-    TARGET Robot_Dogzilla
-    TYPE PUBLISHER SUBSCRIBER SERVICE ACTION
-    PACKAGES QtRos2GeometryMessages QtRos2SensorMessages
+qt_ros2_configure_target(
+    Robot_Dogzilla
+    CAPABILITIES PUBLISHER SUBSCRIBER SERVICE ACTION
+    MODULES QtRos2GeometryMessages QtRos2SensorMessages
 )
 
 target_link_libraries(Robot_Dogzilla PUBLIC Qt6::Gui Qt6::Quick)
