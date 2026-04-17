@@ -109,12 +109,12 @@ void Controller::setBaudRate(int baud)
 
 void Controller::maybeOpenSerialPort()
 {
-    if (!m_serialPort.isEmpty() && m_baudRate > 0) {
+    if (!m_port.isWritable() && !m_serialPort.isEmpty() && m_baudRate > 0) {
         m_port.setPortName(m_serialPort);
         m_port.setBaudRate(m_baudRate);
         const bool success = m_port.open(QIODevice::ReadWrite);
         qCDebug(lcCtrl) << m_port.portName() << m_port.baudRate() << "opened successfully?" << success;
-        if (success)
+        if (success && !m_batteryPollCountdown)
             pollBattery(); // TODO periodically when otherwise idle
     }
 }
@@ -134,8 +134,15 @@ uint8_t Controller::checksum(const QByteArray &buf)
 
 void Controller::timerEvent(QTimerEvent *ev)
 {
-    if (ev->timerId() == m_motorPollTimerId)
+    if (ev->timerId() == m_motorPollTimerId) {
         pollMotorAngles();
+        if (m_batteryPollCountdown > 0) {
+            --m_batteryPollCountdown;
+        } else {
+            pollBattery();
+            m_batteryPollCountdown = 100000; // 1000 * 100 ms = 100 sec
+        }
+    }
 }
 
 void Controller::sendThunkCommand(Command cmd)
@@ -147,6 +154,7 @@ void Controller::sendThunkCommand(Command cmd)
     footer[0] = checksum(buf);
     buf.prepend(header);
     buf.append(footer);
+    maybeOpenSerialPort();
     const auto len = m_port.write(buf);
     qCDebug(lcCrLow) << "wrote" << len << "bytes:" << m_commands[int(cmd)].toHex() << buf.toHex();
 }
@@ -161,6 +169,7 @@ void Controller::sendOneArgCommand(Command cmd, int8_t arg)
     footer[0] = checksum(buf);
     buf.prepend(header);
     buf.append(footer);
+    maybeOpenSerialPort();
     const auto len = m_port.write(buf);
     qCDebug(lcCrLow) << "wrote" << len << "bytes:" << m_commands[int(cmd)].toHex() << buf.toHex();
 }

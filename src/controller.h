@@ -132,6 +132,7 @@ private:
     qreal m_translationZ;
     std::array<double, 12> m_motorAngles;
     int m_motorPollTimerId = -1;
+    int m_batteryPollCountdown = 0;
     int m_disengageCountdown = 0;
     uint8_t m_batteryPercent = 0;
     bool m_motorsEngaged = false; // we want to explicitly engage to start moving
