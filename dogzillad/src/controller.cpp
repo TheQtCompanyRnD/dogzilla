@@ -115,7 +115,7 @@ void Controller::maybeOpenSerialPort()
         const bool success = m_port.open(QIODevice::ReadWrite);
         qCDebug(lcCtrl) << m_port.portName() << m_port.baudRate() << "opened successfully?" << success;
         if (success && !m_batteryPollCountdown)
-            pollBattery(); // TODO periodically when otherwise idle
+            pollBattery();
     }
 }
 
@@ -256,6 +256,16 @@ void Controller::handleMotorAngles(const QByteArray &packet)
     }
     if (changed)
         emit jointAnglesChanged();
+
+	// Polling the battery right after a reply is received
+	// prevents problems with interleaving replies and getting bad checksums.
+	// TODO Use a command queue instead.
+	if (m_batteryPollCountdown > 0) {
+		--m_batteryPollCountdown;
+	} else {
+		pollBattery();
+		m_batteryPollCountdown = 100; // 100 * 100 ms = 10 sec
+	}
 }
 
 void Controller::readAndHandle()

@@ -60,12 +60,27 @@ Ros2Node {
 		jsp.publish(msg)
 	}
 
+	BatteryStatePublisher {
+		id: bsp
+		topic: `/${root.nodeName}/battery_state`
+	}
+
 	// Ros2Node apparently only allows childEntities as children:
 	// if we don't declare a property, we get
 	// Cannot assign object of type "QQmlConnections" to list property "childEntities"; expected "QRos2Entity"
 	property Controller controller: Controller {
 		serialPort: "/dev/ttyAMA0"
 		baudRate: 115200
+
+		onBatteryPercentChanged: (pct) => {
+			const msg = {
+				"percentage": pct / 100,
+				"present": true,
+				// TODO voltage comes from /sys/devices/platform/soc/soc:rpi_rtc/rtc/rtc0/battery_voltage
+				// TODO power_supply_status?
+			}
+			bsp.publish(msg)
+		}
 
 		onWalkSpeedChanged: (speed) => {
 			publishTwist()
