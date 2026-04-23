@@ -1,6 +1,7 @@
 // Copyright (C) 2026 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR BSD-3-Clause
 import QtQml
+import QtMultimedia
 import QtUniversalInput
 import Dogzilla
 import QtRos2.GeometryMsgs
@@ -128,5 +129,41 @@ Ros2Node {
 						break
 				}
 			}
+	}
+
+	CompressedImagePublisher {
+		id: imagePublisher
+		topic: `/${root.nodeName}/camera/image/compressed`
+	}
+
+	property CaptureSession captureSession: CaptureSession {
+		imageCapture : ImageCapture {
+			id: imageCapture
+			onImageCaptured:
+				(reqId, image) => {
+					console.log("image captured", reqId, image)
+					const msg = {
+						"format": "jpeg",
+						"image": image
+					}
+					imagePublisher.publish(msg)
+				}
+		}
+		camera: Camera {
+			id: camera
+			onErrorOccurred: (err, errorString) => console.log("camera error", errorString)
+		}
+
+		property Timer cameraTimer: Timer {
+			interval: 1000 // TODO increase the frequency; how to make it adaptive?
+			repeat: true
+			running: true // TODO only when the network is up, DDS is ok and some client is listening
+			onTriggered: imageCapture.capture()
+		}
+	}
+
+	Component.onCompleted: {
+		camera.start()
+		console.log("chosen camera", camera.cameraDevice, camera.cameraFormat, "active", camera.active, "feat", camera.supportedFeatures)
 	}
 }
