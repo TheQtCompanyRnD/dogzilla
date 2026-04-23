@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.27)
 project(dogzilla LANGUAGES CXX)
 
 find_package(Qt6 REQUIRED COMPONENTS Core Gui Qml SerialPort UniversalInput)
+find_package(Qt6Ros2Core REQUIRED)
 find_package(WrapRos2 REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(type_description_interfaces REQUIRED)
@@ -38,5 +39,6 @@ target_link_libraries(dogzillad PRIVATE
     Qt6::Qml
     Qt6::SerialPort
     Qt::UniversalInput
+    Qt6::Ros2Core
     ${rclcpp_LIBRARIES}
 )
