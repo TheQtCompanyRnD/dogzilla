@@ -18,6 +18,8 @@ qt_add_qml_module(dogzillad
     SOURCES 
         src/controller.h
         src/controller.cpp
+        src/consoledashboard.h
+        src/consoledashboard.cpp
 )
 
 

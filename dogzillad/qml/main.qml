@@ -66,6 +66,12 @@ Ros2Node {
 		topic: `/${root.nodeName}/battery_state`
 	}
 
+    property ConsoleDashboard dash: ConsoleDashboard {
+		batteryLevel: controller.batteryPercent
+		tty: "/dev/tty1"
+    }
+
+
 	// Ros2Node apparently only allows childEntities as children:
 	// if we don't declare a property, we get
 	// Cannot assign object of type "QQmlConnections" to list property "childEntities"; expected "QRos2Entity"
@@ -77,8 +83,6 @@ Ros2Node {
 			const msg = {
 				"percentage": pct / 100,
 				"present": true,
-				// TODO voltage comes from /sys/devices/platform/soc/soc:rpi_rtc/rtc/rtc0/battery_voltage
-				// TODO power_supply_status?
 			}
 			bsp.publish(msg)
 		}
