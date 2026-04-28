@@ -88,18 +88,7 @@ Item {
         width: 480
         height: 320
         cache: false
-        source: "image://camera"
-    }
-
-    // ReceivedImageProvider is a ridiculous workaround for the fact that
-    // we can't pass a QImage directly to Image in QML
-    Connections {
-        target: ReceivedImageProvider
-        function onUpdated(frame, sec) {
-            console.log("updated", frame, sec)
-            cameraView.source = ""
-            cameraView.source = "image://camera"
-        }
+        source: "image://camera/" + ReceivedImageProvider.currentFrame
     }
 
     ControlPanel {

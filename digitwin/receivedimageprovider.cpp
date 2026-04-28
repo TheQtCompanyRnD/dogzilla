@@ -37,4 +37,5 @@ void ReceivedImageProvider::setImage(const QImage &im, int frame, int sec, int n
     m_sec = sec;
     m_nsec = nsec;
     emit updated(frame, sec + nsec / 1000000000.0);
+    emit currentFrameChanged();
 }

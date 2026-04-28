@@ -11,6 +11,7 @@ class ReceivedImageProvider : public QQuickImageProvider
     Q_OBJECT
     QML_SINGLETON
     QML_NAMED_ELEMENT(ReceivedImageProvider)
+    Q_PROPERTY(int currentFrame READ currentFrame NOTIFY currentFrameChanged FINAL)
 public:
     static ReceivedImageProvider *instance();
     static ReceivedImageProvider *create(QQmlEngine *engine, QJSEngine *)
@@ -22,8 +23,11 @@ public:
     QImage requestImage(const QString &id, QSize *size, const QSize &requestedSize) override;
     Q_INVOKABLE void setImage(const QImage &im, int frame, int sec, int nsec);
 
+    int currentFrame() const { return m_currentFrame; }
+
 signals:
     void updated(int frame, qreal sec);
+    void currentFrameChanged();
 
 private:
     ReceivedImageProvider();
