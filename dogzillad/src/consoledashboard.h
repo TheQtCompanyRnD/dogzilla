@@ -35,6 +35,10 @@ protected:
 private:
     int cpuPercent();
     QString readBatteryVoltage();
+    void readInterfaceBytes(const QString &ifaceName, quint64 &rx, quint64 &tx);
+    void calculateBandwidth(quint64 currentRx, quint64 currentTx,
+                            quint64 prevRx,quint64 prevTx,
+                            quint64 &rxBandwidth, quint64 &txBandwidth);
     std::string batteryBars();
     void onReachabilityChanged(QNetworkInformation::Reachability r);
     void update();
@@ -50,6 +54,9 @@ private:
     int m_batteryLevel = 0; // percent, 0 - 99
     int m_updateCount = 0;
     float m_batteryVoltage = 0.0f;
+    // Bandwidth tracking
+    QMap<QString, quint64> m_prevRxBytes;
+    QMap<QString, quint64> m_prevTxBytes;
 };
 
 #endif // CONSOLEDASHBOARD_H

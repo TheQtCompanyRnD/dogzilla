@@ -43,6 +43,40 @@ void ConsoleDashboard::timerEvent(QTimerEvent *ev)
         update();
 }
 
+// Read cumulative byte counters for a specific interface
+void ConsoleDashboard::readInterfaceBytes(const QString &ifaceName, quint64 &rx, quint64 &tx)
+{
+    QFile rxFile(QString("/sys/class/net/%1/statistics/rx_bytes").arg(ifaceName));
+    QFile txFile(QString("/sys/class/net/%1/statistics/tx_bytes").arg(ifaceName));
+
+    rx = 0;
+    tx = 0;
+
+    if (rxFile.open(QFile::ReadOnly | QFile::Text)) {
+        rx = rxFile.readLine().trimmed().toULongLong();
+        rxFile.close();
+    }
+    if (txFile.open(QFile::ReadOnly | QFile::Text)) {
+        tx = txFile.readLine().trimmed().toULongLong();
+        txFile.close();
+    }
+}
+
+// Calculate bandwidth from previous counter values, assuming this is called once per second
+void ConsoleDashboard::calculateBandwidth(quint64 currentRx, quint64 currentTx,
+                                          quint64 prevRx, quint64 prevTx,
+                                          quint64 &rxBandwidth, quint64 &txBandwidth)
+{
+    // Handle counter wraparound: treat as new baseline
+    if (currentRx < prevRx)
+        currentRx = 0;
+    if (currentTx < prevTx)
+        currentTx = 0;
+
+    rxBandwidth = currentRx - prevRx;
+    txBandwidth = currentTx - prevTx;
+}
+
 void ConsoleDashboard::onReachabilityChanged(QNetworkInformation::Reachability r)
 {
     qCDebug(lcCon) << r;
@@ -95,9 +129,9 @@ QString ConsoleDashboard::readBatteryVoltage()
 {
     const bool opened = m_batteryVoltageFile.open(QFile::ReadOnly);
     if (!opened) {
-		qCWarning(lcCon) << "failed to open" << m_batteryVoltageFile.fileName();
+        qCWarning(lcCon) << "failed to open" << m_batteryVoltageFile.fileName();
         return {};
-	}
+    }
     QByteArray whole = m_batteryVoltageFile.readAll();
     m_batteryVoltageFile.close();
     if (whole.length() < 4)
@@ -133,8 +167,8 @@ void ConsoleDashboard::update()
     const auto now = QDateTime::currentDateTime();
     // clear the screen every 10th update; otherwise overwrite to limit flicker
     out << (m_updateCount % 10 ? "\033[H" : "\033c") << now.toString("hh:mm:ss ").toStdString()
-            << batteryBars() << m_batteryLevel << "%"
-            << std::endl;
+            << batteryBars() << m_batteryLevel << "%" << std::endl;
+
     int row = 1;
     for (const auto &iface : QNetworkInterface::allInterfaces()) {
         // qDebug() << iface << iface.type();
@@ -148,19 +182,46 @@ void ConsoleDashboard::update()
             bool isIPV4 = false;
             quint32 ipv4 = ip.toIPv4Address(&isIPV4);
             if (isIPV4) {
-                // qDebug() << iface.name() << iface.type() << addr.ip() << ipv4
+                quint64 rxBps = 0, txBps = 0;
+
+                // Read current byte counters
+                quint64 curRx, curTx;
+                readInterfaceBytes(iface.name(), curRx, curTx);
+
+                // Calculate bandwidth using helper function
+                if (m_prevRxBytes.contains(iface.name())) {
+                    calculateBandwidth(curRx, curTx,
+                                       m_prevRxBytes[iface.name()],
+                                       m_prevTxBytes[iface.name()],
+                                       rxBps, txBps);
+                }
+
+                // Update previous counters for next iteration
+                m_prevRxBytes[iface.name()] = curRx;
+                m_prevTxBytes[iface.name()] = curTx;
+
+                // Format bandwidth (KB/s or MB/s)
+                QString bandwidthStr;
+                if (rxBps < 1048576 && txBps < 1048576) {
+                    // unfortunately we don't have space for both RX and TX
+                    //~ bandwidthStr = QString("R%1K T%2K").arg(rxBps / 1024).arg(txBps / 1024);
+                    bandwidthStr = QString("K%1").arg(txBps / 1024);
+                } else {
+                    bandwidthStr = QString("M%1").arg(txBps / 1048576);
+                }
+
+                qCDebug(lcCon) << iface.name() << iface.type() << addr.ip() << "RX" << rxBps << "B/s, TX" << txBps;
                 //          << "perm/lk/temp?" << addr.isPermanent() << addr.isLifetimeKnown() << addr.isTemporary()
                 //          << "ip flags" << ip.isBroadcast() << ip.isGlobal() << ip.isLinkLocal() << ip.isLoopback()
                 //             << ip.isMulticast() << ip.isPrivateUse() << ip.isSiteLocal() << ip.isUniqueLocalUnicast();
-                out << iface.name().first(3).toStdString() << ' ' << ip.toString().toStdString() << std::endl;
+                out << iface.name().first(1).toStdString() << ip.toString().toStdString()
+                    << bandwidthStr.toStdString() << std::endl;
                 output = true;
                 ++row;
             }
         }
         if (!output)
             out << iface.name().toStdString() << " ?  " << std::endl;
-        // TODO stats:
-        // e.g. /sys/class/net/<device>/statistics/rx_bytes, tx_bytes
         if (row >= 4)
             break;
     }
