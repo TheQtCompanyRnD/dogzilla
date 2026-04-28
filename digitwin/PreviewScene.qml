@@ -48,7 +48,9 @@ Item {
 
         Dogzilla {
             id: robotRoot
-            control: DogzillaControl { id: ctl }
+            control: DogzillaControl {
+                id: ctl
+            }
         }
     }
 
@@ -63,7 +65,7 @@ Item {
             qos.reliability: SensorMsgs.JointStateSubscriber.ReliabilityBestEffort
             qos.history: SensorMsgs.JointStateSubscriber.HistoryKeepLast
 
-            onMessageReceived: function(msg) {
+            onMessageReceived: function (msg) {
                 // console.log("JointStateSubscriber got", msg.name, msg.position, JSON.stringify(msg))
                 robotRoot.control.updateJointState(msg.name, msg.position);
             }
