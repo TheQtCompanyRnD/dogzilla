@@ -51,7 +51,7 @@ void DogzillaControl::updateJointState(QStringList names, QList<qreal> values)
             qWarning() << propertyName << "not found";
             continue;
         }
-        const qreal deg = values.at(i) * M_PI / 180;
+        const qreal deg = values.at(i) * 180 / M_PI;
         qCDebug(lcCtrl).noquote() << names.at(i) << propertyName << values.at(i) << "rad" << deg << "deg";
         meta->property(propIdx).write(this, deg);
     }
