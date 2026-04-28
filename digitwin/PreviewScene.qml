@@ -70,6 +70,36 @@ Item {
                 robotRoot.control.updateJointState(msg.name, msg.position);
             }
         }
+
+        SensorMsgs.CompressedImageSubscriber {
+            id: imageSubscriber
+            topic: `/${rosNode.nodeName}/camera/image/compressed`
+            onMessageReceived: function(msg) {
+                console.log(JSON.stringify(msg))
+                // const QImage &im, int frame, int sec, int nsec
+                ReceivedImageProvider.setImage(msg.image, msg.header.frameId,
+                                               msg.header.stamp.sec, msg.header.stamp.nanosec)
+            }
+        }
+    }
+
+    Image {
+        id: cameraView
+        width: 480
+        height: 320
+        cache: false
+        source: "image://camera"
+    }
+
+    // ReceivedImageProvider is a ridiculous workaround for the fact that
+    // we can't pass a QImage directly to Image in QML
+    Connections {
+        target: ReceivedImageProvider
+        function onUpdated(frame, sec) {
+            console.log("updated", frame, sec)
+            cameraView.source = ""
+            cameraView.source = "image://camera"
+        }
     }
 
     ControlPanel {

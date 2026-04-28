@@ -140,34 +140,41 @@ Ros2Node {
 		topic: `/${root.nodeName}/camera/image/compressed`
 	}
 
-	property CaptureSession captureSession: CaptureSession {
-		imageCapture : ImageCapture {
-			id: imageCapture
-			onImageCaptured:
-				(reqId, image) => {
-					console.log("image captured", reqId, image)
-					const msg = {
-						"format": "jpeg",
-						"image": image
-					}
-					imagePublisher.publish(msg)
-				}
-		}
-		camera: Camera {
-			id: camera
-			onErrorOccurred: (err, errorString) => console.log("camera error", errorString)
-		}
+    property CaptureSession captureSession: CaptureSession {
+        imageCapture: ImageCapture {
+            id: imageCapture
+            onImageCaptured: (reqId, image) => {
+                const timeMs = new Date().getTime()
+                console.log("image captured", reqId, image)
+                const msg = {
+                    "header": {
+                        "stamp": {
+                            "sec": Math.trunc(timeMs / 1000),
+                            "nanosec": timeMs % 1000 * 1000000
+                        },
+                        "frameId": reqId
+                    },
+                    "format": "jpeg",
+                    "image": image
+                };
+		imagePublisher.publish(msg)
+            }
+        }
+        camera: Camera {
+            id: camera
+            onErrorOccurred: (err, errorString) => console.log("camera error", errorString)
+        }
 
-		property Timer cameraTimer: Timer {
-			interval: 1000 // TODO increase the frequency; how to make it adaptive?
-			repeat: true
-			running: true // TODO only when the network is up, DDS is ok and some client is listening
-			onTriggered: imageCapture.capture()
-		}
-	}
+        property Timer cameraTimer: Timer {
+            interval: 200 // TODO increase the frequency; how to make it adaptive?
+            repeat: true
+            running: true // TODO only when the network is up, DDS is ok and some client is listening
+            onTriggered: imageCapture.capture()
+        }
+    }
 
-	Component.onCompleted: {
-		camera.start()
-		console.log("chosen camera", camera.cameraDevice, camera.cameraFormat, "active", camera.active, "feat", camera.supportedFeatures)
-	}
+    Component.onCompleted: {
+        camera.start();
+        console.log("chosen camera", camera.cameraDevice, camera.cameraFormat, "active", camera.active, "feat", camera.supportedFeatures);
+    }
 }

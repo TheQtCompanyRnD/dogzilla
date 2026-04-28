@@ -10,6 +10,8 @@ qt_standard_project_setup(REQUIRES 6.8)
 qt_add_library(Robot_Dogzilla)
 qt_add_qml_module(Robot_Dogzilla
     URI "Dogzilla"
+    NO_PLUGIN_OPTIONAL
+    NO_GENERATE_PLUGIN_SOURCE
     VERSION 1.0
     RESOURCE_PREFIX "/qt/qml"
     SOURCES
@@ -17,6 +19,8 @@ qt_add_qml_module(Robot_Dogzilla
         "DogzillaControlBase.cpp"
         "DogzillaControl.h"
         "DogzillaControl.cpp"
+        "receivedimageprovider.h"
+        "receivedimageprovider.cpp"
     RESOURCES
         "dogzilla_joints.json"
 )
@@ -33,3 +37,5 @@ qt_ros2_configure_target(
 )
 
 target_link_libraries(Robot_Dogzilla PUBLIC Qt6::Gui Qt6::Quick)
+
+target_sources(Robot_Dogzillaplugin PRIVATE dogzillaplugin.cpp)
