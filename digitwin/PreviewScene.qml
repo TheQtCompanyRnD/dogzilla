@@ -21,13 +21,15 @@ Item {
 
         SceneEnvironment {
             id: sceneEnvironment
+            clearColor: "#222"
+            backgroundMode: SceneEnvironment.Color
             antialiasingMode: SceneEnvironment.MSAA
             antialiasingQuality: SceneEnvironment.High
         }
 
         Node {
             id: cameraNode
-            eulerRotation: Qt.vector3d(-30, 30, 0)
+            eulerRotation: Qt.vector3d(-10, 150, 0)
             PerspectiveCamera {
                 id: sceneCamera
                 z: 1000
@@ -44,13 +46,44 @@ Item {
             camera: sceneCamera
         }
 
-        AxisHelper {}
+        Node {
+            id: cameraViewScreen
+            eulerRotation: Qt.vector3d(180, 0, 180)
+            x: dogsEyeView.width / 2         // center on axis
+            y: dogsEyeView.height / 2 + 100  // center on line of sight
+            z: 400                          // in front of the dog; TODO calibrate?
+            Image {
+                id: dogsEyeView
+                width: 1920
+                height: 1080
+                cache: false
+                source: "image://camera/" + ReceivedImageProvider.currentFrame
+
+                Text {
+                    anchors {
+                        horizontalCenter: parent.horizontalCenter
+                        bottom: parent.bottom
+                        margins: 6
+                    }
+                    color: "white"
+                    text: cameraNode.eulerRotation.x.toFixed(2) + ", " +
+                          cameraNode.eulerRotation.y.toFixed(2) + ", " +
+                          cameraNode.eulerRotation.z.toFixed(2)
+                }
+            }
+        }
 
         Dogzilla {
             id: robotRoot
+            z: -200
             control: DogzillaControl {
                 id: ctl
             }
+        }
+        AxisHelper {
+            z: -200
+            y: -115
+            scale: Qt.vector3d(0.2, 0.2, 0.2)
         }
     }
 
@@ -81,14 +114,6 @@ Item {
                                                msg.header.stamp.sec, msg.header.stamp.nanosec)
             }
         }
-    }
-
-    Image {
-        id: cameraView
-        width: 480
-        height: 320
-        cache: false
-        source: "image://camera/" + ReceivedImageProvider.currentFrame
     }
 
     ControlPanel {
