@@ -20,6 +20,8 @@ qt_add_qml_module(dogzillad
         src/controller.cpp
         src/consoledashboard.h
         src/consoledashboard.cpp
+        src/lidar.h
+        src/lidar.cpp
 )
 
 

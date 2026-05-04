@@ -126,7 +126,9 @@ Ros2Node {
                     return
                 switch (button) {
                 case 6: // JoyButton.Start
-                    controller.motorsEngaged = !controller.motorsEngaged
+                    const engage = !controller.motorsEngaged
+                    controller.motorsEngaged = engage
+                    lidar.running = engage
                     break
                 case 4: // JoyButton.Back
                     controller.stop()
@@ -171,6 +173,11 @@ Ros2Node {
             running: true // TODO only when the network is up, DDS is ok and some client is listening
             onTriggered: imageCapture.capture()
         }
+    }
+
+    property Lidar lidar: Lidar {
+        onRunningChanged: console.log("lidar running", lidar.running)
+        serialPort: "/dev/ttyAMA1"
     }
 
     Component.onCompleted: {
