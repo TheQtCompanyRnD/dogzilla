@@ -79,104 +79,134 @@ void Lidar::onError(QSerialPort::SerialPortError err)
 
 void Lidar::readAndHandle()
 {
-    QByteArray prefix = m_port.peek(4);
-    if (prefix.size() < 4)
-        return; // way too soon to read any packet
-    qCDebug(lcLdrd) << "bytes available" << m_port.bytesAvailable() << "prefix" << prefix.toHex();
-    switch (uint8_t(prefix.at(0))) {
-    case 0x54:
-        if (m_port.bytesAvailable() < 47)
-            return; // too soon to read a whole packet
-        break;
-    case 0xAA: // SN code or info packet (header 0x55AA on wire is little-endian: aa 55)
-        if (uint8_t(prefix.at(1)) != 0x55) {
-            m_port.read(1); // bogus 0xAA, drop and resync
-            return;
-        }
-        if (m_port.bytesAvailable() < 7 + uint8_t(prefix.at(3)))
-            return; // 2 header + 1 flag + 1 len + N data + 1 crc + 2 tail
-        break;
-    default: {
-        // throw away bytes until we get 0x54 or 0xAA
-        uint8_t b = 0;
-        while (b != 0x54 && b != 0xAA) {
-            auto buf = m_port.read(1);
-            if (buf.size() < 1)
-                break; // nothing else to read
-            b = buf.at(0);
-        }
-        return; // wait until next time
-    }
-    }
+    while (m_port.bytesAvailable() > 0) {
+        QByteArray prefix = m_port.peek(4);
+        if (prefix.size() < 4)
+            return; // wait for more
 
-    switch (uint8_t(prefix.at(0))) {
-    case 0x54: { // point cloud data
-        QByteArray buf = m_port.read(47);
-        uint8_t len = buf.at(1) & 0x1F; // expect 12
-        // qCDebug(lcLdrd) << buf.toHex() << "len" << buf.size() << len; // << "exchk" << Qt::hex << expectedChecksum;
-        if (len != 12) {
-            qCWarning(lcLdr) << "unexpected point cloud packet format" << buf.toHex();
-            break;
-        }
-        const uint16_t *nums = reinterpret_cast<const uint16_t *>(buf.constData());
-        const uint16_t speed = nums[1];       // deg / sec
-        const uint16_t startAngle = nums[2];  // * 0.01 deg
-        const uint16_t endAngle = nums[(6 + 3 * len) / 2];
-        int angleRange = endAngle - startAngle;
-        if (angleRange < 0)
-            angleRange += 36000;
-        const int datumAngleDelta = angleRange / (len - 1); // the end angles are inclusive
-        const uint16_t timestamp = nums[(8 + 3 * len) / 2];
-        const uint8_t expectedCrc = crc8(reinterpret_cast<const uint8_t *>(buf.constData()), 10 + 3 * len);
-        const uint8_t actualCrc = uint8_t(buf.at(10 + 3 * len));
-        if (expectedCrc != actualCrc) {
-            qCWarning(lcLdr) << "point cloud CRC mismatch: got" << Qt::hex << actualCrc << "expected" << expectedCrc << buf.toHex();
-            break;
-        }
-        qCDebug(lcLdrd) << buf.toHex() << "len" << buf.size() << len << "speed" << speed
-                        << "startAngle" << startAngle << "endAngle" << endAngle << "timestamp" << timestamp;
+        switch (uint8_t(prefix.at(0))) {
+        case 0x54: { // point cloud data, fixed 47 bytes
+            if (m_port.bytesAvailable() < 47)
+                return;
+            QByteArray buf = m_port.peek(47);
+            const uint8_t len = uint8_t(buf.at(1)) & 0x1F;
+            if (len != 12) {
+                qCWarning(lcLdr) << "point cloud unexpected count" << len << "resyncing";
+                m_port.read(1);
+                continue;
+            }
+            const uint8_t expectedCrc = crc8(reinterpret_cast<const uint8_t *>(buf.constData()), 10 + 3 * len);
+            const uint8_t actualCrc = uint8_t(buf.at(10 + 3 * len));
+            if (expectedCrc != actualCrc) {
+                qCWarning(lcLdr) << "point cloud CRC mismatch: got" << Qt::hex << actualCrc << "expected" << expectedCrc << buf.toHex();
+                m_port.read(1);
+                continue;
+            }
+            m_port.read(47);
+            const uint16_t *nums = reinterpret_cast<const uint16_t *>(buf.constData());
+            const uint16_t speed = nums[1];       // deg / sec
+            const uint16_t startAngle = nums[2];  // * 0.01 deg
+            const uint16_t endAngle = nums[(6 + 3 * len) / 2];
+            int angleRange = endAngle - startAngle;
+            if (angleRange < 0)
+                angleRange += 36000;
+            const int datumAngleDelta = angleRange / (len - 1); // end angle is inclusive
+            const uint16_t timestamp = nums[(8 + 3 * len) / 2];
+            qCDebug(lcLdrd) << buf.toHex() << "len" << buf.size() << len << "speed" << speed
+                            << "startAngle" << startAngle << "endAngle" << endAngle << "timestamp" << timestamp;
 
-        using DistanceAndIntensity = struct {
-            uint16_t distance;
-            uint8_t intensity;
-        };
-        for (int i = 0; i < len; ++i) {
-            const int byteOffset = (6 + 3 * i);
-            const DistanceAndIntensity *di = reinterpret_cast<const DistanceAndIntensity *>(buf.constData() + byteOffset);
-            int interpAngle = startAngle + datumAngleDelta * i;
-            if (interpAngle < 0)
-                interpAngle += 36000;
-            else if (interpAngle > 36000)
-                interpAngle -= 36000;
-            qCDebug(lcLdrd) << i << "data block at byte" << byteOffset << "angle" << interpAngle << "dist" << di->distance << "intens" << di->intensity;
-            // intensity range 0 - 255; < 16 is a reserved value
-            // distance in mm
-        }
-        break;
-    }
-    case 0xAA: { // SN code or info packet
-        const uint8_t flag = uint8_t(prefix.at(2));
-        const uint8_t len = uint8_t(prefix.at(3));
-        const int total = 7 + len;
-        QByteArray buf = m_port.read(total);
-        if (uint8_t(buf.at(total - 2)) != 0x31 || uint8_t(buf.at(total - 1)) != 0xF2) {
-            qCWarning(lcLdr) << "SN packet unexpected tail" << buf.toHex();
+            using DistanceAndIntensity = struct {
+                uint16_t distance;
+                uint8_t intensity;
+            };
+            for (int i = 0; i < len; ++i) {
+                const int byteOffset = (6 + 3 * i);
+                const DistanceAndIntensity *di = reinterpret_cast<const DistanceAndIntensity *>(buf.constData() + byteOffset);
+                int interpAngle = startAngle + datumAngleDelta * i;
+                if (interpAngle < 0)
+                    interpAngle += 36000;
+                else if (interpAngle > 36000)
+                    interpAngle -= 36000;
+                qCDebug(lcLdrd) << i << "data block at byte" << byteOffset << "angle" << interpAngle << "dist" << di->distance << "intens" << di->intensity;
+                // intensity range 0 - 255; < 16 is a reserved value; distance in mm
+            }
             break;
         }
-        const uint8_t expectedCrc = crc8(reinterpret_cast<const uint8_t *>(buf.constData()), 4 + len);
-        const uint8_t actualCrc = uint8_t(buf.at(4 + len));
-        if (expectedCrc != actualCrc) {
-            qCWarning(lcLdr) << "SN packet CRC mismatch: got" << Qt::hex << actualCrc << "expected" << expectedCrc << buf.toHex();
+        case 0xAA: { // SN code or info packet (header 0x55AA on wire is little-endian: aa 55)
+            if (uint8_t(prefix.at(1)) != 0x55) {
+                m_port.read(1);
+                continue;
+            }
+            const uint8_t flag = uint8_t(prefix.at(2));
+            const uint8_t len = uint8_t(prefix.at(3));
+            const int total = 7 + len; // 2 header + 1 flag + 1 len + N data + 1 crc + 2 tail
+            if (m_port.bytesAvailable() < total)
+                return;
+            QByteArray buf = m_port.peek(total);
+            if (uint8_t(buf.at(total - 2)) != 0x31 || uint8_t(buf.at(total - 1)) != 0xF2) {
+                qCWarning(lcLdr) << "SN packet bad tail" << buf.toHex();
+                m_port.read(1);
+                continue;
+            }
+            const uint8_t expectedCrc = crc8(reinterpret_cast<const uint8_t *>(buf.constData()), 4 + len);
+            const uint8_t actualCrc = uint8_t(buf.at(4 + len));
+            if (expectedCrc != actualCrc) {
+                qCWarning(lcLdr) << "SN packet CRC mismatch: got" << Qt::hex << actualCrc << "expected" << expectedCrc << buf.toHex();
+                m_port.read(1);
+                continue;
+            }
+            m_port.read(total);
+            switch (flag) {
+            case 0x01:
+                m_serialNumber = QString::fromLatin1(buf.mid(4, len));
+                qCDebug(lcLdr) << "got serial number" << m_serialNumber;
+                emit serialNumberChanged();
+                break;
+            case 0x02:
+            case 0x03: {
+                // payload is a sequence of length-prefixed Latin1 strings:
+                // <len> <model> <len> <firmware> [opaque trailing bytes]
+                QStringList parts;
+                int pos = 4;
+                const int end = 4 + len;
+                for (int field = 0; field < 2 && pos < end; ++field) {
+                    const uint8_t fieldLen = uint8_t(buf.at(pos++));
+                    if (pos + fieldLen > end)
+                        break;
+                    parts << QString::fromLatin1(buf.mid(pos, fieldLen));
+                    pos += fieldLen;
+                }
+                m_hardwareModel = parts.join(QLatin1Char(' '));
+                qCDebug(lcLdr) << "got hardware model" << m_hardwareModel;
+                emit hardwareModelChanged();
+                break;
+            }
+            default:
+                qCDebug(lcLdr) << "unhandled info packet flag" << Qt::hex << flag << buf.toHex();
+                break;
+            }
+            break; // done with aa 55 packet
+        }
+        case 0xA5: { // WRITE_PARAM response: a5 f5 a2 c2 01 <data> <xor> 31 f2 (9 bytes)
+            if (uint8_t(prefix.at(1)) != 0xF5) {
+                m_port.read(1);
+                continue;
+            }
+            if (m_port.bytesAvailable() < 9)
+                return;
+            QByteArray buf = m_port.peek(9);
+            if (uint8_t(buf.at(7)) != 0x31 || uint8_t(buf.at(8)) != 0xF2) {
+                m_port.read(1);
+                continue;
+            }
+            m_port.read(9);
+            qCDebug(lcLdr) << "command response" << buf.toHex();
             break;
         }
-        if (flag == 0x01) {
-            m_serialNumber = QString::fromLatin1(buf.mid(4, len));
-            qCDebug(lcLdr) << "got serial number" << m_serialNumber;
-        } else {
-            qCDebug(lcLdr) << "info packet flag" << Qt::hex << flag << buf.toHex();
+        default:
+            m_port.read(1); // unknown byte; resync
+            break;
         }
-        break;
-    }
     }
 }
 

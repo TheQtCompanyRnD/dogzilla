@@ -15,6 +15,8 @@ class Lidar : public QObject
     QML_ELEMENT
     Q_PROPERTY(QString serialPort READ serialPort WRITE setSerialPort NOTIFY serialPortChanged FINAL)
     Q_PROPERTY(bool running READ isRunning WRITE setRunning NOTIFY runningChanged FINAL)
+    Q_PROPERTY(QString hardwareModel READ hardwareModel NOTIFY hardwareModelChanged FINAL)
+    Q_PROPERTY(QString serialNumber READ serialNumber NOTIFY serialNumberChanged FINAL)
 
 public:
     Lidar(QObject * parent = nullptr);
@@ -26,12 +28,17 @@ public:
     bool isRunning() const { return m_running; }
     void setRunning(bool r);
 
+    QString hardwareModel() const { return m_hardwareModel; }
+    QString serialNumber() const { return m_serialNumber; }
+
 public slots:
     void setSerialPort(const QString &path);
 
 signals:
     void serialPortChanged();
     void runningChanged();
+    void hardwareModelChanged();
+    void serialNumberChanged();
 
 protected:
 
@@ -43,7 +50,8 @@ private:
     bool maybeOpenSerialPort();
 
 private:
-    QString m_serialNumber;     // device sends this packet after power-on and setRunning(true)
+    QString m_hardwareModel;    // device may send this data after power-on and setRunning(true)
+    QString m_serialNumber;     // device may send this data after power-on and setRunning(true)
     QString m_serialPort;
     QSerialPort m_port;
     qint32 m_baudRate = 230400; // no reason to change it
