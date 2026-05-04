@@ -4,6 +4,7 @@
 #define LIDAR_H
 
 #include <QtQmlIntegration/qqmlintegration.h>
+#include <QJsonObject>
 #include <QSerialPort>
 #include <QTimerEvent>
 #include <cstdint>
@@ -39,8 +40,7 @@ signals:
     void runningChanged();
     void hardwareModelChanged();
     void serialNumberChanged();
-
-protected:
+    void sectorScanned(QJsonObject data);
 
 private slots:
     void onError(QSerialPort::SerialPortError err);
@@ -48,13 +48,18 @@ private slots:
 
 private:
     bool maybeOpenSerialPort();
+    void emitScanData(int startAngle, int endAngle, int datumAngleDelta,
+                      int speed, void *distanceAndIntensity, int sampleCount);
 
 private:
     QString m_hardwareModel;    // device may send this data after power-on and setRunning(true)
     QString m_serialNumber;     // device may send this data after power-on and setRunning(true)
+    qreal m_rangeMin = 0.05;    // meters
+    qreal m_rangeMax = 20;      // meters
     QString m_serialPort;
     QSerialPort m_port;
     qint32 m_baudRate = 230400; // no reason to change it
+    quint16 m_lastTimeStamp = 0;
     bool m_running = false;     // could be in halfway state at startup: spinning but not sending data
 };
 

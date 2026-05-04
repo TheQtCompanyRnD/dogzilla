@@ -175,9 +175,14 @@ Ros2Node {
         }
     }
 
+    LaserScanPublisher {
+        id: frickenLaserPublisher
+        topic: `/${root.nodeName}/sensor_msgs/msg/LaserScan`
+    }
+
     property Lidar lidar: Lidar {
-        onRunningChanged: console.log("lidar running", lidar.running)
         serialPort: "/dev/ttyAMA1"
+        onSectorScanned: (msg) => frickenLaserPublisher.publish(msg)
     }
 
     Component.onCompleted: {

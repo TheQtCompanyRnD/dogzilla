@@ -1,7 +1,9 @@
 // Copyright (C) 2026 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR BSD-3-Clause
 #include "lidar.h"
+#include <QDateTime>
 #include <QDebug>
+#include <QJsonArray>
 #include <QLoggingCategory>
 
 Q_STATIC_LOGGING_CATEGORY(lcLdr, "dogzilla.lidar")
@@ -41,6 +43,17 @@ uint8_t crc8(const uint8_t *data, int len)
         crc = CrcTable[(crc ^ data[i]) & 0xff];
     return crc;
 }
+
+using DistanceAndIntensity = struct __attribute__((packed)) {
+    uint16_t distance;
+    uint8_t intensity;
+};
+static_assert(sizeof(DistanceAndIntensity) == 3);
+
+qreal degreeHundredthsToRadians(int hundredths)
+{
+    return M_PI * hundredths / 18000;
+}
 } // namespace
 
 Lidar::Lidar(QObject * parent)
@@ -70,6 +83,47 @@ bool Lidar::maybeOpenSerialPort()
         return success;
     }
     return m_port.isWritable();
+}
+
+void Lidar::emitScanData(int startAngle, int endAngle, int datumAngleDelta,
+                         int speed, void *distanceAndIntensity, int sampleCount)
+{
+    DistanceAndIntensity *di = static_cast<DistanceAndIntensity *>(distanceAndIntensity);
+    QJsonObject data;
+    {
+        qint64 msecs = QDateTime::currentMSecsSinceEpoch();
+        QJsonObject header;
+        QJsonObject stamp;
+        stamp.insert("sec", msecs / qint64(1000));
+        stamp.insert("nanosec", msecs % qint64(1000) * 1000000);
+        header.insert("stamp", stamp);
+        header.insert("frameId", "laser_frame");
+        data.insert("header", header);
+    }
+    data.insert("angleMin", degreeHundredthsToRadians(startAngle));
+    data.insert("angleMax", degreeHundredthsToRadians(endAngle));
+    data.insert("angleIncrement", degreeHundredthsToRadians(datumAngleDelta));
+    // time increment: angle sweep (deg) / speed (deg/sec)
+    data.insert("timeIncrement", datumAngleDelta / qreal(100) / speed); // per-sample
+    data.insert("scanTime", 360 / qreal(speed)); // full rev
+    data.insert("rangeMin", m_rangeMin);
+    data.insert("rangeMax", m_rangeMax);
+    QJsonArray ranges;
+    QJsonArray intensities;
+    for (int i = 0; i < sampleCount; ++i) {
+        if (di[i].intensity < 16) {
+            // called a "reserved value" in the MS200 manual : invalid data point
+            ranges.append(std::numeric_limits<float>::quiet_NaN());
+            intensities.append(std::numeric_limits<float>::quiet_NaN());
+        } else {
+            ranges.append(di[i].distance / 1000.0f);   // mm to meters
+            intensities.append(float(di[i].intensity));
+        }
+    }
+    data.insert("ranges", ranges);
+    data.insert("intensities", intensities);
+
+    emit sectorScanned(data);
 }
 
 void Lidar::onError(QSerialPort::SerialPortError err)
@@ -114,11 +168,8 @@ void Lidar::readAndHandle()
             const uint16_t timestamp = nums[(8 + 3 * len) / 2];
             qCDebug(lcLdrd) << buf.toHex() << "len" << buf.size() << len << "speed" << speed
                             << "startAngle" << startAngle << "endAngle" << endAngle << "timestamp" << timestamp;
-
-            using DistanceAndIntensity = struct {
-                uint16_t distance;
-                uint8_t intensity;
-            };
+            DistanceAndIntensity allDi[len];
+            memcpy(allDi, buf.constData() + 6, 3 * 12);
             for (int i = 0; i < len; ++i) {
                 const int byteOffset = (6 + 3 * i);
                 const DistanceAndIntensity *di = reinterpret_cast<const DistanceAndIntensity *>(buf.constData() + byteOffset);
@@ -127,9 +178,11 @@ void Lidar::readAndHandle()
                     interpAngle += 36000;
                 else if (interpAngle > 36000)
                     interpAngle -= 36000;
-                qCDebug(lcLdrd) << i << "data block at byte" << byteOffset << "angle" << interpAngle << "dist" << di->distance << "intens" << di->intensity;
+                qCDebug(lcLdrd) << i << "data block at byte" << byteOffset << "angle" << interpAngle
+                                << "dist" << di->distance << "intens" << di->intensity;
                 // intensity range 0 - 255; < 16 is a reserved value; distance in mm
             }
+            emitScanData(startAngle, endAngle, datumAngleDelta, speed, allDi, len);
             break;
         }
         case 0xAA: { // SN code or info packet (header 0x55AA on wire is little-endian: aa 55)
