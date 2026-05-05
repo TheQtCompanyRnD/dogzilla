@@ -50,10 +50,6 @@ using DistanceAndIntensity = struct __attribute__((packed)) {
 };
 static_assert(sizeof(DistanceAndIntensity) == 3);
 
-qreal degreeHundredthsToRadians(int hundredths)
-{
-    return M_PI * hundredths / 18000;
-}
 } // namespace
 
 Lidar::Lidar(QObject * parent)
@@ -98,21 +94,24 @@ void Lidar::emitScanData()
         header.insert("frameId", "laser_frame");
         data.insert("header", header);
     }
-    data.insert("angleMin", 0); // m_minAngle); // avoid jitter?
-    data.insert("angleMax", 2 * M_PI); //m_maxAngle);
-    data.insert("angleIncrement", m_datumAngleDelta);
-    data.insert("timeIncrement", m_datumTimeDelta);
-    data.insert("scanTime", 360 / m_speed); // full rev
+    data.insert("angleMin", 0);
+    data.insert("angleMax", 2 * M_PI);
+    data.insert("angleIncrement", 2 * M_PI / GridSize);
+    data.insert("timeIncrement", m_speed > 0 ? 360 / (GridSize * m_speed) : 0);
+    data.insert("scanTime", m_speed > 0 ? 360 / m_speed : 0);
     data.insert("rangeMin", m_rangeMin);
     data.insert("rangeMax", m_rangeMax);
     {
         QJsonArray ja;
-        std::copy(m_scanRanges.begin(), m_scanRanges.end(), std::back_inserter(ja));
+        std::transform(m_scanRanges.begin(), m_scanRanges.end(), m_scanIntensities.begin(),
+            std::back_inserter(ja),
+            [](float r, uint8_t inten) -> QJsonValue { return inten < 16 ? QJsonValue(std::numeric_limits<float>::quiet_NaN()) : QJsonValue(r); });
         data.insert("ranges", ja);
     }
     {
         QJsonArray ja;
-        std::copy(m_scanIntensities.begin(), m_scanIntensities.end(), std::back_inserter(ja));
+        std::transform(m_scanIntensities.begin(), m_scanIntensities.end(), std::back_inserter(ja),
+            [](uint8_t v) -> QJsonValue { return v < 16 ? QJsonValue(std::numeric_limits<float>::quiet_NaN()) : QJsonValue(float(v)); });
         data.insert("intensities", ja);
     }
     emit sectorScanned(data);
@@ -157,57 +156,37 @@ void Lidar::readAndHandle()
             if (angleRange < 0)
                 angleRange += 36000;
             const int datumAngleDelta = angleRange / (len - 1); // end angle is inclusive
-            m_datumAngleDelta = degreeHundredthsToRadians(datumAngleDelta);
-            // time increment: angle sweep (deg) / speed (deg/sec)
-            m_datumTimeDelta = datumAngleDelta / qreal(100) / m_speed;
             const uint16_t timestamp = nums[(8 + 3 * len) / 2];
             qCDebug(lcLdrd) << buf.toHex() << "len" << buf.size() << len << "speed" << m_speed
                             << "startAngle" << startAngle << "endAngle" << endAngle << "timestamp" << timestamp;
             bool angleWraparound = false;
-            const int newSize = m_insertIndex + len;
-            if (m_scanAngles.size() < newSize)
-                m_scanAngles.resize(newSize);
-            if (m_scanRanges.size() < newSize)
-                m_scanRanges.resize(newSize);
-            if (m_scanIntensities.size() < newSize)
-                m_scanIntensities.resize(newSize);
             for (int i = 0; i < len; ++i) {
                 const int byteOffset = (6 + 3 * i);
                 const DistanceAndIntensity *di = reinterpret_cast<const DistanceAndIntensity *>(buf.constData() + byteOffset);
                 int interpAngle = startAngle + datumAngleDelta * i;
                 if (interpAngle < 0)
                     interpAngle += 36000;
-                else if (interpAngle > 36000) {
-                    qCDebug(lcLdrd) << "angle wraparound" << interpAngle;
+                else if (interpAngle >= 36000) {
                     interpAngle -= 36000;
                     if (!angleWraparound) {
-                        if (m_insertIndex > 0)
-                            m_maxAngle = m_scanAngles.at(m_insertIndex - 1);
-                        m_insertIndex = 0;
-                        m_minAngle = degreeHundredthsToRadians(interpAngle);
+                        qCDebug(lcLdr) << "angle wraparound at angle" << interpAngle << "sample" << m_lastSampleCount;
+                        emitScanData();
+                        // Stale data would be kept until overwritten, unless we zero it here.
+                        // More resolution is nice to have when the robot and the scene are static,
+                        // but then you get "ghosting" when the robot is moving.
+                        m_scanRanges.fill(0.0f);
+                        m_scanIntensities.fill(0);
+                        m_lastSampleCount = 0;
                         angleWraparound = true;
                     }
                 }
-
-                // if (di[i].intensity < 16) {
-                //     // called a "reserved value" in the MS200 manual : invalid data point
-                //     ranges.append(std::numeric_limits<float>::quiet_NaN());
-                //     intensities.append(std::numeric_limits<float>::quiet_NaN());
-                // } else {
-                //     ranges.append(di[i].distance / 1000.0f);   // mm to meters
-                //     intensities.append(float(di[i].intensity));
-                // }
-
-                m_scanAngles[m_insertIndex] = degreeHundredthsToRadians(interpAngle);
-                m_scanRanges[m_insertIndex] = di->distance / 1000.0f; // mm to meters
-                m_scanIntensities[m_insertIndex] = di->intensity;
-                qCDebug(lcLdrd) << i << "boff" << byteOffset << m_insertIndex << "angle" << interpAngle
+                const int bin = int(std::round(interpAngle * GridSize / 36000.0)) % GridSize;
+                m_scanRanges[bin] = di->distance / 1000.0f; // mm to meters
+                m_scanIntensities[bin] = di->intensity;
+                qCDebug(lcLdrd) << i << "boff" << byteOffset << "sample" << m_lastSampleCount << "bin" << bin << "angle" << interpAngle
                                 << "dist" << di->distance << "intens" << di->intensity;
-                // intensity range 0 - 255; < 16 is a reserved value; distance in mm
-                ++m_insertIndex;
+                ++m_lastSampleCount;
             }
-            if (angleWraparound)
-                emitScanData();
             break;
         }
         case 0xAA: { // SN code or info packet (header 0x55AA on wire is little-endian: aa 55)

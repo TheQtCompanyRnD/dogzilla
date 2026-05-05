@@ -8,6 +8,7 @@
 #include <QList>
 #include <QSerialPort>
 #include <QTimerEvent>
+#include <array>
 #include <cstdint>
 
 // serial interface to Oradar MS200 LiDAR scanner
@@ -56,22 +57,19 @@ private:
     QString m_serialNumber;     // device may send this data after power-on and setRunning(true)
     qreal m_rangeMin = 0.05;    // meters
     qreal m_rangeMax = 20;      // meters
+    qreal m_speed = 0;          // degrees / sec
     QString m_serialPort;
     QSerialPort m_port;
     qint32 m_baudRate = 230400; // no reason to change it
     quint16 m_lastTimeStamp = 0;
+    quint16 m_lastSampleCount = 0;
     bool m_running = false;     // could be in halfway state at startup: spinning but not sending data
 
     // parallel arrays with latest scan data: ring-buffer-like, rewritten every full-circle scan
-    QList<float> m_scanAngles;          // radians
-    QList<float> m_scanRanges;          // meters
-    QList<uint8_t> m_scanIntensities;   // 0..255 range
-    int m_insertIndex = 0;              // wraps around when angle wraps around
-    qreal m_minAngle = 0;               // close to  0: angle of first sample in lists
-    qreal m_maxAngle = 0;               // close to 2π: angle of last sample
-    qreal m_datumAngleDelta = 0;        // angle in radians between successive samples
-    qreal m_datumTimeDelta = 0;         // time in seconds between successive samples
-    qreal m_speed = 0;                  // degrees / sec
+    // each bin covers an angle 2π/GridSize
+    static constexpr int GridSize = 720; // 0.5° per bin
+    std::array<float, GridSize> m_scanRanges {};
+    std::array<uint8_t, GridSize> m_scanIntensities {};
 };
 
 #endif  // LIDAR_H
