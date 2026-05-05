@@ -5,6 +5,7 @@
 
 #include <QtQmlIntegration/qqmlintegration.h>
 #include <QJsonObject>
+#include <QList>
 #include <QSerialPort>
 #include <QTimerEvent>
 #include <cstdint>
@@ -48,8 +49,7 @@ private slots:
 
 private:
     bool maybeOpenSerialPort();
-    void emitScanData(int startAngle, int endAngle, int datumAngleDelta,
-                      int speed, void *distanceAndIntensity, int sampleCount);
+    void emitScanData();
 
 private:
     QString m_hardwareModel;    // device may send this data after power-on and setRunning(true)
@@ -61,6 +61,17 @@ private:
     qint32 m_baudRate = 230400; // no reason to change it
     quint16 m_lastTimeStamp = 0;
     bool m_running = false;     // could be in halfway state at startup: spinning but not sending data
+
+    // parallel arrays with latest scan data: ring-buffer-like, rewritten every full-circle scan
+    QList<float> m_scanAngles;          // radians
+    QList<float> m_scanRanges;          // meters
+    QList<uint8_t> m_scanIntensities;   // 0..255 range
+    int m_insertIndex = 0;              // wraps around when angle wraps around
+    qreal m_minAngle = 0;               // close to  0: angle of first sample in lists
+    qreal m_maxAngle = 0;               // close to 2π: angle of last sample
+    qreal m_datumAngleDelta = 0;        // angle in radians between successive samples
+    qreal m_datumTimeDelta = 0;         // time in seconds between successive samples
+    qreal m_speed = 0;                  // degrees / sec
 };
 
 #endif  // LIDAR_H

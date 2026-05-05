@@ -85,10 +85,8 @@ bool Lidar::maybeOpenSerialPort()
     return m_port.isWritable();
 }
 
-void Lidar::emitScanData(int startAngle, int endAngle, int datumAngleDelta,
-                         int speed, void *distanceAndIntensity, int sampleCount)
+void Lidar::emitScanData()
 {
-    DistanceAndIntensity *di = static_cast<DistanceAndIntensity *>(distanceAndIntensity);
     QJsonObject data;
     {
         qint64 msecs = QDateTime::currentMSecsSinceEpoch();
@@ -100,29 +98,23 @@ void Lidar::emitScanData(int startAngle, int endAngle, int datumAngleDelta,
         header.insert("frameId", "laser_frame");
         data.insert("header", header);
     }
-    data.insert("angleMin", degreeHundredthsToRadians(startAngle));
-    data.insert("angleMax", degreeHundredthsToRadians(endAngle));
-    data.insert("angleIncrement", degreeHundredthsToRadians(datumAngleDelta));
-    // time increment: angle sweep (deg) / speed (deg/sec)
-    data.insert("timeIncrement", datumAngleDelta / qreal(100) / speed); // per-sample
-    data.insert("scanTime", 360 / qreal(speed)); // full rev
+    data.insert("angleMin", 0); // m_minAngle); // avoid jitter?
+    data.insert("angleMax", 2 * M_PI); //m_maxAngle);
+    data.insert("angleIncrement", m_datumAngleDelta);
+    data.insert("timeIncrement", m_datumTimeDelta);
+    data.insert("scanTime", 360 / m_speed); // full rev
     data.insert("rangeMin", m_rangeMin);
     data.insert("rangeMax", m_rangeMax);
-    QJsonArray ranges;
-    QJsonArray intensities;
-    for (int i = 0; i < sampleCount; ++i) {
-        if (di[i].intensity < 16) {
-            // called a "reserved value" in the MS200 manual : invalid data point
-            ranges.append(std::numeric_limits<float>::quiet_NaN());
-            intensities.append(std::numeric_limits<float>::quiet_NaN());
-        } else {
-            ranges.append(di[i].distance / 1000.0f);   // mm to meters
-            intensities.append(float(di[i].intensity));
-        }
+    {
+        QJsonArray ja;
+        std::copy(m_scanRanges.begin(), m_scanRanges.end(), std::back_inserter(ja));
+        data.insert("ranges", ja);
     }
-    data.insert("ranges", ranges);
-    data.insert("intensities", intensities);
-
+    {
+        QJsonArray ja;
+        std::copy(m_scanIntensities.begin(), m_scanIntensities.end(), std::back_inserter(ja));
+        data.insert("intensities", ja);
+    }
     emit sectorScanned(data);
 }
 
@@ -158,31 +150,64 @@ void Lidar::readAndHandle()
             }
             m_port.read(47);
             const uint16_t *nums = reinterpret_cast<const uint16_t *>(buf.constData());
-            const uint16_t speed = nums[1];       // deg / sec
+            m_speed = nums[1];                    // deg / sec
             const uint16_t startAngle = nums[2];  // * 0.01 deg
             const uint16_t endAngle = nums[(6 + 3 * len) / 2];
             int angleRange = endAngle - startAngle;
             if (angleRange < 0)
                 angleRange += 36000;
             const int datumAngleDelta = angleRange / (len - 1); // end angle is inclusive
+            m_datumAngleDelta = degreeHundredthsToRadians(datumAngleDelta);
+            // time increment: angle sweep (deg) / speed (deg/sec)
+            m_datumTimeDelta = datumAngleDelta / qreal(100) / m_speed;
             const uint16_t timestamp = nums[(8 + 3 * len) / 2];
-            qCDebug(lcLdrd) << buf.toHex() << "len" << buf.size() << len << "speed" << speed
+            qCDebug(lcLdrd) << buf.toHex() << "len" << buf.size() << len << "speed" << m_speed
                             << "startAngle" << startAngle << "endAngle" << endAngle << "timestamp" << timestamp;
-            DistanceAndIntensity allDi[len];
-            memcpy(allDi, buf.constData() + 6, 3 * 12);
+            bool angleWraparound = false;
+            const int newSize = m_insertIndex + len;
+            if (m_scanAngles.size() < newSize)
+                m_scanAngles.resize(newSize);
+            if (m_scanRanges.size() < newSize)
+                m_scanRanges.resize(newSize);
+            if (m_scanIntensities.size() < newSize)
+                m_scanIntensities.resize(newSize);
             for (int i = 0; i < len; ++i) {
                 const int byteOffset = (6 + 3 * i);
                 const DistanceAndIntensity *di = reinterpret_cast<const DistanceAndIntensity *>(buf.constData() + byteOffset);
                 int interpAngle = startAngle + datumAngleDelta * i;
                 if (interpAngle < 0)
                     interpAngle += 36000;
-                else if (interpAngle > 36000)
+                else if (interpAngle > 36000) {
+                    qCDebug(lcLdrd) << "angle wraparound" << interpAngle;
                     interpAngle -= 36000;
-                qCDebug(lcLdrd) << i << "data block at byte" << byteOffset << "angle" << interpAngle
+                    if (!angleWraparound) {
+                        if (m_insertIndex > 0)
+                            m_maxAngle = m_scanAngles.at(m_insertIndex - 1);
+                        m_insertIndex = 0;
+                        m_minAngle = degreeHundredthsToRadians(interpAngle);
+                        angleWraparound = true;
+                    }
+                }
+
+                // if (di[i].intensity < 16) {
+                //     // called a "reserved value" in the MS200 manual : invalid data point
+                //     ranges.append(std::numeric_limits<float>::quiet_NaN());
+                //     intensities.append(std::numeric_limits<float>::quiet_NaN());
+                // } else {
+                //     ranges.append(di[i].distance / 1000.0f);   // mm to meters
+                //     intensities.append(float(di[i].intensity));
+                // }
+
+                m_scanAngles[m_insertIndex] = degreeHundredthsToRadians(interpAngle);
+                m_scanRanges[m_insertIndex] = di->distance / 1000.0f; // mm to meters
+                m_scanIntensities[m_insertIndex] = di->intensity;
+                qCDebug(lcLdrd) << i << "boff" << byteOffset << m_insertIndex << "angle" << interpAngle
                                 << "dist" << di->distance << "intens" << di->intensity;
                 // intensity range 0 - 255; < 16 is a reserved value; distance in mm
+                ++m_insertIndex;
             }
-            emitScanData(startAngle, endAngle, datumAngleDelta, speed, allDi, len);
+            if (angleWraparound)
+                emitScanData();
             break;
         }
         case 0xAA: { // SN code or info packet (header 0x55AA on wire is little-endian: aa 55)
