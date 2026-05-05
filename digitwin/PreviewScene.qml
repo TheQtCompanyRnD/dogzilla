@@ -51,7 +51,7 @@ Item {
             eulerRotation: Qt.vector3d(180, 0, 180)
             x: dogsEyeView.width / 2         // center on axis
             y: dogsEyeView.height / 2 + 100  // center on line of sight
-            z: 400                          // in front of the dog; TODO calibrate?
+            z: 1000                          // in front of the dog; TODO calibrate?
             Image {
                 id: dogsEyeView
                 width: 1920
@@ -73,15 +73,32 @@ Item {
             }
         }
 
+        Node {
+            id: lidarRepresentation
+            y: 100
+            Model {
+                scale: Qt.vector3d(0.1, 0.1, 0.01)
+                source: "#Cube"
+                instancing: LidarInstanceTable {
+                    id: lidarInstanceTable
+                }
+                materials: [
+                    PrincipledMaterial {
+                        alphaMode: PrincipledMaterial.Opaque
+                        cullMode: PrincipledMaterial.NoCulling
+                        emissiveFactor: Qt.vector3d(0.1, 0.1, 0.1)
+                    }
+                ]
+            }
+        }
+
         Dogzilla {
             id: robotRoot
-            z: -200
             control: DogzillaControl {
                 id: ctl
             }
         }
         AxisHelper {
-            z: -200
             y: -115
             scale: Qt.vector3d(0.2, 0.2, 0.2)
         }
@@ -112,6 +129,15 @@ Item {
                 // const QImage &im, int frame, int sec, int nsec
                 ReceivedImageProvider.setImage(msg.image, msg.header.frameId,
                                                msg.header.stamp.sec, msg.header.stamp.nanosec)
+            }
+        }
+
+        SensorMsgs.LaserScanSubscriber {
+            topic: `/${rosNode.nodeName}/sensor_msgs/msg/LaserScan`
+            onMessageReceived: function(msg) {
+                lidarInstanceTable.ranges = msg.ranges
+                lidarInstanceTable.intensities = msg.intensities
+                lidarInstanceTable.angleIncrement = msg.angleIncrement
             }
         }
     }

@@ -180,7 +180,10 @@ void Lidar::readAndHandle()
                         angleWraparound = true;
                     }
                 }
-                const int bin = int(std::round(interpAngle * GridSize / 36000.0)) % GridSize;
+                // MS200 sweeps clockwise; mirror the bin index so the published ranges[]
+                // are ordered CCW from the +X (forward) zero mark, per ROS REP-103.
+                const int rawBin = int(std::round(interpAngle * GridSize / 36000.0)) % GridSize;
+                const int bin = (GridSize - rawBin) % GridSize;
                 m_scanRanges[bin] = di->distance / 1000.0f; // mm to meters
                 m_scanIntensities[bin] = di->intensity;
                 qCDebug(lcLdrd) << i << "boff" << byteOffset << "sample" << m_lastSampleCount << "bin" << bin << "angle" << interpAngle

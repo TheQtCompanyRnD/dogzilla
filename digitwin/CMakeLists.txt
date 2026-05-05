@@ -23,6 +23,7 @@ qt_add_qml_module(Robot_Dogzilla
         "receivedimageprovider.cpp"
     RESOURCES
         "dogzilla_joints.json"
+        SOURCES lidarinstancetable.h lidarinstancetable.cpp
 )
 
 file(GLOB_RECURSE QML_SOURCES "*.qml")
@@ -36,6 +37,6 @@ qt_ros2_configure_target(
     MODULES QtRos2GeometryMessages QtRos2SensorMessages
 )
 
-target_link_libraries(Robot_Dogzilla PUBLIC Qt6::Gui Qt6::Quick)
+target_link_libraries(Robot_Dogzilla PUBLIC Qt6::Gui Qt6::Quick Qt6::Quick3D)
 
 target_sources(Robot_Dogzillaplugin PRIVATE dogzillaplugin.cpp)
