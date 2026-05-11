@@ -7,6 +7,7 @@ ScrollView {
     id: root
 
     required property var targetRobot
+    property alias batteryLevel: batteryIndicator.level
     property var joints: targetRobot && targetRobot.control ? targetRobot.control.jointInfos : []
     clip: true
 
@@ -22,6 +23,23 @@ ScrollView {
         anchors.fill: parent
         anchors.margins: 6
         spacing: 6
+
+        RowLayout {
+            Pane {
+                Layout.fillWidth: true
+                padding: 8
+                height: 24
+                RowLayout {
+                    anchors.fill: parent
+                    BatteryIndicator {
+                        id: batteryIndicator
+                        level: 0 // until we know
+                        Layout.alignment: Qt.AlignRight
+                    }
+                }
+            }
+        }
+
 
         Repeater {
             model: root.joints

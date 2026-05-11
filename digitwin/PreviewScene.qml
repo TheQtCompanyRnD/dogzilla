@@ -108,6 +108,16 @@ Item {
         id: rosNode
         nodeName: "dogzilla"
 
+        SensorMsgs.BatteryStateSubscriber {
+            topic: `/${rosNode.nodeName}/battery_state`
+            onMessageReceived: function (msg) {
+                // console.log("BatteryStateSubscriber got", JSON.stringify(msg))
+                // example {"header":{"stamp":{"sec":0,"nanosec":0},"frameId":""},"voltage":0,"temperature":0,"current":0,"charge":0,"capacity":0,"designCapacity":0,"percentage":0.9900000095367432,
+                //   "powerSupplyStatus":0,"powerSupplyHealth":0,"powerSupplyTechnology":0,"present":true,"cellVoltage":[],"cellTemperature":[],"location":"","serialNumber":""}
+                panel.batteryLevel = msg.percentage // TODO make it a declarative binding?
+            }
+        }
+
         SensorMsgs.JointStateSubscriber {
             id: jointStateSubscriber
             topic: `/${rosNode.nodeName}/joint_states`
