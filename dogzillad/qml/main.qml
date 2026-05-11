@@ -143,11 +143,17 @@ Ros2Node {
     }
 
     property CaptureSession captureSession: CaptureSession {
+        property LoggingCategory cameraCategory: LoggingCategory {
+            id: cameraCategory
+            name: "dogzilla.camera"
+            defaultLogLevel: LoggingCategory.Warning
+        }
+
         imageCapture: ImageCapture {
             id: imageCapture
             onImageCaptured: (reqId, image) => {
                 const timeMs = new Date().getTime()
-                console.log("image captured", reqId, image)
+                console.log(cameraCategory, "image captured", reqId, image)
                 const msg = {
                     "header": {
                         "stamp": {
