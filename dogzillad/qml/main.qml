@@ -4,10 +4,11 @@ import QtQml
 import QtMultimedia
 import QtUniversalInput
 import Dogzilla
+import QtRos2.Core as Ros2
 import QtRos2.GeometryMsgs
 import QtRos2.SensorMsgs
 
-Ros2Node {
+Ros2.Node {
     id: root
     nodeName: "dogzilla"
 
