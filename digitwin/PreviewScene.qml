@@ -4,7 +4,7 @@ import QtQuick.Controls
 import QtQuick3D
 import QtQuick3D.Helpers
 import QtRos2.SensorMsgs as SensorMsgs
-import QtRos2.Core
+import QtRos2.Core as Ros2
 import Dogzilla
 
 Item {
@@ -104,7 +104,7 @@ Item {
         }
     }
 
-    Ros2Node {
+    Ros2.Node {
         id: rosNode
         nodeName: "dogzilla"
 
