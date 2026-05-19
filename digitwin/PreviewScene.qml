@@ -80,7 +80,9 @@ Item {
                 scale: Qt.vector3d(0.1, 0.1, 0.01)
                 source: "#Cube"
                 instancing: LidarInstanceTable {
-                    id: lidarInstanceTable
+                    ranges: laserSub.ranges
+                    intensities: laserSub.intensities
+                    angleIncrement: laserSub.angleIncrement
                 }
                 materials: [
                     PrincipledMaterial {
@@ -109,13 +111,8 @@ Item {
         nodeName: "dogzilla"
 
         SensorMsgs.BatteryStateSubscriber {
+            id: batterySub
             topic: `/${rosNode.nodeName}/battery_state`
-            onMessageReceived: function (msg) {
-                // console.log("BatteryStateSubscriber got", JSON.stringify(msg))
-                // example {"header":{"stamp":{"sec":0,"nanosec":0},"frameId":""},"voltage":0,"temperature":0,"current":0,"charge":0,"capacity":0,"designCapacity":0,"percentage":0.9900000095367432,
-                //   "powerSupplyStatus":0,"powerSupplyHealth":0,"powerSupplyTechnology":0,"present":true,"cellVoltage":[],"cellTemperature":[],"location":"","serialNumber":""}
-                panel.batteryLevel = msg.percentage // TODO make it a declarative binding?
-            }
         }
 
         SensorMsgs.JointStateSubscriber {
@@ -143,12 +140,8 @@ Item {
         }
 
         SensorMsgs.LaserScanSubscriber {
+            id: laserSub
             topic: `/${rosNode.nodeName}/sensor_msgs/msg/LaserScan`
-            onMessageReceived: function(msg) {
-                lidarInstanceTable.ranges = msg.ranges
-                lidarInstanceTable.intensities = msg.intensities
-                lidarInstanceTable.angleIncrement = msg.angleIncrement
-            }
         }
     }
 
@@ -160,5 +153,6 @@ Item {
         anchors.margins: 12
         width: Math.min(420, Math.max(280, parent.width * 0.28))
         targetRobot: robotRoot
+        batteryLevel: batterySub.percentage
     }
 }
