@@ -4,15 +4,23 @@ Item {
     id: root
     width: 320
     height: width
+    property bool polar: true
+
     property real margin: 20
     property real rawX: (knobHolder.x - knobHolder.halfRange.x - margin) / knobHolder.halfRange.x
     property real rawY: (knobHolder.y - knobHolder.halfRange.y - margin) / -knobHolder.halfRange.y
     property real rawR: Math.sqrt(rawX * rawX + rawY * rawY)
     property point axes:
-        dragHandler.active && rawR > 0 ?
-            Qt.point(rawX / Math.max(Math.abs(rawX), Math.abs(rawY)) * Math.min(rawR, 1),
-                     rawY / Math.max(Math.abs(rawX), Math.abs(rawY)) * Math.min(rawR, 1)) :
-            Qt.point(0, 0)
+        polar ?
+            (dragHandler.active ?
+                 Qt.point(rawX / Math.max(1, rawR),
+                          rawY / Math.max(1, rawR)) :
+                 Qt.point(0, 0)) :
+            (dragHandler.active && rawR > 0 ?
+                 Qt.point(rawX / Math.max(Math.abs(rawX), Math.abs(rawY)) * Math.min(rawR, 1),
+                          rawY / Math.max(Math.abs(rawX), Math.abs(rawY)) * Math.min(rawR, 1)):
+                 Qt.point(0, 0))
+
     property alias knobVisible: knob.visible
 
     Item {
