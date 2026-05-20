@@ -33,6 +33,35 @@ Item {
             PerspectiveCamera {
                 id: sceneCamera
                 z: 1000
+                property real stickDistance: 300
+                property real halfV: stickDistance * Math.tan(sceneCamera.fieldOfView / 2 * Math.PI / 180)
+                property real halfH: halfV * (view3D.width / view3D.height)
+
+                Node {
+                    id: rightStick
+                    x: ((rightStickControl.x + rightStickControl.width  / 2) / view3D.width  - 0.5) * 2 * sceneCamera.halfH
+                    y: (0.5 - (rightStickControl.y + rightStickControl.height / 2) / view3D.height) * 2 * sceneCamera.halfV
+                    z: -sceneCamera.stickDistance
+                    // Perspective compensation: rotate to face the camera eye at the origin
+                    eulerRotation.y: -Math.atan2(x, sceneCamera.stickDistance) * 180 / Math.PI
+                    eulerRotation.x: Math.atan2(y, sceneCamera.stickDistance) * 180 / Math.PI
+                    ThumbStick {
+                        axes: rightStickControl.axes
+                    }
+                }
+
+                Node {
+                    id: leftStick
+                    x: ((leftStickControl.x + leftStickControl.width  / 2) / view3D.width  - 0.5) * 2 * sceneCamera.halfH
+                    y: (0.5 - (leftStickControl.y + leftStickControl.height / 2) / view3D.height) * 2 * sceneCamera.halfV
+                    z: -sceneCamera.stickDistance
+                    // Perspective compensation: rotate to face the camera eye at the origin
+                    eulerRotation.y: -Math.atan2(x, sceneCamera.stickDistance) * 180 / Math.PI
+                    eulerRotation.x: Math.atan2(y, sceneCamera.stickDistance) * 180 / Math.PI
+                    ThumbStick {
+                        axes: leftStickControl.axes
+                    }
+                }
             }
 
             DirectionalLight {
@@ -154,5 +183,41 @@ Item {
         width: Math.min(420, Math.max(280, parent.width * 0.28))
         targetRobot: robotRoot
         batteryLevel: batterySub.percentage
+    }
+
+    ThumbStickControl {
+        id: rightStickControl
+        width: parent.width / 7
+        anchors {
+            bottom: parent.bottom
+            right: parent.right
+        }
+        Text {
+            anchors {
+                right: parent.right
+                bottom: parent.bottom
+                margins: 6
+            }
+            color: "white"
+            text: rightStickControl.axes.x.toFixed(2) + " " + rightStickControl.axes.y.toFixed(2)
+        }
+    }
+
+    ThumbStickControl {
+        id: leftStickControl
+        width: parent.width / 6
+        anchors {
+            bottom: parent.bottom
+            left: parent.left
+        }
+        Text {
+            anchors {
+                left: parent.left
+                bottom: parent.bottom
+                margins: 6
+            }
+            color: "white"
+            text: leftStickControl.axes.x.toFixed(2) + " " + leftStickControl.axes.y.toFixed(2)
+        }
     }
 }
