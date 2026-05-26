@@ -14,32 +14,16 @@ Ros2.Node {
 
     TwistPublisher {
         id: twp
-        topic: `/${root.nodeName}/cmd_vel`
-    }
-
-    function publishTwist() {
-        twp.publish({
-                "linear": {
-                    "x": controller.walkSpeed,
-                    "y": controller.sideStepSpeed,
-                    "z": 0
-                },
-                "angular": {
-                    "x": 0,
-                    "y": 0,
-                    "z": 0
-                }
-            })
+        topic: `/${root.nodeName}/vel`
+        linear.x: controller.walkSpeed
+        linear.y: controller.sideStepSpeed
+        angular.z: controller.steerAngle
     }
 
     JointStatePublisher {
         id: jsp
         topic: `/${root.nodeName}/joint_states`
-    }
-
-    function publishJointState() {
-        const msg = {
-            "name": [
+        name:  [
                 "lf_lower_leg_joint",
                 "lf_upper_leg_joint",
                 "lf_hip_joint",
@@ -55,16 +39,16 @@ Ros2.Node {
                 "rh_lower_leg_joint",
                 "rh_upper_leg_joint",
                 "rh_hip_joint",
-            ],
-            "position": controller.jointAngles
-            // could also include velocity, effort
-        }
-        jsp.publish(msg)
-    }
+          ]
+        position: controller.jointAngles
+       // could also include velocity, effort
+   }
 
     BatteryStatePublisher {
         id: bsp
         topic: `/${root.nodeName}/battery_state`
+        percentage: controller.batteryPercent / 100
+        present: true
     }
 
     property ConsoleDashboard dash: ConsoleDashboard {
@@ -72,28 +56,13 @@ Ros2.Node {
         tty: "/dev/tty1"
     }
 
-
     // Ros2Node apparently only allows childEntities as children:
     // if we don't declare a property, we get
     // Cannot assign object of type "QQmlConnections" to list property "childEntities"; expected "QRos2Entity"
     property Controller controller: Controller {
         serialPort: "/dev/ttyAMA0"
         baudRate: 115200
-
-        onBatteryPercentChanged: (pct) => {
-            const msg = {
-                "percentage": pct / 100,
-                "present": true,
-            }
-            bsp.publish(msg)
-        }
-
-        onWalkSpeedChanged: (speed) => {
-            publishTwist()
-            console.log("Walk speed changed", speed);
-        }
-        onSideStepSpeedChanged: publishTwist()
-        onJointAnglesChanged: publishJointState()
+        onBatteryPercentChanged: console.log("batt", batteryPercent);
     }
 
     property UniversalInput univin: UniversalInput {
@@ -106,17 +75,19 @@ Ros2.Node {
             (device, axis, value) => {
                 console.log("axis", axis, value)
                 switch (axis) {
+                // left stick: yaw speed (steer) and walk speed
                 case 0: // JoyAxis.LeftX
-                    controller.sideStepSpeed = value * -50
+                    controller.steerAngle = value * -90
                     break;
                 case 1: // JoyAxis.LeftY
-                    controller.translationX = value * 100
-                    break;
-                case 2: // JoyAxis.RightX
                     controller.walkSpeed = value * -50
                     break;
+                // right stick: side step (strafe) and pitch angle (look up/down)
+                case 2: // JoyAxis.RightX
+                    controller.translationX = value * 100 // TODO pitch
+                    break;
                 case 4: // should be RightY
-                    controller.steerAngle = (value - 0.5) * -90
+                    controller.sideStepSpeed = (value - 0.5) * -50
                     break;
                 }
             }
@@ -136,6 +107,22 @@ Ros2.Node {
                     break
                 }
             }
+    }
+
+    // JoySubscriber is also possible, but would usually drive a TwistPublisher
+
+    TwistSubscriber {
+        id: cmdVelSub
+        topic: `/${root.nodeName}/cmd_vel`
+        // TODO declarative multi-binding: either this or univin can comnmand the controller;
+        // or, drive TwistPublisher from univin
+        onMessageReceived: (msg) => {
+            console.log("--- twist", JSON.stringify(msg), msg.linear)
+            controller.sideStepSpeed = msg.linear.y
+            controller.walkSpeed = msg.linear.x
+            // linear.z angular.x and angular.y are documented for "aerial vehicles only"
+            controller.steerAngle = msg.angular.z
+        }
     }
 
     CompressedImagePublisher {
