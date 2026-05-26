@@ -3,8 +3,9 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick3D
 import QtQuick3D.Helpers
-import QtRos2.SensorMsgs as SensorMsgs
 import QtRos2.Core as Ros2
+import QtRos2.GeometryMsgs as GeomMsgs
+import QtRos2.SensorMsgs as SensorMsgs
 import Dogzilla
 
 Item {
@@ -171,6 +172,21 @@ Item {
         SensorMsgs.LaserScanSubscriber {
             id: laserSub
             topic: `/${rosNode.nodeName}/sensor_msgs/msg/LaserScan`
+        }
+
+        GeomMsgs.TwistPublisher {
+            id: cmdVel
+            topic: `/${rosNode.nodeName}/cmd_vel` // legacy ROS1-style command topic, still in use
+            // left stick: yaw speed (steer) and walk speed
+            // right stick x: translate sideways (strafe)
+            linear: Qt.vector3d(leftStickControl.axes.y * 100, rightStickControl.axes.x * -50, 0)
+            angular: Qt.vector3d(0, 0, leftStickControl.axes.x * -100)
+        }
+
+        GeomMsgs.PosePublisher {
+            topic: `/${rosNode.nodeName}/body_pose/command` // modern style for command/state topic separation
+            // right stick y: pitch angle (look up/down)
+            orientation: Quaternion.fromEulerAngles(0, rightStickControl.axes.y * 20, 0)
         }
     }
 
