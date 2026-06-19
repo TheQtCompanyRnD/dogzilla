@@ -27,7 +27,9 @@ QByteArray Controller::m_commands[] {
     QByteArrayLiteral("\x01\x33\x00"), // TranslationX
     QByteArrayLiteral("\x01\x34\x00"), // TranslationY
     QByteArrayLiteral("\x01\x35\x00"), // TranslationZ
-    QByteArrayLiteral("\x36\x00\x00\x00"), // Attitude
+    QByteArrayLiteral("\x01\x36\x00"), // AttitudeRoll
+    QByteArrayLiteral("\x01\x37\x00"), // AttitudePitch
+    QByteArrayLiteral("\x01\x38\x00"), // AttitudeYaw
     QByteArrayLiteral("\x39\x00\x00\x00"), // PeriodicRotation
     QByteArrayLiteral("\x3c\x00"), // MarkTime
     QByteArrayLiteral("\x3d\x00"), // MoveMode
@@ -412,4 +414,40 @@ void Controller::setJointAngles(const QList<double> &angles)
     if (jointAngles() == angles)
         return;
     // TODO send commands to change them
+}
+
+void Controller::setRoll(qreal v)
+{
+    if (qFuzzyCompare(m_roll, v))
+        return;
+    m_roll = v;
+    const uint8_t arg = 0x80 + lroundf(v);
+    qCDebug(lcCtrl) << "roll" << m_roll << lroundf(v) << arg;
+    sendOneArgCommand(Command::AttitudeRoll, arg);
+    emit rollChanged();
+}
+
+void Controller::setPitch(qreal v)
+{
+    if (qFuzzyCompare(m_pitch, v))
+        return;
+    m_pitch = v;
+    const uint8_t arg = 0x80 + lroundf(v);
+    qCDebug(lcCtrl) << "pitch" << m_pitch << lroundf(v) << arg;
+    // example: set pitch to 30 deg
+    // [0x55, 0x00, 0x09, 0x01, 0x37, 0x00, 0xBE, 0x00, 0xAA]
+    // SOF   --   len   mode  addr  data  csum   --   EOF
+    sendOneArgCommand(Command::AttitudePitch, arg);
+    emit pitchChanged();
+}
+
+void Controller::setYaw(qreal v)
+{
+    if (qFuzzyCompare(m_yaw, v))
+        return;
+    m_yaw = v;
+    const uint8_t arg = 0x80 + lroundf(v);
+    qCDebug(lcCtrl) << "yaw" << m_yaw << lroundf(v) << arg;
+    sendOneArgCommand(Command::AttitudeYaw, arg);
+    emit yawChanged();
 }

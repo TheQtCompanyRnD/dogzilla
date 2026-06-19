@@ -17,12 +17,19 @@ class Controller : public QObject
 
     Q_PROPERTY(int batteryPercent READ batteryPercent NOTIFY batteryPercentChanged FINAL)
     Q_PROPERTY(bool motorsEngaged READ motorsEngaged WRITE setMotorsEngaged NOTIFY motorsEngagedChanged FINAL)
+
     Q_PROPERTY(qreal walkSpeed READ walkSpeed WRITE setWalkSpeed NOTIFY walkSpeedChanged FINAL)
     Q_PROPERTY(qreal steerAngle READ steerAngle WRITE setSteerAngle NOTIFY steerAngleChanged FINAL)
     Q_PROPERTY(qreal sideStepSpeed READ sideStepSpeed WRITE setSideStepSpeed NOTIFY sideStepSpeedChanged FINAL)
+
     Q_PROPERTY(qreal translationX READ translationX WRITE setTranslationX NOTIFY translationXChanged FINAL)
     Q_PROPERTY(qreal translationY READ translationY WRITE setTranslationY NOTIFY translationYChanged FINAL)
     Q_PROPERTY(qreal translationZ READ translationZ WRITE setTranslationZ NOTIFY translationZChanged FINAL)
+
+    Q_PROPERTY(qreal roll READ roll WRITE setRoll NOTIFY rollChanged FINAL)
+    Q_PROPERTY(qreal pitch READ pitch WRITE setPitch NOTIFY pitchChanged FINAL)
+    Q_PROPERTY(qreal yaw READ yaw WRITE setYaw NOTIFY yawChanged FINAL)
+
     Q_PROPERTY(QList<double> jointAngles READ jointAngles WRITE setJointAngles NOTIFY jointAnglesChanged FINAL)
 
 public:
@@ -47,7 +54,9 @@ public:
         TranslationX,
         TranslationY,
         TranslationZ,
-        Attitude,
+        AttitudeRoll,
+        AttitudePitch,
+        AttitudeYaw,
         PeriodicRotation,
         MarkTime,
         MoveMode,
@@ -76,6 +85,9 @@ public:
     qreal translationX() const { return m_translationX; }
     qreal translationY() const { return m_translationY; }
     qreal translationZ() const { return m_translationZ; }
+    qreal roll() const { return m_roll; }
+    qreal pitch() const { return m_pitch; }
+    qreal yaw() const { return m_yaw; }
     QList<double> jointAngles() const { return {m_motorAngles.begin(), m_motorAngles.end()}; }
 
 public slots:
@@ -91,6 +103,9 @@ public slots:
     void setTranslationX(qreal v);
     void setTranslationY(qreal v);
     void setTranslationZ(qreal v);
+    void setRoll(qreal newRoll);
+    void setPitch(qreal newPitch);
+    void setYaw(qreal newYaw);
     void setJointAngles(const QList<double> &angles);
 
 signals:
@@ -102,6 +117,9 @@ signals:
     void translationXChanged(qreal translationX);
     void translationYChanged(qreal translationY);
     void translationZChanged(qreal translationZ);
+    void rollChanged();
+    void pitchChanged();
+    void yawChanged();
     void jointAnglesChanged();
 
 protected:
@@ -112,7 +130,7 @@ private slots:
     uint8_t checksum(const QByteArray &buf);
     void sendThunkCommand(Command cmd);
     void sendOneArgCommand(Command cmd, int8_t arg);
-	void readAndHandle();
+    void readAndHandle();
     void pollMotorAngles();
     void pollBattery();
 
@@ -130,6 +148,9 @@ private:
     qreal m_translationX;
     qreal m_translationY;
     qreal m_translationZ;
+    qreal m_roll;
+    qreal m_pitch;
+    qreal m_yaw;
     std::array<double, 12> m_motorAngles;
     int m_motorPollTimerId = -1;
     int m_batteryPollCountdown = 0;

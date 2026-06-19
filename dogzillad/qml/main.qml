@@ -84,7 +84,7 @@ Ros2.Node {
                     break;
                 // right stick: side step (strafe) and pitch angle (look up/down)
                 case 2: // JoyAxis.RightX
-                    controller.translationX = value * 100 // TODO pitch
+                    controller.pitch = value * 100
                     break;
                 case 4: // should be RightY
                     controller.sideStepSpeed = (value - 0.5) * -50
@@ -124,6 +124,21 @@ Ros2.Node {
             controller.steerAngle = msg.angular.z
         }
     }
+
+    PoseSubscriber {
+        id: poseSub
+        topic: `/${root.nodeName}/body_pose/command`
+        onOrientationChanged: {
+            // rpyDegrees is a ROS vector3 (degrees, double)
+            // eulerAngles is a single-precision QVector3D, and would need QtQuick
+            controller.roll = poseSub.orientation.rpyDegrees.x
+            controller.pitch = poseSub.orientation.rpyDegrees.y
+            controller.yaw = poseSub.orientation.rpyDegrees.z
+        }
+    }
+
+    // TODO PosePublisher, giving feedback from the IMU sensor
+    // topic: `/${root.nodeName}/body_pose/state`
 
     CompressedImagePublisher {
         id: imagePublisher
