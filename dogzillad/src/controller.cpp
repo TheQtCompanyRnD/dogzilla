@@ -228,6 +228,17 @@ double byteToReal(uint8_t b, const Controller::RealPair &limits)
     return b / 255.0 * (limitMax - limitMin) + limitMin;
 }
 
+// Encode a posture angle (degrees) to the firmware attitude byte. The protocol
+// maps the symmetric range [-limit, +limit] onto a byte centred at 0x80, so the
+// physical degrees must be scaled by 128/limit (see ATTITUDE_LIMIT above:
+// roll 20, pitch 15, yaw 11). Sending the raw degree value (0x80 + v) instead
+// under-drives the motion by that factor and silently clamps past the limit.
+static uint8_t attitudeByte(qreal degrees, qreal limit)
+{
+    const int b = qRound(qBound(-limit, degrees, limit) / limit * 128.0) + 0x80;
+    return static_cast<uint8_t>(qBound(0, b, 255));
+}
+
 void Controller::handleMotorAngles(const QByteArray &packet)
 {
     if (packet.size() < 18)
@@ -421,8 +432,8 @@ void Controller::setRoll(qreal v)
     if (qFuzzyCompare(m_roll, v))
         return;
     m_roll = v;
-    const uint8_t arg = 0x80 + lroundf(v);
-    qCDebug(lcCtrl) << "roll" << m_roll << lroundf(v) << arg;
+    const uint8_t arg = attitudeByte(v, 20.0); // ATTITUDE_LIMIT roll
+    qCDebug(lcCtrl) << "roll" << m_roll << arg;
     sendOneArgCommand(Command::AttitudeRoll, arg);
     emit rollChanged();
 }
@@ -432,10 +443,10 @@ void Controller::setPitch(qreal v)
     if (qFuzzyCompare(m_pitch, v))
         return;
     m_pitch = v;
-    const uint8_t arg = 0x80 + lroundf(v);
-    qCDebug(lcCtrl) << "pitch" << m_pitch << lroundf(v) << arg;
-    // example: set pitch to 30 deg
-    // [0x55, 0x00, 0x09, 0x01, 0x37, 0x00, 0xBE, 0x00, 0xAA]
+    const uint8_t arg = attitudeByte(v, 15.0); // ATTITUDE_LIMIT pitch
+    qCDebug(lcCtrl) << "pitch" << m_pitch << arg;
+    // example: set pitch to +15 deg (the max): arg = 0xFF
+    // [0x55, 0x00, 0x09, 0x01, 0x37, 0xFF, ....., 0x00, 0xAA]
     // SOF   --   len   mode  addr  data  csum   --   EOF
     sendOneArgCommand(Command::AttitudePitch, arg);
     emit pitchChanged();
@@ -446,8 +457,8 @@ void Controller::setYaw(qreal v)
     if (qFuzzyCompare(m_yaw, v))
         return;
     m_yaw = v;
-    const uint8_t arg = 0x80 + lroundf(v);
-    qCDebug(lcCtrl) << "yaw" << m_yaw << lroundf(v) << arg;
+    const uint8_t arg = attitudeByte(v, 11.0); // ATTITUDE_LIMIT yaw
+    qCDebug(lcCtrl) << "yaw" << m_yaw << arg;
     sendOneArgCommand(Command::AttitudeYaw, arg);
     emit yawChanged();
 }

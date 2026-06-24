@@ -177,9 +177,10 @@ Item {
         // step sideways
         property real strafeSpeed: rightStickControl.axes.x * -50
         // look up/down: change lidar and camera angle
-        // must be < 90 to avoid gimbal lock (which would cause other angles to become non-zero)
-        // anyway the robot supports a much narrower range than that
-        property real pitch: rightStickControl.axes.y * 80
+        // The firmware pitch range is ±15° (ATTITUDE_LIMIT); full stick maps to it.
+        // Stay well under 90° regardless, to avoid Euler gimbal lock (which would
+        // make the other angles non-zero in the published quaternion).
+        property real pitch: rightStickControl.axes.y * 15
         // yaw by stepping
         property real turnSpeed: leftStickControl.axes.x * -100
         // walk forwards or backwards

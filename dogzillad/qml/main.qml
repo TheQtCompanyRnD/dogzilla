@@ -84,7 +84,7 @@ Ros2.Node {
                     break;
                 // right stick: side step (strafe) and pitch angle (look up/down)
                 case 2: // JoyAxis.RightX
-                    controller.pitch = value * 100
+                    controller.pitch = value * 15
                     break;
                 case 4: // should be RightY
                     controller.sideStepSpeed = (value - 0.5) * -50
