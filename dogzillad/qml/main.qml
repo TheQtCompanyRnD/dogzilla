@@ -138,17 +138,19 @@ Ros2.Node {
         }
     }
 
-    // Feedback from the IMU: the firmware only provides fused Euler angles
-    // (degrees), published here symmetric with body_pose/command. Composing the
-    // orientation references all three measured* properties, which is how the
-    // Controller detects interest and decides whether to poll the IMU at all.
+    // Feedback from the IMU, published symmetric with body_pose/command.
+    // measuredRoll/measuredPitch are tared real degrees (relative to startup, or
+    // to the last controller.tareAttitude()). Yaw is published as 0: the firmware's
+    // yaw is a free-running gyro integral that drifts ~14 deg/s, so the twin's
+    // heading should come from odometry, not here. Referencing the measured*
+    // properties is also how the Controller detects interest and starts IMU polling.
     // (Same fromEulerAngles pattern the digital twin uses on the command side.)
     PoseStampedPublisher {
         id: posePub
         topic: `/${root.nodeName}/body_pose/state`
         pose.orientation: Quaternion.fromEulerAngles(controller.measuredRoll,
                                                       controller.measuredPitch,
-                                                      controller.measuredYaw)
+                                                      0)
     }
 
     CompressedImagePublisher {

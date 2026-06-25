@@ -32,13 +32,17 @@ class Controller : public QObject
     Q_PROPERTY(qreal pitch READ pitch WRITE setPitch NOTIFY pitchChanged FINAL)
     Q_PROPERTY(qreal yaw READ yaw WRITE setYaw NOTIFY yawChanged FINAL)
 
-    // IMU feedback (the firmware's fused attitude, in degrees). Read-only and
-    // distinct from the roll/pitch/yaw setpoints above. Polling is gated on
-    // whether anything is bound to these (see connectNotify), since each axis
-    // is a separate serial read.
+    // IMU feedback (degrees), read-only and distinct from the roll/pitch/yaw
+    // setpoints above. Polling is gated on whether anything is bound to these
+    // (see connectNotify), since each axis is a separate serial read.
+    //
+    // These are relative to a tare reference: the firmware reports roll/pitch
+    // with a large fixed bias (~+33/-37 deg when level), so we subtract an
+    // offset captured on the first sample and re-capturable via tareAttitude().
+    // There is no measuredYaw: the firmware's yaw is a free-running gyro integral
+    // that drifts ~14 deg/s, so heading should come from odometry instead.
     Q_PROPERTY(qreal measuredRoll READ measuredRoll NOTIFY measuredRollChanged FINAL)
     Q_PROPERTY(qreal measuredPitch READ measuredPitch NOTIFY measuredPitchChanged FINAL)
-    Q_PROPERTY(qreal measuredYaw READ measuredYaw NOTIFY measuredYawChanged FINAL)
 
     Q_PROPERTY(QList<double> jointAngles READ jointAngles WRITE setJointAngles NOTIFY jointAnglesChanged FINAL)
 
@@ -100,7 +104,6 @@ public:
     qreal yaw() const { return m_yaw; }
     qreal measuredRoll() const { return m_measuredRoll; }
     qreal measuredPitch() const { return m_measuredPitch; }
-    qreal measuredYaw() const { return m_measuredYaw; }
     QList<double> jointAngles() const { return {m_motorAngles.begin(), m_motorAngles.end()}; }
 
 public slots:
@@ -121,6 +124,11 @@ public slots:
     void setYaw(qreal newYaw);
     void setJointAngles(const QList<double> &angles);
 
+    // Re-zero measuredRoll/measuredPitch to the dog's current attitude. Called
+    // automatically ~2 s after standing up (see setMotorsEngaged), since the pose
+    // at power-up may not be level; also exposed for an explicit re-zero on demand.
+    void tareAttitude();
+
 signals:
     void batteryPercentChanged(int pct);
     void motorsEngagedChanged(bool engaged);
@@ -135,7 +143,6 @@ signals:
     void yawChanged();
     void measuredRollChanged();
     void measuredPitchChanged();
-    void measuredYawChanged();
     void jointAnglesChanged();
 
 protected:
@@ -176,7 +183,7 @@ private:
     qreal m_roll;
     qreal m_pitch;
     qreal m_yaw;
-    qreal m_measuredRoll = 0;
+    qreal m_measuredRoll = 0;  // tared (raw - offset); what measuredRoll exposes
     qreal m_measuredPitch = 0;
     qreal m_rawRoll = 0;       // latest raw firmware reading, before tare
     qreal m_rawPitch = 0;
@@ -190,6 +197,7 @@ private:
     int m_imuPollTimerId = -1;
     int m_batteryPollCountdown = 0;
     int m_disengageCountdown = 0;
+    int m_tareCountdown = 0; // ticks until auto-tare after standing up; 0 = idle
     uint8_t m_batteryPercent = 0;
     bool m_motorsEngaged = false; // we want to explicitly engage to start moving
 
@@ -201,7 +209,6 @@ private:
     int m_readWatchdogTimerId = -1;
     QMetaMethod m_measuredRollSig;
     QMetaMethod m_measuredPitchSig;
-    QMetaMethod m_measuredYawSig;
 
     static QByteArray m_commands[int(Command::Count)];
     static RealPair m_motorLimits[3]; // lower, middle, upper motors on each leg

@@ -97,7 +97,6 @@ Controller::Controller(QObject * parent)
 
     m_measuredRollSig = QMetaMethod::fromSignal(&Controller::measuredRollChanged);
     m_measuredPitchSig = QMetaMethod::fromSignal(&Controller::measuredPitchChanged);
-    m_measuredYawSig = QMetaMethod::fromSignal(&Controller::measuredYawChanged);
 }
 
 Controller::~Controller() { }
@@ -145,12 +144,12 @@ void Controller::timerEvent(QTimerEvent *ev)
         pollMotorAngles();
     } else if (ev->timerId() == m_imuPollTimerId) {
         // Each axis is a separate read; only request the ones something is bound to.
+        // Yaw is deliberately never read: the firmware's yaw drifts ~14 deg/s and is
+        // useless, so we don't waste a serial round-trip on it.
         if (isSignalConnected(m_measuredRollSig))
             enqueueRead(Command::Roll);
         if (isSignalConnected(m_measuredPitchSig))
             enqueueRead(Command::Pitch);
-        if (isSignalConnected(m_measuredYawSig))
-            enqueueRead(Command::Yaw);
     } else if (ev->timerId() == m_readWatchdogTimerId) {
         // A read's reply never arrived (bad checksum, partial frame). Kill the
         // (repeating) timer to make it single-shot, release the queue and resume.
@@ -209,6 +208,17 @@ void Controller::pollMotorAngles()
         }
     }
 
+    // Re-zero the attitude once the dog has stood up and settled: the pose at power-up
+    // (lying on its charger, on its side) is not level, so the first-sample auto-tare
+    // is unreliable. Standing on flat ground is a known-level reference.
+    if (m_tareCountdown > 0) {
+        --m_tareCountdown;
+        if (m_tareCountdown == 0) {
+            qCDebug(lcCtrl) << "auto-tare attitude after standing up";
+            tareAttitude();
+        }
+    }
+
     //                           "55 00 09 02 01 50 a3 00 aa"
     // should be (from python) [0x55 0x0 0x9 0x2 0x50 0xc 0x98 0x0 0xaa]
     // response in standing pos \xb3\xaa\x80\xb1\xab\x7f\xb4\xb4\x83\xb4\xb4\x7f\x00\xff\x00 ...
@@ -249,8 +259,7 @@ void Controller::pumpReadQueue()
 void Controller::updateImuPolling()
 {
     const bool wanted = isSignalConnected(m_measuredRollSig)
-                     || isSignalConnected(m_measuredPitchSig)
-                     || isSignalConnected(m_measuredYawSig);
+                     || isSignalConnected(m_measuredPitchSig);
     if (wanted && m_imuPollTimerId < 0) {
         m_imuPollTimerId = startTimer(100);
     } else if (!wanted && m_imuPollTimerId >= 0) {
@@ -403,6 +412,11 @@ void Controller::readAndHandle()
     }
 }
 
+// Deadband for the IMU attitude (degrees): the firmware's low float bits jitter
+// ~0.05 deg at rest, far below the sensor's real resolution and invisible in the
+// twin, so we ignore changes smaller than this to avoid republishing pure noise.
+static constexpr qreal kAttitudeEpsilonDeg = 0.2;
+
 // Validate and dispatch one complete frame. Returns true if its checksum was good.
 bool Controller::handleFrame(const QByteArray &frame)
 {
@@ -428,31 +442,36 @@ bool Controller::handleFrame(const QByteArray &frame)
         case 0x50:
             handleMotorAngles(frame);
             break;
-        // IMU attitude: 4-byte little-endian float (degrees), data starting at index 5.
+        // IMU attitude: 4-byte little-endian float (degrees), data at index 5.
+        // The firmware reports a large fixed bias, so we subtract a tare offset;
+        // the first sample seeds it (auto-zero), and tareAttitude() can re-zero.
         case 0x62: {
-            const qreal v = qFromLittleEndian<float>(frame.constData() + 5);
-            if (m_measuredRoll != v) {
+            m_rawRoll = qFromLittleEndian<float>(frame.constData() + 5);
+            if (!m_rollTared) {
+                m_rollOffset = m_rawRoll;
+                m_rollTared = true;
+            }
+            const qreal v = m_rawRoll - m_rollOffset;
+            if (qAbs(v - m_measuredRoll) >= kAttitudeEpsilonDeg) {
                 m_measuredRoll = v;
                 emit measuredRollChanged();
             }
             break;
         }
         case 0x63: {
-            const qreal v = qFromLittleEndian<float>(frame.constData() + 5);
-            if (m_measuredPitch != v) {
+            m_rawPitch = qFromLittleEndian<float>(frame.constData() + 5);
+            if (!m_pitchTared) {
+                m_pitchOffset = m_rawPitch;
+                m_pitchTared = true;
+            }
+            const qreal v = m_rawPitch - m_pitchOffset;
+            if (qAbs(v - m_measuredPitch) >= kAttitudeEpsilonDeg) {
                 m_measuredPitch = v;
                 emit measuredPitchChanged();
             }
             break;
         }
-        case 0x64: {
-            const qreal v = qFromLittleEndian<float>(frame.constData() + 5);
-            if (m_measuredYaw != v) {
-                m_measuredYaw = v;
-                emit measuredYawChanged();
-            }
-            break;
-        }
+        // 0x64 (yaw) is intentionally never requested; see timerEvent.
         }
     }
     return true;
@@ -471,6 +490,7 @@ void Controller::setMotorsEngaged(bool v)
         setMotorSpeed(50);
         setTranslationZ(100); // stand up; TODO this doesn't go high enough
         sendThunkCommand(Command::LoadMotor);
+        m_tareCountdown = 20; // ~2 s for the legs to extend and the body to settle level
         m_motorsEngaged = v;
         qCDebug(lcCtrl) << m_motorsEngaged << "->" << v;
         emit motorsEngagedChanged(v);
@@ -616,4 +636,19 @@ void Controller::setYaw(qreal v)
     qCDebug(lcCtrl) << "yaw" << m_yaw << arg;
     sendOneArgCommand(Command::AttitudeYaw, arg);
     emit yawChanged();
+}
+
+void Controller::tareAttitude()
+{
+    m_rollOffset = m_rawRoll;
+    m_pitchOffset = m_rawPitch;
+    qCDebug(lcCtrl) << "tare attitude; roll offset" << m_rollOffset << "pitch offset" << m_pitchOffset;
+    if (m_measuredRoll != 0) {
+        m_measuredRoll = 0;
+        emit measuredRollChanged();
+    }
+    if (m_measuredPitch != 0) {
+        m_measuredPitch = 0;
+        emit measuredPitchChanged();
+    }
 }
