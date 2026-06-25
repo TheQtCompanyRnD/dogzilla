@@ -193,9 +193,10 @@ Item {
             angular: Qt.vector3d(0, 0, rosNode.turnSpeed)
         }
 
-        GeomMsgs.PosePublisher {
+        GeomMsgs.PoseStampedPublisher {
             topic: `/${rosNode.nodeName}/body_pose/command` // modern style for command/state topic separation
-            orientation: GeomMsgs.Quaternion.fromEulerAngles(0, rosNode.pitch, 0)
+            header.frameId: "base_link" // name of link (main body part) as declared in dogzilla.urdf
+            pose.orientation: GeomMsgs.Quaternion.fromEulerAngles(0, rosNode.pitch, 0)
         }
     }
 

@@ -125,15 +125,16 @@ Ros2.Node {
         }
     }
 
-    PoseSubscriber {
+    PoseStampedSubscriber {
         id: poseSub
         topic: `/${root.nodeName}/body_pose/command`
-        onOrientationChanged: {
-            // rpyDegrees is a ROS vector3 (degrees, double)
+        onPoseChanged: {
+            // pose.orientation.rpyDegrees is a ROS vector3 (degrees, double)
             // eulerAngles is a single-precision QVector3D, and would need QtQuick
-            controller.roll = poseSub.orientation.rpyDegrees.x
-            controller.pitch = poseSub.orientation.rpyDegrees.y
-            controller.yaw = poseSub.orientation.rpyDegrees.z
+            // header.frameId is available if we later want to validate/transform the frame
+            controller.roll = poseSub.pose.orientation.rpyDegrees.x
+            controller.pitch = poseSub.pose.orientation.rpyDegrees.y
+            controller.yaw = poseSub.pose.orientation.rpyDegrees.z
         }
     }
 
