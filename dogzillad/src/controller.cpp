@@ -3,6 +3,7 @@
 #include "controller.h"
 #include <QDebug>
 #include <QLoggingCategory>
+#include <QtEndian>
 
 Q_STATIC_LOGGING_CATEGORY(lcCtrl, "dogzilla.controller")
 Q_STATIC_LOGGING_CATEGORY(lcCrLow, "dogzilla.controller.lolevel")
@@ -38,10 +39,10 @@ QByteArray Controller::m_commands[] {
     QByteArrayLiteral("\x02\x50\x0c"), // get MotorAngle; expect to read 12 bytes
     QByteArrayLiteral("\x01\x5c\x01"), // MotorSpeed
     QByteArrayLiteral("\x40\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"), // LegPos
-    QByteArrayLiteral("\x61\x00"), // GetIMU
-    QByteArrayLiteral("\x62\x00"), // Roll
-    QByteArrayLiteral("\x63\x00"), // Pitch
-    QByteArrayLiteral("\x64\x00"), // Yaw
+    QByteArrayLiteral("\x61\x00"), // GetIMU (this opcode is the self-stabilize toggle, not a read; unused)
+    QByteArrayLiteral("\x02\x62\x04"), // Roll:  read 4-byte float (degrees)
+    QByteArrayLiteral("\x02\x63\x04"), // Pitch: read 4-byte float (degrees)
+    QByteArrayLiteral("\x02\x64\x04"), // Yaw:   read 4-byte float (degrees)
 };
 
 /* from Python:
@@ -93,6 +94,10 @@ Controller::Controller(QObject * parent)
     connect(&m_port, &QSerialPort::errorOccurred, this, &Controller::onError);
     connect(&m_port, &QIODevice::readyRead, this, &Controller::readAndHandle);
     // connect(this, &QSerialPort::dataTerminalReadyChanged, this, &Controller::emitReadySend);
+
+    m_measuredRollSig = QMetaMethod::fromSignal(&Controller::measuredRollChanged);
+    m_measuredPitchSig = QMetaMethod::fromSignal(&Controller::measuredPitchChanged);
+    m_measuredYawSig = QMetaMethod::fromSignal(&Controller::measuredYawChanged);
 }
 
 Controller::~Controller() { }
@@ -138,6 +143,22 @@ void Controller::timerEvent(QTimerEvent *ev)
 {
     if (ev->timerId() == m_motorPollTimerId) {
         pollMotorAngles();
+    } else if (ev->timerId() == m_imuPollTimerId) {
+        // Each axis is a separate read; only request the ones something is bound to.
+        if (isSignalConnected(m_measuredRollSig))
+            enqueueRead(Command::Roll);
+        if (isSignalConnected(m_measuredPitchSig))
+            enqueueRead(Command::Pitch);
+        if (isSignalConnected(m_measuredYawSig))
+            enqueueRead(Command::Yaw);
+    } else if (ev->timerId() == m_readWatchdogTimerId) {
+        // A read's reply never arrived (bad checksum, partial frame). Kill the
+        // (repeating) timer to make it single-shot, release the queue and resume.
+        qCDebug(lcCrLow) << "read reply timed out; resuming queue";
+        killTimer(m_readWatchdogTimerId);
+        m_readWatchdogTimerId = -1;
+        m_readInFlight = false;
+        pumpReadQueue();
     }
 }
 
@@ -192,13 +213,77 @@ void Controller::pollMotorAngles()
     // should be (from python) [0x55 0x0 0x9 0x2 0x50 0xc 0x98 0x0 0xaa]
     // response in standing pos \xb3\xaa\x80\xb1\xab\x7f\xb4\xb4\x83\xb4\xb4\x7f\x00\xff\x00 ...
     // meaning motor angles: [18.25, 40.0, 0.12, 17.24, 40.62, -0.12, 18.76, 46.24, 0.85, 18.76, 46.24, -0.12]
-    sendThunkCommand(Command::MotorAngle);
+    enqueueRead(Command::MotorAngle);
 }
 
 void Controller::pollBattery()
 {
     // should be (from python) [0x55 0x0 0x9  0x2 0x1 0x1 0xf2 0x0 0xaa]
-    sendThunkCommand(Command::GetBatteryLevel);
+    enqueueRead(Command::GetBatteryLevel);
+}
+
+void Controller::enqueueRead(Command cmd)
+{
+    // De-dup: a given read appears at most once in the queue, so a slow reply
+    // can't let the timers pile up redundant requests of the same kind.
+    if (!m_readQueue.contains(cmd))
+        m_readQueue.enqueue(cmd);
+    pumpReadQueue();
+}
+
+void Controller::pumpReadQueue()
+{
+    if (m_readInFlight || m_readQueue.isEmpty())
+        return;
+    const Command cmd = m_readQueue.dequeue();
+    m_readInFlight = true;
+    sendThunkCommand(cmd);
+    if (m_readWatchdogTimerId >= 0)
+        killTimer(m_readWatchdogTimerId);
+    // Long enough to ride out the firmware's slow (~1s) first reply at startup so
+    // we don't send the next read and desync request/reply pairing; the explicit
+    // framing in readAndHandle keeps us correct even if this fires anyway.
+    m_readWatchdogTimerId = startTimer(1500);
+}
+
+void Controller::updateImuPolling()
+{
+    const bool wanted = isSignalConnected(m_measuredRollSig)
+                     || isSignalConnected(m_measuredPitchSig)
+                     || isSignalConnected(m_measuredYawSig);
+    if (wanted && m_imuPollTimerId < 0) {
+        m_imuPollTimerId = startTimer(100);
+    } else if (!wanted && m_imuPollTimerId >= 0) {
+        killTimer(m_imuPollTimerId);
+        m_imuPollTimerId = -1;
+    }
+}
+
+void Controller::connectNotify(const QMetaMethod &signal)
+{
+    if (signal == m_measuredRollSig || signal == m_measuredPitchSig)
+        scheduleImuPollingUpdate();
+}
+
+void Controller::disconnectNotify(const QMetaMethod &)
+{
+    // signal may be invalid (disconnect-all), so just re-evaluate from scratch.
+    scheduleImuPollingUpdate();
+}
+
+void Controller::scheduleImuPollingUpdate()
+{
+    // connectNotify/disconnectNotify are invoked with QObject's internal signal
+    // mutex held. updateImuPolling() calls isSignalConnected(), which re-acquires
+    // that same mutex and deadlocks. So defer the check to the event loop, where
+    // the mutex has been released. Coalesce bursts of (dis)connections into one.
+    if (m_imuPollingUpdatePending)
+        return;
+    m_imuPollingUpdatePending = true;
+    QMetaObject::invokeMethod(this, [this] {
+        m_imuPollingUpdatePending = false;
+        updateImuPolling();
+    }, Qt::QueuedConnection);
 }
 
 // from Python:
@@ -275,32 +360,102 @@ void Controller::handleMotorAngles(const QByteArray &packet)
     }
 }
 
+// Pull all complete frames out of the accumulated receive buffer and dispatch them.
+// QSerialPort delivers bytes in arbitrary chunks: a single readyRead may carry a
+// partial frame, exactly one frame, or several frames back-to-back. The latter
+// happens when replies pile up — e.g. the firmware's first reply can lag ~1s at
+// startup, during which the watchdog sends further reads, so their replies arrive
+// coalesced. Buffering and framing explicitly is robust to all three cases.
 void Controller::readAndHandle()
 {
-    QByteArray buf = m_port.readAll();
-    // e.g. for battery level: 550009 12 01 18 cb 00aa"
+    m_rxBuffer += m_port.readAll();
+    bool handledAny = false;
+
+    while (m_rxBuffer.size() >= 3) {
+        // Resync to a start-of-frame marker (0x55 0x00).
+        if (uint8_t(m_rxBuffer.at(0)) != 0x55 || uint8_t(m_rxBuffer.at(1)) != 0x00) {
+            m_rxBuffer.remove(0, 1);
+            continue;
+        }
+        const int len = uint8_t(m_rxBuffer.at(2)); // frame length is the whole frame
+        if (len < 9 || len > 64) { // implausible: drop the marker and resync
+            m_rxBuffer.remove(0, 1);
+            continue;
+        }
+        if (m_rxBuffer.size() < len)
+            break; // the rest of this frame hasn't arrived yet
+
+        if (handleFrame(m_rxBuffer.first(len)))
+            handledAny = true;
+        m_rxBuffer.remove(0, len);
+    }
+
+    // A complete, valid reply arrived: stop the watchdog and let the next queued
+    // read go out. A dropped/garbled frame leaves m_readInFlight set so the watchdog
+    // recovers, rather than risk sending the next read while bytes are still in flight.
+    if (handledAny) {
+        if (m_readWatchdogTimerId >= 0) {
+            killTimer(m_readWatchdogTimerId);
+            m_readWatchdogTimerId = -1;
+        }
+        m_readInFlight = false;
+        pumpReadQueue();
+    }
+}
+
+// Validate and dispatch one complete frame. Returns true if its checksum was good.
+bool Controller::handleFrame(const QByteArray &frame)
+{
+    // e.g. for battery level: 55 00 09 12 01 18 cb 00 aa
     // 55 00 09 are header and length; cb 00 aa are checksum and footer
     // meaning: response 0x12 from addr 0x01: its data is 0x18, i.e. 24% battery
-    uint8_t len = buf.at(2);
-    uint8_t expectedChecksum = checksum(buf.sliced(3, buf.size() - 6));
-    if (expectedChecksum != uint8_t(buf.at(buf.size() - 3))) {
-        qWarning() << "ignoring message with bad checksum: expected" << Qt::hex << expectedChecksum << buf.toHex();
-        return;
+    const int len = uint8_t(frame.at(2));
+    const uint8_t expectedChecksum = checksum(frame.sliced(3, len - 6));
+    if (expectedChecksum != uint8_t(frame.at(len - 3))) {
+        qCWarning(lcCtrl) << "ignoring frame with bad checksum: expected"
+                          << Qt::hex << expectedChecksum << frame.toHex();
+        return false;
     }
-    qCDebug(lcCrLow) << buf.toHex() << "len" << len << "exchk" << Qt::hex << expectedChecksum;
-    if (buf.at(3) == 0x12) {
-        const uint8_t addr = buf.at(4);
-        switch(addr) {
+    qCDebug(lcCrLow) << frame.toHex() << "len" << len << "exchk" << Qt::hex << expectedChecksum;
+    if (frame.at(3) == 0x12) {
+        const uint8_t addr = frame.at(4);
+        switch (addr) {
         case 0x01:
-            m_batteryPercent = buf.at(5);
+            m_batteryPercent = frame.at(5);
             qCDebug(lcCtrl) << "batt" << m_batteryPercent << "pct";
             emit batteryPercentChanged(m_batteryPercent);
             break;
         case 0x50:
-            handleMotorAngles(buf);
+            handleMotorAngles(frame);
+            break;
+        // IMU attitude: 4-byte little-endian float (degrees), data starting at index 5.
+        case 0x62: {
+            const qreal v = qFromLittleEndian<float>(frame.constData() + 5);
+            if (m_measuredRoll != v) {
+                m_measuredRoll = v;
+                emit measuredRollChanged();
+            }
             break;
         }
+        case 0x63: {
+            const qreal v = qFromLittleEndian<float>(frame.constData() + 5);
+            if (m_measuredPitch != v) {
+                m_measuredPitch = v;
+                emit measuredPitchChanged();
+            }
+            break;
+        }
+        case 0x64: {
+            const qreal v = qFromLittleEndian<float>(frame.constData() + 5);
+            if (m_measuredYaw != v) {
+                m_measuredYaw = v;
+                emit measuredYawChanged();
+            }
+            break;
+        }
+        }
     }
+    return true;
 }
 
 // from python: load all [0x55 0x0 0x9 0x1 0x20 0x0 0xd5 0x0 0xaa]

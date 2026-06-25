@@ -138,8 +138,18 @@ Ros2.Node {
         }
     }
 
-    // TODO PosePublisher, giving feedback from the IMU sensor
-    // topic: `/${root.nodeName}/body_pose/state`
+    // Feedback from the IMU: the firmware only provides fused Euler angles
+    // (degrees), published here symmetric with body_pose/command. Composing the
+    // orientation references all three measured* properties, which is how the
+    // Controller detects interest and decides whether to poll the IMU at all.
+    // (Same fromEulerAngles pattern the digital twin uses on the command side.)
+    PoseStampedPublisher {
+        id: posePub
+        topic: `/${root.nodeName}/body_pose/state`
+        pose.orientation: Quaternion.fromEulerAngles(controller.measuredRoll,
+                                                      controller.measuredPitch,
+                                                      controller.measuredYaw)
+    }
 
     CompressedImagePublisher {
         id: imagePublisher
