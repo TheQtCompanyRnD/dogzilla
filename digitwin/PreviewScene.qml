@@ -126,6 +126,14 @@ Item {
 
         Dogzilla {
             id: robotRoot
+            // toQuaternion() yields a QtQuick3D-frame orientation (the bridge's
+            // Quaternion uses Qt's axis convention), so apply the body orientation in
+            // *scene* space — outside the model's Z-up→Y-up conversion (R_conv):
+            // bodyOrientation ∘ R_conv. (R_conv ∘ q would act in the model's Z-up frame
+            // and a pitch would read as a roll.) yUp must match Dogzilla.qml's root
+            // "Convert to Y-up" rotation.
+            readonly property quaternion yUp: Qt.quaternion(0.5, -0.5, -0.5, -0.5)
+            rotation: poseSubscriber.pose.orientation.toQuaternion().times(yUp)
             control: DogzillaControl {
                 id: ctl
             }
@@ -155,6 +163,14 @@ Item {
             onMessageReceived: function (msg) {
                 // console.log("JointStateSubscriber got", msg.name, msg.position, JSON.stringify(msg))
                 robotRoot.control.updateJointState(msg.name, msg.position);
+            }
+        }
+
+        GeomMsgs.PoseStampedSubscriber {
+            id: poseSubscriber
+            topic: `/${rosNode.nodeName}/body_pose/state` // modern style for command/state topic separation
+            onMessageReceived: function (msg) {
+                console.log(JSON.stringify(msg))
             }
         }
 
