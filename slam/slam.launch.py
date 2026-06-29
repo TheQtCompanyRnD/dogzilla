@@ -1,70 +1,75 @@
 # Copyright (C) 2026 The Qt Company Ltd.
 # SPDX-License-Identifier: LicenseRef-Qt-Commercial OR BSD-3-Clause
 #
-# Onboard 2D SLAM stack for the Dogzilla S2, meant to run on the Pi 5 alongside
+# Onboard 2D SLAM for the Dogzilla S2, meant to run on the Pi 5 alongside
 # dogzillad (which publishes the LaserScan and the base_link->laser_frame TF).
 #
-#   dogzillad --/dogzilla/sensor_msgs/msg/LaserScan--> rf2o_laser_odometry
-#                                                         |  (odom + odom->base_link TF)
-#                                                         v
-#                                                      slam_toolbox --> /map + map->odom
+#   dogzillad --/dogzilla/sensor_msgs/msg/LaserScan (remapped to scan)--> cartographer_node
+#                                                                            |
+#                                          map->odom->base_link TF + submaps |
+#                                                                            v
+#                                              cartographer_occupancy_grid_node --> /map
 #
-# rf2o derives odometry purely from successive laser scans (no wheel encoders,
-# which a legged robot doesn't have, and the firmware yaw drifts ~14 deg/s).
+# Cartographer's 2D local SLAM scan-matches internally, so NO external
+# odometry node is needed -- a good fit for a legged robot with no wheel
+# encoders and a drifting firmware yaw. It uses only the LaserScan plus the
+# static base_link->laser_frame transform, and publishes the full
+# map->odom->base_link TF chain itself (provide_odom_frame=true).
+#
+# IMU is disabled (use_imu_data=false in dogzilla_2d.lua): dogzillad currently
+# publishes attitude as PoseStamped on /dogzilla/body_pose/state, not a
+# sensor_msgs/Imu, so there is nothing for Cartographer to consume yet. To fuse
+# IMU later (helps with the gait rocking the lidar), publish a sensor_msgs/Imu
+# and set use_imu_data=true with tracking_frame set to the IMU frame.
 #
 # Usage:  ros2 launch slam.launch.py
-# Prereq: sudo apt install ros-$ROS_DISTRO-slam-toolbox ros-$ROS_DISTRO-rf2o-laser-odometry
+# Prereq: sudo apt install ros-$ROS_DISTRO-cartographer-ros
 
 import os
-from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
-from launch_ros.substitutions import FindPackageShare
 
 
 SCAN_TOPIC = '/dogzilla/sensor_msgs/msg/LaserScan'
+CONFIG_DIR = os.path.dirname(os.path.realpath(__file__))
 
 
 def generate_launch_description():
     use_sim_time = LaunchConfiguration('use_sim_time')
-    params_file = LaunchConfiguration('slam_params_file')
+    resolution = LaunchConfiguration('resolution')
+    publish_period_sec = LaunchConfiguration('publish_period_sec')
 
     return LaunchDescription([
         DeclareLaunchArgument('use_sim_time', default_value='false'),
-        DeclareLaunchArgument(
-            'slam_params_file',
-            default_value=os.path.join(
-                os.path.dirname(os.path.realpath(__file__)),
-                'slam_toolbox.yaml'),
-            description='slam_toolbox configuration'),
+        DeclareLaunchArgument('resolution', default_value='0.05'),
+        DeclareLaunchArgument('publish_period_sec', default_value='1.0'),
 
-        # Laser-scan-matching odometry -> publishes /odom and the odom->base_link TF.
+        # Local + global 2D SLAM. Publishes map->odom->base_link and submaps.
         Node(
-            package='rf2o_laser_odometry',
-            executable='rf2o_laser_odometry_node',
-            name='rf2o_laser_odometry',
+            package='cartographer_ros',
+            executable='cartographer_node',
+            name='cartographer_node',
             output='screen',
-            parameters=[{
-                'laser_scan_topic': SCAN_TOPIC,
-                'odom_topic': '/odom',
-                'publish_tf': True,
-                'base_frame_id': 'base_link',
-                'odom_frame_id': 'odom',
-                'laser_frame_id': 'laser_frame',
-                'init_pose_from_topic': '',   # start at the origin
-                'freq': 10.0,                 # MS200 spins ~10 Hz
-                'use_sim_time': use_sim_time,
-            }],
+            parameters=[{'use_sim_time': use_sim_time}],
+            arguments=[
+                '-configuration_directory', CONFIG_DIR,
+                '-configuration_basename', 'dogzilla_2d.lua',
+            ],
+            remappings=[('scan', SCAN_TOPIC)],
         ),
 
-        # 2D graph SLAM -> builds /map and publishes the map->odom TF.
+        # Rasterizes the submaps into a nav_msgs/OccupancyGrid on /map.
         Node(
-            package='slam_toolbox',
-            executable='async_slam_toolbox_node',
-            name='slam_toolbox',
+            package='cartographer_ros',
+            executable='cartographer_occupancy_grid_node',
+            name='cartographer_occupancy_grid_node',
             output='screen',
-            parameters=[params_file, {'use_sim_time': use_sim_time}],
+            parameters=[{
+                'use_sim_time': use_sim_time,
+                'resolution': resolution,
+                'publish_period_sec': publish_period_sec,
+            }],
         ),
     ])
