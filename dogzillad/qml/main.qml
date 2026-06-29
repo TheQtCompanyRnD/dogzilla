@@ -7,6 +7,7 @@ import Dogzilla
 import QtRos2.Core as Ros2
 import QtRos2.GeometryMsgs
 import QtRos2.SensorMsgs
+import QtRos2.Transforms
 
 Ros2.Node {
     id: root
@@ -200,6 +201,25 @@ Ros2.Node {
     LaserScanPublisher {
         id: frickenLaserPublisher
         topic: `/${root.nodeName}/sensor_msgs/msg/LaserScan`
+    }
+
+    // Static base_link -> laser_frame transform, from the URDF laser_Joint origin
+    // (xyz="-0.016732 4.4164E-05 0.10335" rpy="0 0 0"). The lidar.cpp scan already
+    // stamps frame_id="laser_frame", so SLAM (rf2o + slam_toolbox) can resolve it.
+    // StaticTransformBroadcaster wraps tf2_ros and latches the declared transform
+    // on /tf_static (transient_local), so a tf2 listener that starts later (e.g.
+    // the slam node) still receives it. Declared (not sent imperatively) so it is
+    // (re)published from setupConnection once the node is initialized, with no
+    // race against Component.onCompleted.
+    StaticTransformBroadcaster {
+        transforms: [{
+            "header": { "frameId": "base_link" },
+            "childFrameId": "laser_frame",
+            "transform": {
+                "translation": { "x": -0.016732, "y": 4.4164e-05, "z": 0.10335 },
+                "rotation": { "x": 0, "y": 0, "z": 0, "w": 1 }
+            }
+        }]
     }
 
     property Lidar lidar: Lidar {
