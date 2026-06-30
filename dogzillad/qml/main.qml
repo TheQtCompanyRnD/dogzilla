@@ -12,6 +12,10 @@ import QtRos2.Transforms
 Ros2.Node {
     id: root
     nodeName: "dogzilla"
+    // Namespace the node so TF lands on /dogzilla/tf_static (QtRos2 remaps
+    // tf2's absolute /tf, /tf_static to follow the namespace). The other topics
+    // are already written with an explicit /dogzilla/ prefix below.
+    nodeNamespace: "/dogzilla"
 
     TwistPublisher {
         id: twp

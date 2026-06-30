@@ -35,6 +35,16 @@ from launch_ros.actions import Node
 SCAN_TOPIC = '/dogzilla/sensor_msgs/msg/LaserScan'
 CONFIG_DIR = os.path.dirname(os.path.realpath(__file__))
 
+# Run everything under the robot's namespace so a second robot can coexist.
+# Topics (map, submap_list, ...) namespace via the node namespace; tf2 uses the
+# absolute /tf + /tf_static, so we additionally remap them to the relative names
+# (the Nav2 trick) to land on /dogzilla/tf and /dogzilla/tf_static -- matching
+# the dog (its QtRos2 Node has nodeNamespace=/dogzilla, which does the same).
+# Frame ids stay unprefixed: each robot has its own /<ns>/tf bus, so base_link,
+# odom, map etc. don't collide across robots.
+NAMESPACE = 'dogzilla'
+TF_REMAPS = [('/tf', 'tf'), ('/tf_static', 'tf_static')]
+
 
 def generate_launch_description():
     use_sim_time = LaunchConfiguration('use_sim_time')
@@ -51,21 +61,24 @@ def generate_launch_description():
             package='cartographer_ros',
             executable='cartographer_node',
             name='cartographer_node',
+            namespace=NAMESPACE,
             output='screen',
             parameters=[{'use_sim_time': use_sim_time}],
             arguments=[
                 '-configuration_directory', CONFIG_DIR,
                 '-configuration_basename', 'dogzilla_2d.lua',
             ],
-            remappings=[('scan', SCAN_TOPIC)],
+            remappings=[('scan', SCAN_TOPIC)] + TF_REMAPS,
         ),
 
-        # Rasterizes the submaps into a nav_msgs/OccupancyGrid on /map.
+        # Rasterizes the submaps into a nav_msgs/OccupancyGrid on /dogzilla/map.
         Node(
             package='cartographer_ros',
             executable='cartographer_occupancy_grid_node',
             name='cartographer_occupancy_grid_node',
+            namespace=NAMESPACE,
             output='screen',
+            remappings=TF_REMAPS,
             parameters=[{
                 'use_sim_time': use_sim_time,
                 'resolution': resolution,
