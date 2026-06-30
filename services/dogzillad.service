@@ -1,0 +1,16 @@
+[Unit]
+Description=Dogzilla ROS / joystick daemon
+
+[Service]
+ExecStart=%h/bin/dogzillad.sh
+Type=exec
+Restart=on-failure
+# Robot control daemon: ~290 MB resident and bounded in practice. Protect it
+# from the system OOM killer (negative score); MemoryMax is only a leak
+# backstop, set well above normal so a transient spike won't kill the robot.
+MemoryMax=1G
+OOMScoreAdjust=-500
+
+[Install]
+WantedBy=default.target
+

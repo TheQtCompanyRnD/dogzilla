@@ -1,0 +1,23 @@
+[Unit]
+Description=Dogzilla onboard 2D SLAM (Cartographer)
+# Loosely coupled to dogzillad: order after it so the LaserScan and the latched
+# /tf_static are already up (avoids Cartographer TF-lookup-timeout noise at
+# boot), but do NOT Require it. Cartographer waits for /scan and the
+# transient-local /tf_static on its own, so a dogzillad crash/restart should
+# not tear SLAM down.
+Wants=dogzillad.service
+After=dogzillad.service
+
+[Service]
+ExecStart=%h/.config/dogzilla/slam.sh
+Type=exec
+Restart=on-failure
+# Cartographer's map + pose graph grow with explored area / session length, so
+# this is the memory-hungry, expendable service. Cap it, and make it the first
+# OOM-kill victim, so a runaway mapping session is bounced (Restart=on-failure)
+# instead of taking down dogzillad and the rest of the system.
+MemoryMax=2G
+OOMScoreAdjust=500
+
+[Install]
+WantedBy=default.target
