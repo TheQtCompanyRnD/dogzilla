@@ -157,8 +157,8 @@ Item {
             id: jointStateSubscriber
             topic: `/${rosNode.nodeName}/joint_states`
             qos.queueSize: 1
-            qos.reliability: SensorMsgs.JointStateSubscriber.ReliabilityBestEffort
-            qos.history: SensorMsgs.JointStateSubscriber.HistoryKeepLast
+            qos.reliability: Ros2.QualityOfService.ReliabilityBestEffort
+            qos.history: Ros2.QualityOfService.HistoryKeepLast
 
             onMessageReceived: function (msg) {
                 // console.log("JointStateSubscriber got", msg.name, msg.position, JSON.stringify(msg))
@@ -177,6 +177,8 @@ Item {
         SensorMsgs.CompressedImageSubscriber {
             id: imageSubscriber
             topic: `/${rosNode.nodeName}/camera/image/compressed`
+            // Match the publisher's best-effort: tolerate dropped frames over Wi-Fi.
+            qos: Ros2.QualityOfService.sensorData()
             onMessageReceived: function(msg) {
                 console.log(JSON.stringify(msg))
                 // const QImage &im, int frame, int sec, int nsec
@@ -188,6 +190,9 @@ Item {
         SensorMsgs.LaserScanSubscriber {
             id: laserSub
             topic: `/${rosNode.nodeName}/sensor_msgs/msg/LaserScan`
+            // Remote viewer: request best-effort. The publisher stays reliable
+            // (onboard SLAM needs it), and reliable-offered satisfies this.
+            qos: Ros2.QualityOfService.sensorData()
         }
 
         // step sideways

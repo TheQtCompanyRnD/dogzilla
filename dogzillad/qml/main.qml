@@ -161,6 +161,11 @@ Ros2.Node {
     CompressedImagePublisher {
         id: imagePublisher
         topic: `/${root.nodeName}/camera/image/compressed`
+        // Best-effort: over a congested Wi-Fi link, drop frames rather than
+        // retransmit/block. Stale video is useless, and reliable delivery of a
+        // high-rate JPEG stream is what clogs the link. The digitwin's
+        // CompressedImageSubscriber must request best-effort too, to match.
+        qos: Ros2.QualityOfService.sensorData()
     }
 
     property CaptureSession captureSession: CaptureSession {
