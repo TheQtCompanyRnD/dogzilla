@@ -1,0 +1,59 @@
+# Dogzilla S2 robot image: Raspberry Pi 5, headless ROS 2 Jazzy + Qt 6.12.
+#
+# Build with:
+#   kas build meta-dogzilla/kas/dogzilla-raspberrypi5-jazzy.yml
+#
+# This reuses the shared kas includes from the meta-ros "build" branch and adds
+# the meta-dogzilla layer on top, so it does not modify upstream meta-ros.
+
+header:
+  version: 14
+  includes:
+    - repo: meta-ros
+      file: kas/yocto/whinlatter.yml
+    - repo: meta-ros
+      file: kas/ros2/jazzy.yml
+    - repo: meta-ros
+      file: kas/machine/raspberrypi5.yml
+    - repo: meta-ros
+      file: kas/common.yml
+    - repo: meta-ros
+      file: kas/systemd.yml
+    - repo: meta-ros
+      file: kas/layer/qt6.yml
+
+repos:
+  # meta-ros "build" branch: source of the shared kas includes above. It is not
+  # itself a bitbake layer, so disable its (nonexistent) root layer to avoid
+  # bitbake trying to load meta-ros/conf/layer.conf.
+  meta-ros:
+    url: "https://github.com/ros/meta-ros.git"
+    branch: "build"
+    layers:
+      "": "disabled"
+
+  # This repo. Provides ros-image-dogzilla, the qtgamepad port and the
+  # qt-ros2-bridge recipe. No url => kas uses this local checkout in place.
+  meta-dogzilla:
+
+  # Override qt6 (defined at 6.10.3 in kas/layer/qt6.yml) to the 6.12
+  # pre-release branch.
+  qt6:
+    branch: "6.12"
+
+  zenoh:
+    branch: "master"
+    commit: 1a3815e26f3c54f577651ca504e1bc49e731bf18
+
+target:
+  - ros-image-dogzilla
+
+local_conf_header:
+  dogzilla: |
+    # Headless robot: only daemons run, so no window system.
+    DISTRO_FEATURES:remove = "x11 wayland"
+
+    # NetworkManager owns ethernet/wifi (it manages any interface not claimed
+    # by another tool). We don't install systemd-networkd config, so NM handles
+    # the handoff. Robot-specific connection profiles belong in the
+    # meta-dogzilla layer (recipes-connectivity) once defined.
