@@ -53,6 +53,12 @@ local_conf_header:
     # Headless robot: only daemons run, so no window system.
     DISTRO_FEATURES:remove = "x11 wayland"
 
+    # meta-ros2's dynamic meta-qt6 layer ships a python3-pyqt6 bbappend, but no
+    # layer here provides the python3-pyqt6 recipe (it comes from a PyQt6 layer
+    # we don't use, and we don't need PyQt6). Mask the dangling bbappend so
+    # bitbake doesn't fail with "No recipes available for ...python3-pyqt6".
+    BBMASK += "dynamic-layers/meta-qt6/recipes-python/pyqt6/"
+
     # NetworkManager owns ethernet/wifi (it manages any interface not claimed
     # by another tool). We don't install systemd-networkd config, so NM handles
     # the handoff. Robot-specific connection profiles belong in the

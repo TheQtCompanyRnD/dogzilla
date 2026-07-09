@@ -21,13 +21,14 @@ include recipes-qt/qt6/qt6.inc
 
 DEPENDS += "qtbase qtdeclarative"
 
-# qtgamepad lives in its own repo. It has no dedicated SRCREV in
-# meta-qt6/qt6-git.inc, so pin it here. AUTOREV tracks the branch tip while
-# the module is on a pre-release branch; replace with a fixed SHA to make
-# builds reproducible.
+# qtgamepad lives in its own repo and has no dedicated SRCREV in
+# meta-qt6/qt6-git.inc, so pin it here. Upstream stopped branching after 6.3;
+# "dev" is the only branch that still tracks recent Qt, so build against it
+# (pinned to its current head for reproducibility). Bump the SRCREV if it
+# fails to build against the qtbase you are using.
 QT_MODULE = "qtgamepad"
-QT_MODULE_BRANCH = "6.12"
-SRCREV = "${AUTOREV}"
+QT_MODULE_BRANCH = "dev"
+SRCREV = "6de4c9d2ad753eac40b9f83bebcc01084fae16a9"
 
 # The native Linux backend is evdev (built by default); SDL2 is optional and
 # off by default for a headless robot.
