@@ -15,10 +15,11 @@ LIC_FILES_CHKSUM = " \
 # your checkout lives elsewhere. AUTOREV tracks the tip of the branch's last
 # *commit* (not uncommitted working-tree edits -- use devtool/externalsrc for
 # live iteration). Pin to a SHA for reproducible builds.
-SRC_URI = "git://${QT_ROS2_BRIDGE_SRC};protocol=file;branch=qtify;destsuffix=git"
+# destsuffix and S are left at their oe-core defaults (${UNPACKDIR}/${BP});
+# modern oe-core errors if a recipe still sets S = "${WORKDIR}/git".
+SRC_URI = "git://${QT_ROS2_BRIDGE_SRC};protocol=file;branch=qtify"
 SRCREV = "${AUTOREV}"
-PV = "6.8.0+git${SRCPV}"
-S = "${WORKDIR}/git"
+PV = "6.8.0+git"
 
 # Qt side: qt_build_repo module needing Qt6 Core + Quick.
 inherit qt6-cmake
