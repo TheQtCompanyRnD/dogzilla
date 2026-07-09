@@ -54,8 +54,8 @@ DOGZILLA_PYTHON = " \
     python3-pip \
 "
 
-# Onboard Broadcom/Cypress 43455 wifi+BT firmware for the Pi 5.
+# Onboard Cypress/Infineon 43455 wifi + BCM4345C0 BT firmware for the Pi 5.
 DOGZILLA_FIRMWARE = " \
     linux-firmware-rpidistro-bcm43455 \
-    bluez-firmware-rpidistro-bcm43455 \
+    bluez-firmware-rpidistro-bcm4345c0-hcd \
 "
