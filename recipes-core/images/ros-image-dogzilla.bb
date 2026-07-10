@@ -31,9 +31,12 @@ DOGZILLA_SYSTEM = " \
 "
 
 # Networking: NetworkManager owns ethernet/wifi handoff; avahi for mDNS.
+# networkmanager-wifi is the Wi-Fi device plugin (pulls wpa-supplicant); without
+# it nmcli can't drive any wireless interface.
 DOGZILLA_NETWORK = " \
     networkmanager \
     networkmanager-nmcli \
+    networkmanager-wifi \
     avahi-daemon \
     avahi-utils \
 "
@@ -61,8 +64,10 @@ DOGZILLA_PYTHON = " \
     python3-pip \
 "
 
-# Onboard Cypress/Infineon 43455 wifi + BCM4345C0 BT firmware for the Pi 5.
+# Onboard Cypress/Infineon 43455 wifi + BCM4345C0 BT firmware for the Pi 5,
+# plus Ralink firmware (rt2870.bin) for the RT5370 USB wifi dongle (rt2800usb).
 DOGZILLA_FIRMWARE = " \
     linux-firmware-rpidistro-bcm43455 \
     bluez-firmware-rpidistro-bcm4345c0-hcd \
+    linux-firmware-ralink \
 "

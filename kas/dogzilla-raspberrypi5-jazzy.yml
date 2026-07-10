@@ -53,6 +53,11 @@ local_conf_header:
     # Headless robot: only daemons run, so no window system.
     DISTRO_FEATURES:remove = "x11 wayland"
 
+    # Enable Wi-Fi support distro-wide. Without this, NetworkManager is built
+    # with no wifi backend (its PACKAGECONFIG wifi is gated on this feature),
+    # so nmcli reports "plugin missing" for every wireless device.
+    DISTRO_FEATURES:append = " wifi"
+
     # Many ROS/ament packages embed the build prefix in their generated
     # <pkg>Config.cmake / ament-index files. whinlatter oe-core promoted the
     # "buildpaths" QA check to a fatal error; downgrade it to a warning so the
