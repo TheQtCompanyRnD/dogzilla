@@ -87,6 +87,16 @@ local_conf_header:
     # gstreamer plugins. Removing gstreamer makes ffmpeg the default backend.
     PACKAGECONFIG:remove:pn-qtmultimedia = "gstreamer"
 
+    # Build Qt's host codegen tools FOR THE TARGET too, so Qt apps (dogzillad)
+    # can be built natively on the Pi -- without this, meta-qt6 builds moc/rcc/
+    # uic host-only for cross-compilation and find_package(Qt6 Core) fails on
+    # target (missing Qt6CoreTools). qtbase -> moc/rcc/uic + Qt6CoreTools;
+    # qtdeclarative -> the `qml` runtime + qmlcachegen/qmltyperegistrar +
+    # Qt6QmlTools/Qt6QuickTools (for on-target Qt Quick builds). Binaries land in
+    # qt{base,declarative}-tools; the cmake configs in the -dev packages.
+    QT_FORCE_BUILD_TOOLS:pn-qtbase = "ON"
+    QT_FORCE_BUILD_TOOLS:pn-qtdeclarative = "ON"
+
     # Many ROS/ament packages embed the build prefix in their generated
     # <pkg>Config.cmake / ament-index files. whinlatter oe-core promoted the
     # "buildpaths" QA check to a fatal error; downgrade it to a warning so the
