@@ -41,15 +41,16 @@ DEPENDS += " \
     python3-native \
 "
 
-# Standard ROS 2 interface packages the bridge generates Qt bindings from
-# (src/{messages,services,transforms}/standard). Missing any of these fails
-# do_configure in qtros2_generate_from_package().
+# ROS 2 interface packages the bridge generates Qt bindings from. This is the
+# exact set of SOURCE_PACKAGE values across src/*/CMakeLists.txt; missing any
+# fails do_configure in qtros2_generate_from_package().
 DEPENDS += " \
-    std-msgs std-srvs builtin-interfaces action-msgs \
-    geometry-msgs sensor-msgs nav-msgs diagnostic-msgs \
-    shape-msgs trajectory-msgs visualization-msgs \
-    lifecycle-msgs rosgraph-msgs unique-identifier-msgs \
-    tf2-msgs test-msgs example-interfaces \
+    action-msgs builtin-interfaces composition-interfaces \
+    diagnostic-msgs geometry-msgs lifecycle-msgs nav-msgs \
+    rcl-interfaces rosgraph-msgs sensor-msgs service-msgs \
+    shape-msgs statistics-msgs std-msgs std-srvs stereo-msgs \
+    tf2-msgs trajectory-msgs type-description-interfaces \
+    unique-identifier-msgs visualization-msgs \
 "
 
 # Make the ROS 2 packages discoverable by find_package() during the Qt CMake
