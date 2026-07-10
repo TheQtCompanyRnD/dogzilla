@@ -87,17 +87,14 @@ local_conf_header:
     # gstreamer plugins. Removing gstreamer makes ffmpeg the default backend.
     PACKAGECONFIG:remove:pn-qtmultimedia = "gstreamer"
 
-    # Build qtbase's host codegen tools (moc/rcc/uic) FOR THE TARGET too, plus
-    # the Qt6CoreTools cmake package, so Qt *Core* apps (dogzillad as a daemon)
-    # can be built natively on the Pi -- default meta-qt6 builds these host-only
-    # for cross-compilation and find_package(Qt6 Core) then fails on target.
-    # Tools land in qtbase-tools; cmake configs in qtbase-dev (dev-pkgs).
-    QT_FORCE_BUILD_TOOLS:pn-qtbase = "ON"
-    # NOTE: do NOT enable this for qtdeclarative. Building the QML tools
-    # (qmltyperegistrar/qmlcachegen) for target makes every QML module's cross
-    # build pick the target tool over the host one -> "cannot execute binary
-    # file: Exec format error" (breaks qtgamepad, qt-ros2-bridge, qtmultimedia).
-    # On-target Qt Quick builds + the `qml` runtime need the SDK instead.
+    # NOTE: on-target Qt app building was attempted via QT_FORCE_BUILD_TOOLS
+    # (build moc/rcc/uic/qmltyperegistrar for the target). It does NOT work here:
+    # forcing target Qt tools makes the image's own QML modules (qtgamepad,
+    # qt-ros2-bridge, qtmultimedia) grab the aarch64 tool during their *cross*
+    # build -> "cannot execute binary file: Exec format error". It fights Qt's
+    # cross design. Build dogzillad with the Yocto SDK instead (populate_sdk) and
+    # deploy over ssh -- see README. cmake + qtbase-tools stay in the image for
+    # plain-CMake/qmake use, but Qt find_package needs the SDK's host tools.
 
     # Many ROS/ament packages embed the build prefix in their generated
     # <pkg>Config.cmake / ament-index files. whinlatter oe-core promoted the
