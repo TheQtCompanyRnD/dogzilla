@@ -50,6 +50,13 @@ target:
 
 local_conf_header:
   dogzilla: |
+    # Harden root: meta-ros' common.yml enables empty-root-password +
+    # allow-empty-password + allow-root-login (passwordless root ssh, a dev
+    # convenience). Drop them now that the pi user (key + NOPASSWD sudo) is the
+    # login path: root ends up with no usable password and sshd won't accept
+    # root, so access is pi-key -> sudo. (post-install-logging is kept.)
+    IMAGE_FEATURES:remove = "empty-root-password allow-empty-password allow-root-login"
+
     # Headless robot: only daemons run, so no window system.
     DISTRO_FEATURES:remove = "x11 wayland"
 
