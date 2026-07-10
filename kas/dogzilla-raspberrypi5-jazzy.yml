@@ -72,7 +72,8 @@ local_conf_header:
     # the handoff. Robot-specific connection profiles belong in the
     # meta-dogzilla layer (recipes-connectivity) once defined.
     #
-    # connman (pulled as a recommendation by the wifi/bluetooth packagegroups)
-    # conflicts with networkmanager, which breaks do_rootfs. We want NM, so drop
-    # the connman recommendation.
+    # meta-ros installs ${ROS_CONNECTION_MANAGER} (default: connman) into the
+    # image. connman conflicts with networkmanager, so point it at NM instead.
+    ROS_CONNECTION_MANAGER = "networkmanager"
+    # Belt-and-suspenders: also ignore connman if something recommends it.
     BAD_RECOMMENDATIONS += "connman"
