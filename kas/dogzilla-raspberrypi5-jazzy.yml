@@ -68,6 +68,13 @@ local_conf_header:
     # direct-cable/link-local demo case). Rename to taste.
     hostname:pn-base-files = "dogzilla"
 
+    # Drop PipeWire's libcamera plugin (audio-only for now; v4l2 stays). It pulls
+    # libcamera, and meta-ros-common ships its own libcamera_0.5.2 that shadows
+    # oe-core's but lacks the "raspberrypi" PACKAGECONFIG that meta-raspberrypi's
+    # bbappend appends -> fatal QA. Revisit when adding camera/vision support
+    # (BBMASK the meta-ros libcamera to use oe-core's, or define that PACKAGECONFIG).
+    PACKAGECONFIG:remove:pn-pipewire = "libcamera"
+
     # Many ROS/ament packages embed the build prefix in their generated
     # <pkg>Config.cmake / ament-index files. whinlatter oe-core promoted the
     # "buildpaths" QA check to a fatal error; downgrade it to a warning so the
