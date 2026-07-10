@@ -1,0 +1,27 @@
+Tests.cmake: drop the CMP0037 "test" alias target for CMake 4
+
+fish 3.7.1 sets policy CMP0037 to OLD to define an alias "test" target. CMake 4
+removed CMP0037 (it errors instead of allowing OLD), and "test" is reserved when
+CTest is enabled, so configure fails. The alias is a convenience only; drop it.
+
+Upstream-Status: Inappropriate [fixed differently in fish 4.x]
+
+--- a/cmake/Tests.cmake
++++ b/cmake/Tests.cmake
+@@ -41,14 +41,8 @@
+   USES_TERMINAL
+ )
+
+-# If CMP0037 is available, also make an alias "test" target.
+-# Note that this policy may not be available, in which case definining such a target silently fails.
+-cmake_policy(PUSH)
+-if(POLICY CMP0037)
+-  cmake_policy(SET CMP0037 OLD)
+-  add_custom_target(test DEPENDS fish_run_tests)
+-endif()
+-cmake_policy(POP)
++# The "test" alias target (via CMP0037 OLD) is dropped: CMake 4 removed CMP0037
++# and refuses OLD, and "test" is reserved under CTest. Use fish_run_tests directly.
+
+ # Build the low-level tests code
+ add_executable(fish_tests EXCLUDE_FROM_ALL

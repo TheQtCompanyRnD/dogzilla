@@ -7,7 +7,10 @@ LIC_FILES_CHKSUM = "file://COPYING;md5=62bf11ac21699b630f7c619c67090973"
 
 # 3.7.1 is the last C++/CMake release; fish 4.x is a Rust rewrite (heavier
 # crate-vendoring recipe). Bump to a 4.x cargo-based recipe if/when wanted.
-SRC_URI = "https://github.com/fish-shell/fish-shell/releases/download/${PV}/fish-${PV}.tar.xz"
+SRC_URI = " \
+    https://github.com/fish-shell/fish-shell/releases/download/${PV}/fish-${PV}.tar.xz \
+    file://0001-Tests.cmake-drop-CMP0037-test-alias-for-CMake-4.patch \
+"
 SRC_URI[sha256sum] = "614c9f5643cd0799df391395fa6bbc3649427bb839722ce3b114d3bbc1a3b250"
 
 DEPENDS = "ncurses pcre2 gettext-native"
