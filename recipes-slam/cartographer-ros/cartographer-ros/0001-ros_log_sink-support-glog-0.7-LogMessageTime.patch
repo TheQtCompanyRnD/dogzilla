@@ -1,0 +1,32 @@
+ros_log_sink: support glog 0.7 LogMessageTime API
+
+cartographer-ros only handles two glog eras (keyed on GOOGLE_GLOG_DLL_DECL).
+glog 0.7.1 (in meta-oe) dropped the LogMessageTime(const tm&) constructor,
+leaving only LogMessageTime(std::chrono::system_clock::time_point), so the
+existing non-DLL branch fails to compile. Construct the LogMessageTime from a
+time_point derived from the tm.
+
+Upstream-Status: Pending
+
+--- a/src/ros_log_sink.cpp
++++ b/src/ros_log_sink.cpp
+@@ -17,6 +17,7 @@
+ #include "cartographer_ros/ros_log_sink.h"
+
+ #include <chrono>
++#include <ctime>
+ #include <cstring>
+ #include <string>
+ #include <thread>
+@@ -54,7 +55,10 @@
+       severity, GetBasename(filename), line, tm_time, message, message_len);
+ #else
+   const std::string message_string = ::google::LogSink::ToString(
+-      severity, GetBasename(filename), line, ::google::LogMessageTime(*tm_time), message, message_len);
++      severity, GetBasename(filename), line,
++      ::google::LogMessageTime(::std::chrono::system_clock::from_time_t(
++          ::std::mktime(const_cast<::std::tm*>(tm_time)))),
++      message, message_len);
+ #endif
+   switch (severity) {
+     case ::google::GLOG_INFO:
