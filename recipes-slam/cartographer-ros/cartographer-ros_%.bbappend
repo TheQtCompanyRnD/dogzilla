@@ -11,3 +11,9 @@ CXXFLAGS:append = " -DGUARDED_BY=ABSL_GUARDED_BY -DLOCKS_EXCLUDED=ABSL_LOCKS_EXC
 # build the LogMessageTime from a time_point instead.
 FILESEXTRAPATHS:prepend := "${THISDIR}/${BPN}:"
 SRC_URI += "file://0001-ros_log_sink-support-glog-0.7-LogMessageTime.patch"
+
+# cartographer-ros executables use Abseil CHECK/LOG (absl::log_internal::
+# MakeCheckOpString / LogMessageFatal) but don't link the abseil log libraries.
+# Append them to the end of every link line (correct position for --as-needed;
+# their further absl deps resolve transitively via DT_NEEDED).
+EXTRA_OECMAKE += "-DCMAKE_CXX_STANDARD_LIBRARIES='-labsl_log_internal_check_op -labsl_log_internal_message'"

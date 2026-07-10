@@ -62,6 +62,21 @@ export CMAKE_PREFIX_PATH = "${STAGING_DIR_HOST}${ros_prefix}:${STAGING_DIR_HOST}
 
 EXTRA_OECMAKE += "-DBUILD_TESTING=OFF -DQT_BUILD_TESTS=OFF -DQT_BUILD_EXAMPLES=OFF"
 
+# Package like a Qt module. Runtime: the versioned libs (default FILES) plus the
+# QML modules. Dev artifacts (headers, cmake, pkgconfig, .so symlinks) mostly go
+# to -dev by default; add the Qt extras (.prl, metatypes, module json, mkspecs,
+# sbom) that no default FILES covers. QML plugins ship unversioned .so under
+# ${libdir}/qml (runtime), so skip the dev-so QA check for the main package.
+FILES:${PN} += "${libdir}/qml"
+FILES:${PN}-dev += " \
+    ${libdir}/*.prl \
+    ${libdir}/metatypes \
+    ${libdir}/modules \
+    ${libdir}/mkspecs \
+    ${libdir}/sbom \
+"
+INSANE_SKIP:${PN} += "dev-so"
+
 # NOTE: This is a novel Qt-module + ROS 2 cross build; the DEPENDS list above
 # is a best-effort starting point. If do_configure fails with "Could not find
 # a package configuration file provided by <pkg>", add the matching meta-ros
