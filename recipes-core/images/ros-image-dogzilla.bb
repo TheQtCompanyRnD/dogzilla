@@ -8,11 +8,17 @@ LICENSE = "MIT"
 require recipes-core/images/ros-image-core.bb
 
 # Enables `bitbake ros-image-dogzilla -c populate_sdk` to produce a cross-SDK
-# that includes the Qt6 host tools (moc/rcc/uic/qmltyperegistrar/qml + qt-cmake)
-# alongside the cross toolchain and the full target sysroot (Qt + ROS + the
-# bridge). Use it on the laptop to build dogzillad (Core AND Quick) and rsync
-# the binary to the Pi -- on-target Qt building isn't possible (no host tools).
-inherit populate_sdk_qt6
+# with the Qt6 host tools (moc/rcc/uic/qmltyperegistrar/qml + qt-cmake) + cross
+# toolchain + target sysroot (the image's Qt/ROS packages incl. -dev). Use it on
+# the laptop to build dogzillad (Core AND Quick) and rsync to the Pi.
+#
+# We inherit the *base* Qt SDK class (env + qt-cmake toolchain file) and add only
+# the host-tools packagegroup -- NOT the full populate_sdk_qt6, whose
+# packagegroup-qt6-modules pulls qtdeviceutilities, which hard-RDEPENDS connman
+# and conflicts with networkmanager in the SDK sysroot. dogzillad's Qt modules
+# are already in the image sysroot, so the full module set isn't needed.
+inherit populate_sdk_qt6_base
+TOOLCHAIN_HOST_TASK:append = " nativesdk-packagegroup-qt6-toolchain-host"
 
 # On-target development: gcc/g++/make, plus headers and -dev packages for the
 # installed libraries; debug tools; and an ssh server for remote work.
