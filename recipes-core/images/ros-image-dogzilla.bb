@@ -36,6 +36,8 @@ DOGZILLA_DEV = " \
     bash \
     fish \
     sudo \
+    cmake \
+    qtbase-tools \
 "
 
 # System services. rpi-resize-rootfs grows the rootfs to fill the SD card on
