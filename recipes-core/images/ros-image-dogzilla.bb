@@ -90,11 +90,15 @@ DOGZILLA_ROS = " \
     rclpy \
 "
 
-# Python 3 runtime.
+# Python 3 runtime. numpy + pyserial are used by the Dogzilla-provided scripts
+# (struct/time are in python3-core). Add more python3-* modules here as other
+# scripts need them.
 DOGZILLA_PYTHON = " \
     python3 \
     python3-core \
     python3-pip \
+    python3-numpy \
+    python3-pyserial \
 "
 
 # Onboard Cypress/Infineon 43455 wifi + BCM4345C0 BT firmware for the Pi 5,
