@@ -7,6 +7,13 @@ LICENSE = "MIT"
 # image/distro classes.
 require recipes-core/images/ros-image-core.bb
 
+# Enables `bitbake ros-image-dogzilla -c populate_sdk` to produce a cross-SDK
+# that includes the Qt6 host tools (moc/rcc/uic/qmltyperegistrar/qml + qt-cmake)
+# alongside the cross toolchain and the full target sysroot (Qt + ROS + the
+# bridge). Use it on the laptop to build dogzillad (Core AND Quick) and rsync
+# the binary to the Pi -- on-target Qt building isn't possible (no host tools).
+inherit populate_sdk_qt6
+
 # On-target development: gcc/g++/make, plus headers and -dev packages for the
 # installed libraries; debug tools; and an ssh server for remote work.
 IMAGE_FEATURES += "tools-sdk dev-pkgs tools-debug ssh-server-openssh"
