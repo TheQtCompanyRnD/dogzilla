@@ -71,3 +71,8 @@ local_conf_header:
     # by another tool). We don't install systemd-networkd config, so NM handles
     # the handoff. Robot-specific connection profiles belong in the
     # meta-dogzilla layer (recipes-connectivity) once defined.
+    #
+    # connman (pulled as a recommendation by the wifi/bluetooth packagegroups)
+    # conflicts with networkmanager, which breaks do_rootfs. We want NM, so drop
+    # the connman recommendation.
+    BAD_RECOMMENDATIONS += "connman"
