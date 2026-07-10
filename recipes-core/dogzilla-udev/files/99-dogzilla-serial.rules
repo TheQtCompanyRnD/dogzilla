@@ -1,0 +1,5 @@
+# Stable names for the Dogzilla S2 GPIO serial ports on the Pi 5.
+# ttyAMA1 = MS200 lidar (230400), ttyAMA0 = motor controller (GPIO 14/15).
+# group dialout + mode 0660 so the pi user (in dialout) can open them.
+KERNEL=="ttyAMA1", SYMLINK+="lidar", GROUP="dialout", MODE="0660"
+KERNEL=="ttyAMA0", SYMLINK+="motor", GROUP="dialout", MODE="0660"

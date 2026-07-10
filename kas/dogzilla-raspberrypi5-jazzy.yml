@@ -75,6 +75,15 @@ local_conf_header:
     # direct-cable/link-local demo case). Rename to taste.
     hostname:pn-base-files = "dogzilla"
 
+    # Enable the two RP1 GPIO UARTs the Dogzilla uses (matches the working Ubuntu
+    # config.txt): enable_uart=1 -> /dev/ttyAMA0 (GPIO14/15) = motor controller;
+    # dtparam=uart1=on + dtoverlay=uart1-pi5 -> /dev/ttyAMA1 = MS200 lidar (on Pi5
+    # the dtparam alone does not create the node; the -pi5 overlay is required).
+    # Added via RPI_EXTRA_CONFIG (raw config.txt lines), NOT the ENABLE_UART var,
+    # so meta-raspberrypi does NOT add console=serial0 to cmdline -- the console
+    # stays on the dedicated debug UART (ttyAMA10) and the motor port is free.
+    RPI_EXTRA_CONFIG = "enable_uart=1\ndtparam=uart1=on\ndtoverlay=uart1-pi5"
+
     # Drop PipeWire's libcamera plugin (audio-only for now; v4l2 stays). It pulls
     # libcamera, and meta-ros-common ships its own libcamera_0.5.2 that shadows
     # oe-core's but lacks the "raspberrypi" PACKAGECONFIG that meta-raspberrypi's

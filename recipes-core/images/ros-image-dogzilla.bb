@@ -45,6 +45,7 @@ DOGZILLA_DEV = " \
 DOGZILLA_SYSTEM = " \
     rpi-resize-rootfs \
     dogzilla-users \
+    dogzilla-udev \
 "
 
 # Audio: PipeWire (+ wireplumber session manager, + pulse-compat server for
