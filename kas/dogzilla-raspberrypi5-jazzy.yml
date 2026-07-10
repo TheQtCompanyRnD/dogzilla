@@ -75,6 +75,11 @@ local_conf_header:
     # (BBMASK the meta-ros libcamera to use oe-core's, or define that PACKAGECONFIG).
     PACKAGECONFIG:remove:pn-pipewire = "libcamera"
 
+    # Use QtMultimedia's ffmpeg backend (Qt's recommended default), which does
+    # V4L2 camera capture itself -- so the USB webcam works via QCamera with no
+    # gstreamer plugins. Removing gstreamer makes ffmpeg the default backend.
+    PACKAGECONFIG:remove:pn-qtmultimedia = "gstreamer"
+
     # Many ROS/ament packages embed the build prefix in their generated
     # <pkg>Config.cmake / ament-index files. whinlatter oe-core promoted the
     # "buildpaths" QA check to a fatal error; downgrade it to a warning so the

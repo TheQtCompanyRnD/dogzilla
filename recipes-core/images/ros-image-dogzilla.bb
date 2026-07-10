@@ -29,15 +29,20 @@ IMAGE_INSTALL:append = " \
 # On-device development: git + rsync support iterating on dogzillad without
 # reflashing (build on host with the SDK/devtool and deploy over ssh, or build
 # on target directly using the gcc/g++/cmake + -dev packages already installed).
+# bash as an interactive login shell; sudo for the pi user.
 DOGZILLA_DEV = " \
     git \
     rsync \
+    bash \
+    fish \
+    sudo \
 "
 
 # System services. rpi-resize-rootfs grows the rootfs to fill the SD card on
 # first boot (the .wic image ships a rootfs partition sized to its contents).
 DOGZILLA_SYSTEM = " \
     rpi-resize-rootfs \
+    dogzilla-users \
 "
 
 # Audio: PipeWire (+ wireplumber session manager, + pulse-compat server for

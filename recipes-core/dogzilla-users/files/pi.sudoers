@@ -1,0 +1,3 @@
+# The pi user gets passwordless sudo (matches the dev-friendly posture of this
+# image). Tighten to "pi ALL=(ALL) ALL" to require the password (doggo).
+pi ALL=(ALL) NOPASSWD: ALL
