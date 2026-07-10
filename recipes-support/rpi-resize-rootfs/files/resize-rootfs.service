@@ -1,0 +1,15 @@
+[Unit]
+Description=Expand root filesystem to fill the storage device (first boot)
+DefaultDependencies=no
+Conflicts=shutdown.target
+After=systemd-remount-fs.service
+Before=sysinit.target
+ConditionPathExists=!/var/lib/rpi-resize-rootfs.done
+
+[Service]
+Type=oneshot
+ExecStart=/usr/sbin/resize-rootfs.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=sysinit.target

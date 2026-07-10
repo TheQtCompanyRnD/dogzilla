@@ -21,6 +21,13 @@ IMAGE_INSTALL:append = " \
     ${DOGZILLA_ROS} \
     ${DOGZILLA_PYTHON} \
     ${DOGZILLA_FIRMWARE} \
+    ${DOGZILLA_SYSTEM} \
+"
+
+# System services. rpi-resize-rootfs grows the rootfs to fill the SD card on
+# first boot (the .wic image ships a rootfs partition sized to its contents).
+DOGZILLA_SYSTEM = " \
+    rpi-resize-rootfs \
 "
 
 # Networking: NetworkManager owns ethernet/wifi handoff; avahi for mDNS.
