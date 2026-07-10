@@ -5,6 +5,7 @@ LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/MIT;md5=0835ade698e0bcf8506ecda
 SRC_URI = " \
     file://authorized_keys \
     file://pi.sudoers \
+    file://home-pi \
 "
 
 inherit useradd
@@ -20,6 +21,15 @@ USERADD_PARAM:${PN} = "-u 1000 -d /home/pi -m -s /usr/bin/fish \
 RDEPENDS:${PN} = "sudo bash fish"
 
 do_install() {
+    install -d ${D}/home/pi
+
+    # Version-controlled home overlay: drop files under files/home-pi/ and they
+    # land in /home/pi on every rebuild (dotfiles/config, etc.). cp -a to keep
+    # nested dirs and any file modes.
+    if [ -d ${UNPACKDIR}/home-pi ]; then
+        cp -a ${UNPACKDIR}/home-pi/. ${D}/home/pi/
+    fi
+
     install -d ${D}/home/pi/.ssh
     install -m 0600 ${UNPACKDIR}/authorized_keys ${D}/home/pi/.ssh/authorized_keys
 
@@ -29,15 +39,14 @@ do_install() {
 
 # The files are packaged as root; OpenSSH refuses group/other-accessible key
 # files and homes. The pi account exists by first boot (useradd runs at rootfs),
-# so fix ownership/permissions of ~/.ssh on target.
+# so take ownership of the whole home (overlay + .ssh) and fix key perms.
 pkg_postinst_ontarget:${PN} () {
-    chown -R pi:pi /home/pi/.ssh
+    chown -R pi:pi /home/pi
     chmod 700 /home/pi/.ssh
     chmod 600 /home/pi/.ssh/authorized_keys
 }
 
 FILES:${PN} = " \
-    /home/pi/.ssh \
-    /home/pi/.ssh/authorized_keys \
+    /home/pi \
     ${sysconfdir}/sudoers.d/pi \
 "
