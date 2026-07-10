@@ -22,6 +22,16 @@ IMAGE_INSTALL:append = " \
     ${DOGZILLA_PYTHON} \
     ${DOGZILLA_FIRMWARE} \
     ${DOGZILLA_SYSTEM} \
+    ${DOGZILLA_DEV} \
+    ${DOGZILLA_AUDIO} \
+"
+
+# On-device development: git + rsync support iterating on dogzillad without
+# reflashing (build on host with the SDK/devtool and deploy over ssh, or build
+# on target directly using the gcc/g++/cmake + -dev packages already installed).
+DOGZILLA_DEV = " \
+    git \
+    rsync \
 "
 
 # System services. rpi-resize-rootfs grows the rootfs to fill the SD card on
@@ -30,13 +40,29 @@ DOGZILLA_SYSTEM = " \
     rpi-resize-rootfs \
 "
 
+# Audio: PipeWire (+ wireplumber session manager, + pulse-compat server for
+# QtMultimedia/Qt Speech). qtspeech provides QTextToSpeech via the flite engine
+# (offline TTS). whisper.cpp provides offline speech-to-text (base.en model).
+# NOTE: qtspeech pulls flite through its PACKAGECONFIG. Natural-voice TTS (piper)
+# is deferred -- it needs an onnxruntime recipe (see notes).
+DOGZILLA_AUDIO = " \
+    pipewire \
+    pipewire-pulse \
+    wireplumber \
+    qtspeech \
+    whisper-cpp \
+    whisper-cpp-models-base-en \
+"
+
 # Networking: NetworkManager owns ethernet/wifi handoff; avahi for mDNS.
 # networkmanager-wifi is the Wi-Fi device plugin (pulls wpa-supplicant); without
-# it nmcli can't drive any wireless interface.
+# it nmcli can't drive any wireless interface. dogzilla-network-config ships the
+# pre-seeded wired profile (DHCP + link-local fallback for a direct laptop cable).
 DOGZILLA_NETWORK = " \
     networkmanager \
     networkmanager-nmcli \
     networkmanager-wifi \
+    dogzilla-network-config \
     avahi-daemon \
     avahi-utils \
 "

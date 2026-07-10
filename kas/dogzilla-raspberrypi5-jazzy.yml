@@ -58,6 +58,16 @@ local_conf_header:
     # so nmcli reports "plugin missing" for every wireless device.
     DISTRO_FEATURES:append = " wifi"
 
+    # Enable the PulseAudio client backend in QtMultimedia (its backend is
+    # pulseaudio when this feature is set, else bare alsa). We run PipeWire with
+    # its pulse-compat server (pipewire-pulse), so Qt audio + Qt Speech route
+    # through PipeWire for mixing/volume. We do NOT install the PulseAudio server.
+    DISTRO_FEATURES:append = " pulseaudio"
+
+    # mDNS name: robot is reachable at dogzilla.local via avahi (handy for the
+    # direct-cable/link-local demo case). Rename to taste.
+    hostname:pn-base-files = "dogzilla"
+
     # Many ROS/ament packages embed the build prefix in their generated
     # <pkg>Config.cmake / ament-index files. whinlatter oe-core promoted the
     # "buildpaths" QA check to a fatal error; downgrade it to a warning so the
