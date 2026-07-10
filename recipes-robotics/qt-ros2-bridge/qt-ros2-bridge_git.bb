@@ -31,6 +31,7 @@ inherit ros_distro_jazzy python3native
 DEPENDS += " \
     qtbase \
     qtdeclarative \
+    qtdeclarative-native \
     rclcpp \
     rclcpp-action \
     tf2-geometry-msgs \
