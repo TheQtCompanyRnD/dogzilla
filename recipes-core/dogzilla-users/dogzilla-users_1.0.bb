@@ -15,10 +15,11 @@ USERADD_PACKAGES = "${PN}"
 # Password "doggo" (SHA-512 crypt). Single-quoted so the shell in the useradd
 # postinst does not treat the $-signs in the hash as variable expansions.
 # -G groups give the pi user hardware access without sudo: dialout (serial ->
-# motor controller UART), audio (mic/speaker), video + render (camera/GPU),
-# input (gamepad/evdev), plugdev (removable). All exist in the image.
+# motor controller + lidar UARTs), audio (mic/speaker), video (camera),
+# input (gamepad/evdev). These exist in base-passwd at useradd time; render/
+# plugdev are created dynamically at rootfs so can't be used here.
 USERADD_PARAM:${PN} = "-u 1000 -d /home/pi -m -s /usr/bin/fish \
-    -G dialout,audio,video,input,render,plugdev \
+    -G dialout,audio,video,input \
     -p '$6$r/wUsiOOafHZY7zi$snruyWuA6UquzqFK0Em98Mqb32.t7w/8aaVE9BnDVwlq3EkVRv.Y3rgiqjNfKFW3pZbvD34J5BaK/5ZaM2S.p/' \
     pi"
 
