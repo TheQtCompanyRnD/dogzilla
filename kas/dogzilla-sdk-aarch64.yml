@@ -1,0 +1,15 @@
+# Wrapper over the main config that builds an aarch64-HOST SDK, i.e. an SDK whose
+# installer runs ON the Pi 5 itself (native qt-cmake + moc/rcc/uic + toolchain).
+# Build with:
+#   kas shell meta-dogzilla/kas/dogzilla-sdk-aarch64.yml -c "bitbake ros-image-dogzilla -c populate_sdk"
+# The resulting oecore-*-aarch64-*.sh installs on the robot; source its
+# environment-setup and build dogzillad natively on-device. (Slower than the
+# x86_64 laptop SDK, but on-Pi.)
+header:
+  version: 14
+  includes:
+    - kas/dogzilla-raspberrypi5-jazzy.yml
+
+local_conf_header:
+  sdkmachine: |
+    SDKMACHINE = "aarch64"
