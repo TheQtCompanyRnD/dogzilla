@@ -104,6 +104,14 @@ local_conf_header:
     # cross design. Build dogzillad with the Yocto SDK instead (populate_sdk) and
     # deploy over ssh -- see README. cmake + qtbase-tools stay in the image for
     # plain-CMake/qmake use, but Qt find_package needs the SDK's host tools.
+    #
+    # CONFIRMED 2026-07-13 with a fully-clean retest (cleansstate qtbase
+    # qtdeclarative qtgamepad qt-ros2-bridge qtmultimedia; QT_FORCE_BUILD_TOOLS
+    # :pn-qtbase=ON, qtdeclarative OFF): qtgamepad STILL failed on the aarch64
+    # qmltyperegistrar (Exec format error). So it is NOT stale-sstate -- enabling
+    # target tools in qtbase flips Qt's CMake tool-resolution to "tools live in
+    # the target sysroot" globally, pulling the target qmltyperegistrar into
+    # every Qt module's cross build. Do not retry; use the SDK.
 
     # Many ROS/ament packages embed the build prefix in their generated
     # <pkg>Config.cmake / ament-index files. whinlatter oe-core promoted the
