@@ -16,7 +16,8 @@ LICENSE = "CLOSED"
 # meta-dogzilla/conf/layer.conf. AUTOREV tracks the last *commit* on main --
 # commit your edits, or use `devtool modify` for live working-tree iteration.
 # The daemon is the dogzillad/ subdir of the repo, so point S at it.
-SRC_URI = "git://${DOGZILLA_SRC};protocol=file;branch=main"
+SRC_URI = "git://${DOGZILLA_SRC};protocol=file;branch=main \
+           file://dogzillad.service"
 SRCREV = "${AUTOREV}"
 PV = "1.0+git"
 S = "${UNPACKDIR}/${BP}/dogzillad"
@@ -61,12 +62,28 @@ do_install() {
         cp -a ${B}/Dogzilla/. ${D}${libdir}/qml/Dogzilla/
     fi
 
+    # systemd --user unit for the pi user, statically enabled via the global
+    # user default.target.wants. A user unit only starts at boot if the user
+    # lingers, so also mark pi as lingering (equivalent to
+    # `loginctl enable-linger pi`). pi is created by dogzilla-users.
+    install -d ${D}${systemd_user_unitdir}/default.target.wants
+    install -m 0644 ${UNPACKDIR}/dogzillad.service ${D}${systemd_user_unitdir}/dogzillad.service
+    ln -sf ../dogzillad.service ${D}${systemd_user_unitdir}/default.target.wants/dogzillad.service
+    install -d ${D}${localstatedir}/lib/systemd/linger
+    touch ${D}${localstatedir}/lib/systemd/linger/pi
+
     # cp -a preserves the host build user's ownership; force root so
     # do_package_qa doesn't flag host-user-contaminated (runs under pseudo).
     chown -R root:root ${D}
 }
 
-FILES:${PN} += "${libdir}/qml"
+RDEPENDS:${PN} += "dogzilla-users"
+
+FILES:${PN} += " \
+    ${libdir}/qml \
+    ${systemd_user_unitdir} \
+    ${localstatedir}/lib/systemd/linger/pi \
+"
 
 # NOTE: DEPENDS is a best-effort starting point. If do_configure fails with
 # "Could not find a package configuration file provided by <pkg>", add the
