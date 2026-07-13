@@ -51,7 +51,19 @@ DOGZILLA_DEV = " \
     sudo \
     cmake \
     qtbase-tools \
+    qt6-target-hosttools \
+    qtdeclarative-tools \
 "
+
+# On-target Qt builds: find_package(Qt6) needs the code-gen tools + Qt6*Tools
+# cmake, which a cross image lacks. qtdeclarative DOES build its tools for the
+# target, so qtdeclarative-tools supplies qml/qmltyperegistrar/qmlcachegen +
+# (via qtdeclarative-dev from dev-pkgs) Qt6Qml/QuickTools cmake. qtbase does NOT
+# build moc/rcc/uic for the target (QT_FORCE_BUILD_TOOLS=OFF; forcing it ON
+# breaks the image's own cross build), so qt6-target-hosttools ships those +
+# Qt6Core/GuiTools cmake as prebuilt aarch64 binaries. Together they let plain
+# `cmake` build Qt apps natively on the Pi. (ROS 2 nodes additionally need the
+# ament build system + -dev files -- tracked separately.)
 
 # System services. rpi-resize-rootfs grows the rootfs to fill the SD card on
 # first boot (the .wic image ships a rootfs partition sized to its contents).
