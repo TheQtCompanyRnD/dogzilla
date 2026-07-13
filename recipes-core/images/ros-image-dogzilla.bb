@@ -22,7 +22,9 @@ TOOLCHAIN_HOST_TASK:append = " nativesdk-packagegroup-qt6-toolchain-host"
 
 # On-target development: gcc/g++/make, plus headers and -dev packages for the
 # installed libraries; debug tools; and an ssh server for remote work.
-IMAGE_FEATURES += "tools-sdk dev-pkgs tools-debug ssh-server-openssh"
+# package-management installs opkg + the package DB so you can `opkg install`
+# .ipk files on the device (e.g. a freshly rebuilt dogzillad) without reflashing.
+IMAGE_FEATURES += "tools-sdk dev-pkgs tools-debug ssh-server-openssh package-management"
 
 # This device only runs daemons, so no window system is installed. The Qt libs
 # are built with gui support (qtdeclarative needs it) but nothing here pulls in
@@ -114,6 +116,7 @@ DOGZILLA_QT = " \
 DOGZILLA_ROS = " \
     cartographer-ros \
     rclpy \
+    dogzillad \
 "
 
 # Python 3 runtime. numpy + pyserial are used by the Dogzilla-provided scripts
