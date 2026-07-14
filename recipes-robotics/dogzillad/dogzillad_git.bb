@@ -55,6 +55,13 @@ do_install() {
     install -d ${D}${bindir}
     install -m 0755 ${B}/dogzillad ${D}${bindir}/dogzillad
 
+    # main.qml is shipped as an editable file (kept scriptable, not baked into
+    # the binary). dogzillad resolves it via QStandardPaths::AppDataLocation,
+    # which searches ${datadir}/dogzillad (= /usr/share/dogzillad) as well as
+    # ~/.local/share/dogzillad (a writable per-user override).
+    install -d ${D}${datadir}/dogzillad
+    install -m 0644 ${S}/qml/main.qml ${D}${datadir}/dogzillad/main.qml
+
     # qt_add_qml_module may emit a QML plugin tree under the build dir; install
     # it if present (harmless no-op if the QML is compiled into the binary).
     if [ -d ${B}/Dogzilla ]; then
@@ -81,6 +88,7 @@ RDEPENDS:${PN} += "dogzilla-users"
 
 FILES:${PN} += " \
     ${libdir}/qml \
+    ${datadir}/dogzillad \
     ${systemd_user_unitdir} \
     ${localstatedir}/lib/systemd/linger/pi \
 "

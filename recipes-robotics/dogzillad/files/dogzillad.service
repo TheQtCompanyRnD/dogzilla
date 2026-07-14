@@ -5,6 +5,10 @@ Description=Dogzilla S2 robot control daemon (Qt6 + ROS 2)
 
 [Service]
 Type=simple
+# ROS 2 domain for the robot. Must match on any machine that talks to it
+# (e.g. `export ROS_DOMAIN_ID=81` on the laptop); default 0 leaves the daemon
+# invisible to a laptop set to 81 even though same-host discovery still works.
+Environment=ROS_DOMAIN_ID=81
 # Source the ROS 2 environment (AMENT_PREFIX_PATH, LD_LIBRARY_PATH for
 # /opt/ros/jazzy/lib, ROS_DISTRO, RMW) before launching the daemon.
 ExecStart=/bin/sh -c '. /opt/ros/jazzy/setup.sh && exec /usr/bin/dogzillad'
