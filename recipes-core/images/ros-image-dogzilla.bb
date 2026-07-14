@@ -120,6 +120,7 @@ DOGZILLA_ROS = " \
     cartographer-ros \
     rclpy \
     dogzillad \
+    dogzilla-slam \
 "
 
 # Python 3 runtime. numpy + pyserial are used by the Dogzilla-provided scripts
