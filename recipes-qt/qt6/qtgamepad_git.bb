@@ -19,7 +19,11 @@ inherit qt6-cmake
 include recipes-qt/qt6/qt6-git.inc
 include recipes-qt/qt6/qt6.inc
 
-DEPENDS += "qtbase qtdeclarative"
+# qtdeclarative-native supplies Qt6QuickTools (host qmltyperegistrar/qmlcachegen
+# + QuickTools cmake). Without it, find_package(Qt6 ... OPTIONAL_COMPONENTS Quick)
+# fails quietly at configure -> the quick* subdirs (the QtGamepad and
+# QtUniversalInput QML modules) are skipped and qtgamepad-qmlplugins ships empty.
+DEPENDS += "qtbase qtdeclarative qtdeclarative-native"
 
 # qtgamepad lives in its own repo and has no dedicated SRCREV in
 # meta-qt6/qt6-git.inc, so pin it here. Upstream stopped branching after 6.3;

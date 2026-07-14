@@ -96,6 +96,7 @@ DOGZILLA_AUDIO = " \
 DOGZILLA_NETWORK = " \
     networkmanager \
     networkmanager-nmcli \
+    networkmanager-nmtui \
     networkmanager-wifi \
     dogzilla-network-config \
     avahi-daemon \
@@ -109,6 +110,8 @@ DOGZILLA_QT = " \
     qtserialport \
     qtmultimedia \
     qtgamepad \
+    qtgamepad-qmlplugins \
+    qtgamepad-plugins \
     qt-ros2-bridge \
 "
 

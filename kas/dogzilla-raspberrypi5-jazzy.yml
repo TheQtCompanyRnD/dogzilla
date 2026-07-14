@@ -137,3 +137,9 @@ local_conf_header:
     ROS_CONNECTION_MANAGER = "networkmanager"
     # Belt-and-suspenders: also ignore connman if something recommends it.
     BAD_RECOMMENDATIONS += "connman"
+
+    # Build nmtui (the curses NM UI) -- not in NetworkManager's default
+    # PACKAGECONFIG. Handy for adding a venue Wi-Fi AP over SSH on the headless
+    # robot. Pulls libnewt. The networkmanager-nmtui package is added to the
+    # image in ros-image-dogzilla.bb.
+    PACKAGECONFIG:append:pn-networkmanager = " nmtui"
