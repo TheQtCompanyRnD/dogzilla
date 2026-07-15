@@ -1,0 +1,39 @@
+From: meta-dogzilla <noreply@qt.io>
+Date: Wed, 15 Jul 2026 12:00:00 +0200
+Subject: [PATCH] linuxjoystickinput: unref udev_device on the already-attached
+ early-continue (fix udev_device leak)
+
+LinuxJoystickInput::probeJoypads() runs on a timer and re-enumerates every
+"input" subsystem device. For each device already in m_attached_devices (i.e.
+an already-connected joypad, on every poll after the first) it `continue`s past
+the udev_device_unref(dev) at the end of the loop body, leaking one udev_device
+plus all of its internal property strings per already-attached device per poll.
+
+Confirmed with LeakSanitizer: the top growing leak stack is
+udev_device_new_from_syspath <- probeJoypads() <- timerEvent(), climbing
+linearly with poll rate. Unref the device before the early continue.
+
+qtgamepad's dev branch is effectively unmaintained; carry locally.
+
+Upstream-Status: Pending
+Signed-off-by: meta-dogzilla <noreply@qt.io>
+---
+ src/plugins/joystickinputs/linux/linuxjoystickinput.cpp | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/plugins/joystickinputs/linux/linuxjoystickinput.cpp b/src/plugins/joystickinputs/linux/linuxjoystickinput.cpp
+index 1d8d1b0..5834933 100644
+--- a/src/plugins/joystickinputs/linux/linuxjoystickinput.cpp
++++ b/src/plugins/joystickinputs/linux/linuxjoystickinput.cpp
+@@ -88,8 +88,10 @@ void LinuxJoystickInput::probeJoypads()
+             QString devnode_str = devnode;
+
+             // check if exists
+-            if (std::find(m_attached_devices.begin(), m_attached_devices.end(), devnode_str) != m_attached_devices.end())
++            if (std::find(m_attached_devices.begin(), m_attached_devices.end(), devnode_str) != m_attached_devices.end()) {
++                udev_device_unref(dev);
+                 continue;
++            }
+
+             if (!devnode_str.contains(ignore_str))
+                 setupJoypadObject(devnode_str);

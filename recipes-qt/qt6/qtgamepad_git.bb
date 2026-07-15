@@ -25,6 +25,13 @@ include recipes-qt/qt6/qt6.inc
 # QtUniversalInput QML modules) are skipped and qtgamepad-qmlplugins ships empty.
 DEPENDS += "qtbase qtdeclarative qtdeclarative-native"
 
+# Fix a udev_device leak in the linuxjoystickinput plugin: probeJoypads() runs
+# on a timer and leaks one udev_device (+ its property strings) per
+# already-attached device per poll (confirmed with LeakSanitizer). Carried
+# locally -- qtgamepad's dev branch is unmaintained.
+FILESEXTRAPATHS:prepend := "${THISDIR}/qtgamepad:"
+SRC_URI += "file://0001-linuxjoystickinput-unref-udev-device-on-early-continue.patch"
+
 # qtgamepad lives in its own repo and has no dedicated SRCREV in
 # meta-qt6/qt6-git.inc, so pin it here. Upstream stopped branching after 6.3;
 # "dev" is the only branch that still tracks recent Qt, so build against it
