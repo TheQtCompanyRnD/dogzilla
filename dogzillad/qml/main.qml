@@ -7,6 +7,7 @@ import Dogzilla
 import QtRos2.Core as Ros2
 import QtRos2.GeometryMsgs
 import QtRos2.SensorMsgs
+import QtRos2.StdMsgs
 import QtRos2.Transforms
 
 Ros2.Node {
@@ -234,6 +235,39 @@ Ros2.Node {
     property Lidar lidar: Lidar {
         serialPort: "/dev/ttyAMA1"
         onSectorScanned: (msg) => frickenLaserPublisher.publish(msg)
+    }
+
+    // Push-to-talk speech-to-text. The digital twin toggles
+    // /dogzilla/speech/listen (true = button pressed, false = released): while
+    // held we silence the fan and capture the mic; on release we stop capture,
+    // transcribe the utterance (whisper, on a worker thread) and publish the
+    // text on /dogzilla/speech/transcript.
+    property FanController fan: FanController {}
+    property AudioCapture mic: AudioCapture {
+        onCaptured: (pcm) => stt.transcribe(pcm)
+    }
+    property WhisperSpeechToText stt: WhisperSpeechToText {
+        // tiny.en-q5_1 is the fast default; swap to ggml-base.en.bin for accuracy.
+        modelPath: "/usr/share/whisper.cpp/models/ggml-tiny.en-q5_1.bin"
+        onTranscriptReady: (text) => {
+            console.log("heard:", text);
+            transcriptPub.publish(text);
+        }
+        onErrorOccurred: (msg) => console.warn("stt:", msg)
+    }
+
+    BoolSubscriber {
+        topic: `/${root.nodeName}/speech/listen`
+        // std_msgs/Bool single-field collapse: the handler gets the bool directly.
+        onMessageReceived: (listening) => {
+            fan.quiet = listening;       // sudo dogzilla-fan quiet / auto
+            mic.listening = listening;   // false edge -> captured() -> stt.transcribe()
+        }
+    }
+
+    StringPublisher {
+        id: transcriptPub
+        topic: `/${root.nodeName}/speech/transcript`
     }
 
     Component.onCompleted: {
