@@ -32,7 +32,9 @@ DEPENDS += " \
     qtdeclarative-native \
     qtserialport \
     qtgamepad \
+    qtmultimedia \
     qt-ros2-bridge \
+    whisper-cpp \
     rclcpp \
     type-description-interfaces \
     rosidl-default-generators \
@@ -84,7 +86,10 @@ do_install() {
     chown -R root:root ${D}
 }
 
-RDEPENDS:${PN} += "dogzilla-users"
+# whisper-cpp: libwhisper/libggml at runtime (dogzillad links them for STT).
+# qtmultimedia + the whisper model (tiny.en-q5_1) are already in the image via
+# DOGZILLA_QT / DOGZILLA_AUDIO.
+RDEPENDS:${PN} += "dogzilla-users whisper-cpp"
 
 FILES:${PN} += " \
     ${libdir}/qml \
