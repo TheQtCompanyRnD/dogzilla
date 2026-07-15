@@ -1,0 +1,47 @@
+#!/bin/sh
+# dogzilla-fan {quiet|auto} -- silence the Pi 5 chassis fan during mic capture.
+#
+# The fan is a cooling device driven by the cpu-thermal zone's step_wise
+# governor; on this kernel the user_space thermal policy isn't compiled in
+# (available_policies = "step_wise" only), so we can't hand the fan to
+# user space via `policy`. Instead we suspend the whole zone with its `mode`
+# switch and force the fan off; `auto` re-enables the governor.
+#
+# Only the brief capture window needs silence (the fan sits right next to the
+# USB mic). whisper's CPU heat comes *after* capture, with the fan back on, so
+# this is thermally safe for a few seconds.
+#
+# Runs as root (see /etc/sudoers.d/dogzilla-fan); dogzillad calls it via
+# `sudo dogzilla-fan quiet` on PTT-down and `sudo dogzilla-fan auto` on PTT-up.
+set -eu
+
+CDEV=/sys/class/thermal/cooling_device0
+SELFHEAL=${2:-60}   # seconds; re-enable the governor if 'auto' never arrives
+
+# Locate the thermal zone that binds this cooling device (don't assume zone0).
+ZONE=
+for z in /sys/class/thermal/thermal_zone*; do
+    for c in "$z"/cdev*; do
+        b=${c##*/}; case "$b" in *_*) continue ;; esac   # skip cdevN_trip_point/_weight
+        [ -e "$c" ] || continue
+        if [ "$(readlink -f "$c")" = "$(readlink -f "$CDEV")" ]; then
+            ZONE=$z; break 2
+        fi
+    done
+done
+[ -n "$ZONE" ] || { echo "dogzilla-fan: no thermal zone binds $CDEV" >&2; exit 1; }
+
+case "${1:-}" in
+    quiet)
+        echo disabled > "$ZONE/mode"        # stop the governor managing this zone
+        echo 0        > "$CDEV/cur_state"   # force the fan off
+        # Self-heal: if the caller crashes before sending 'auto', re-enable the
+        # governor after SELFHEAL seconds so the fan can't stay off forever.
+        ( sleep "$SELFHEAL"; echo enabled > "$ZONE/mode" ) >/dev/null 2>&1 &
+        ;;
+    auto)
+        echo enabled  > "$ZONE/mode"        # governor resumes normal control
+        ;;
+    *)
+        echo "usage: dogzilla-fan {quiet|auto} [selfheal-seconds]" >&2; exit 2 ;;
+esac

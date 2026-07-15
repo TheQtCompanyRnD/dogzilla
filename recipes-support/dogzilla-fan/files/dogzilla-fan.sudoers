@@ -1,0 +1,4 @@
+# Let the pi user silence the chassis fan during mic capture without a password
+# (used by dogzillad's push-to-talk). Scoped to just this helper, so it keeps
+# working even if the broad NOPASSWD grant in dogzilla-users is tightened later.
+pi ALL=(root) NOPASSWD: /usr/bin/dogzilla-fan
