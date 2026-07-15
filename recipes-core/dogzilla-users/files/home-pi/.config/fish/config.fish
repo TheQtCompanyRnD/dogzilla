@@ -1,3 +1,5 @@
+set -g fish_prompt_pwd_dir_length 0
+
 # ~/.config/fish/config.fish -- pre-populated from meta-dogzilla
 # (meta-dogzilla/recipes-core/dogzilla-users/files/home-pi/). Edit here and
 # rebuild to have it land in /home/pi; or rsync at runtime for quick iteration.
