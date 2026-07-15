@@ -83,11 +83,26 @@ DOGZILLA_SYSTEM = " \
 DOGZILLA_AUDIO = " \
     pipewire \
     pipewire-pulse \
+    pipewire-spa-plugins-alsa \
+    pipewire-alsa \
+    pipewire-alsa-card-profile \
     wireplumber \
+    alsa-utils \
     qtspeech \
     whisper-cpp \
+    whisper-cpp-models-tiny-en-q5-1 \
     whisper-cpp-models-base-en \
 "
+# Two STT models installed side by side (pick at runtime with whisper-cli -m):
+# tiny.en-q5_1 (~32 MB, ~2x faster) as the fast default, base.en f16 (~148 MB)
+# as the higher-accuracy fallback. Model size (tiny vs base) drives speed on the
+# A76; quantization mainly shrinks footprint. No usable GPU on the Pi 5.
+# pipewire-spa-plugins-alsa: PipeWire's ALSA device backend -- REQUIRED for the
+#   USB sound card to appear as a sink/source (without it: only "Dummy Output").
+# pipewire-alsa(-card-profile): route ALSA-API apps through PipeWire + proper
+#   card profiles/ports (output/input, mic) via ACP/UCM.
+# alsa-utils: speaker-test / aplay / arecord / amixer for hardware bring-up and
+#   testing the speaker + USB mic at the raw ALSA layer (below PipeWire).
 
 # Networking: NetworkManager owns ethernet/wifi handoff; avahi for mDNS.
 # networkmanager-wifi is the Wi-Fi device plugin (pulls wpa-supplicant); without

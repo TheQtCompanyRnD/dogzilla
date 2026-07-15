@@ -71,6 +71,13 @@ local_conf_header:
     # through PipeWire for mixing/volume. We do NOT install the PulseAudio server.
     DISTRO_FEATURES:append = " pulseaudio"
 
+    # Enable ALSA so PipeWire builds its ALSA SPA plugin (-Dalsa=enabled). The
+    # pipewire recipe gates the alsa PACKAGECONFIG on this DISTRO_FEATURE; without
+    # it PipeWire has NO hardware backend and shows only a "Dummy Output" (it
+    # cannot open the USB sound card). Adds pipewire-spa-plugins-alsa (installed
+    # via DOGZILLA_AUDIO in the image recipe).
+    DISTRO_FEATURES:append = " alsa"
+
     # mDNS name: robot is reachable at dogzilla.local via avahi (handy for the
     # direct-cable/link-local demo case). Rename to taste.
     hostname:pn-base-files = "dogzilla"
