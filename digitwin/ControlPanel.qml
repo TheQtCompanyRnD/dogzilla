@@ -12,15 +12,37 @@ ScrollView {
     property var joints: targetRobot && targetRobot.control ? targetRobot.control.jointInfos : []
     clip: true
 
-    // time in seconds, v in °C
+    // ROS header stamp time in seconds, temperature in °C
     function addTemperatureSample(t, v) {
-        temperatureChart.addSample(t, v)
+        telemetryChart.latestTemperature = v
+        // keep t small to work around the usual GPU large-number bugs
+        t -= telemetryChart.secondsWhenTodayBegan
+        temperatureSeries.append(t, v)
+        xAxis.max = t
+        xAxis.min = t - telemetryChart.depth
+        // window slides left as t grows; trim points that slid off:
+        while (temperatureSeries.count > 0 && temperatureSeries.at(0).x < xAxis.min)
+            temperatureSeries.remove(0)
     }
 
-    // t in seconds (ROS time, from the message header stamp)
+    // ROS header stamp time in seconds, cpu percentage, fan level
     function addTelemetrySample(t, cpu, fan) {
-        console.log("t", t, "cpu", cpu, "fan", fan)
+        // console.log("t", t, "since midnight", t - telemetryChart.secondsWhenTodayBegan,
+        //      "cpu", cpu, "fan", fan)
+        telemetryChart.latestCpu = cpu
+        telemetryChart.latestFan = fan
+        // keep t small to work around the usual GPU large-number bugs
+        t -= telemetryChart.secondsWhenTodayBegan
+        xAxis.max = t
+        xAxis.min = t - telemetryChart.depth
+        fanSeries.append(t, fan * 20) // make it fit the yAxis range
+        while (fanSeries.count > 0 && fanSeries.at(0).x < xAxis.min)
+            fanSeries.remove(0)
+        cpuSeries.append(t, cpu)
+        while (cpuSeries.count > 0 && cpuSeries.at(0).x < xAxis.min)
+            cpuSeries.remove(0)
     }
+
 
     Connections {
         target: root.targetRobot && root.targetRobot.control ? root.targetRobot.control : null
@@ -52,30 +74,21 @@ ScrollView {
         }
 
         GraphsView {
-            id: temperatureChart
+            id: telemetryChart
             property int depth: 200
-            property real latestSample: 20
+            property real latestTemperature: 20
+            property int latestFan: 0
+            property int latestCpu: 0
 
             Layout.fillWidth: true
-            height: 40
-            marginLeft: 6; marginRight: 50; marginTop: 0; marginBottom: 0 // OMG
+            height: 60
+            marginLeft: 6; marginRight: 50; marginTop: 0; marginBottom: 0
             theme: GraphsTheme {
                 colorScheme: GraphsTheme.ColorScheme.Dark
                 grid.mainColor: "#111122"
             }
 
-            function addSample(t, v) {
-                latestSample = v
-                // keep t small to work around the usual large-number bugs
-                const floatRangeFinaglingFactor = 1780000000
-                t -= floatRangeFinaglingFactor
-                temperatureSeries.append(t, v)
-                xAxis.max = t
-                xAxis.min = t - temperatureChart.depth
-                // window slides left as t grows; trim points that slid off:
-                while (temperatureSeries.count > 0 && temperatureSeries.at(0).x < xAxis.min)
-                    temperatureSeries.remove(0)
-            }
+            property real secondsWhenTodayBegan: (new Date().setUTCHours(0,0,0,0)) / 1000
 
             axisX: ValueAxis {
                 id: xAxis
@@ -84,7 +97,7 @@ ScrollView {
             }
             axisY: ValueAxis {
                 id: yAxis
-                min: 20
+                min: 0
                 max: 100
                 visible: false // because labels are unreasonable
                 // labelsVisble: false // nope: missing API
@@ -96,13 +109,45 @@ ScrollView {
                 joinStyle: Qt.RoundJoin
             }
 
-            data: Text {
-                id: temperatureLabel
-                anchors.right: parent.right
-                anchors.rightMargin: 6
-                anchors.verticalCenter: parent.verticalCenter
-                color: "orange"
-                text: temperatureChart.latestSample.toFixed(1) + " °C"
+            LineSeries {
+                id: fanSeries
+                color: "cyan"
+                joinStyle: Qt.RoundJoin
+            }
+
+            LineSeries {
+                id: cpuSeries
+                color: "lightgreen"
+                joinStyle: Qt.RoundJoin
+            }
+
+            data: Column {
+                anchors {
+                    right: parent.right
+                    rightMargin: 6
+                    verticalCenter: parent.verticalCenter
+                }
+                Text {
+                    id: temperatureLabel
+                    color: "orange"
+                    anchors.right: parent.right
+                    horizontalAlignment: Text.AlignRight
+                    text: telemetryChart.latestTemperature.toFixed(1) + " °C"
+                }
+                Text {
+                    id: fanLabel
+                    color: "cyan"
+                    anchors.right: parent.right
+                    horizontalAlignment: Text.AlignRight
+                    text: "fan " + telemetryChart.latestFan
+                }
+                Text {
+                    id: cpuLabel
+                    color: "lightgreen"
+                    anchors.right: parent.right
+                    horizontalAlignment: Text.AlignRight
+                    text: `cpu ${telemetryChart.latestCpu}%`
+                }
             }
         }
 

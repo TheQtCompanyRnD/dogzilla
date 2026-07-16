@@ -5,6 +5,12 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(QT_QML_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 find_package(Qt6 REQUIRED COMPONENTS Core Gui Quick Quick3D Ros2Core)
+find_package(dogzilla_interfaces REQUIRED)
+# qtros2_generate_from_package() (used below) lives in rosidl_generator_qtros2,
+# whose cmake config is installed alongside Qt6Ros2Core's (see QtRos2Macros.cmake)
+# rather than on the default search path -- point find_package there.
+find_package(rosidl_generator_qtros2 REQUIRED PATHS "${Qt6Ros2Core_DIR}" NO_DEFAULT_PATH)
+
 qt_standard_project_setup(REQUIRES 6.8)
 
 qt_add_library(Robot_Dogzilla)
