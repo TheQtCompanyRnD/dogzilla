@@ -7,9 +7,10 @@ find_package(WrapRos2 REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(type_description_interfaces REQUIRED)
 find_package(dogzilla_interfaces REQUIRED)
-# qtros2_generate_from_package() (used below) lives in rosidl_generator_qtros2,
-# whose cmake config is installed alongside Qt6Ros2Core's (see QtRos2Macros.cmake)
-# rather than on the default search path -- point find_package there.
+# Locate rosidl_generator_qtros2 (its cmake sits alongside Qt6Ros2Core's, not on
+# the default path). This sets rosidl_generator_qtros2_DIR so the generator finds
+# its helper scripts (dependency_analyzer.py etc.); qt_ros2_configure_target()
+# below additionally registers the prebuilt wrappers. Both are needed.
 find_package(rosidl_generator_qtros2 REQUIRED PATHS "${Qt6Ros2Core_DIR}" NO_DEFAULT_PATH)
 # NB: we deliberately do NOT find_package(whisper). Its whisper-config.cmake
 # resolves libwhisper with find_library(... NO_CMAKE_FIND_ROOT_PATH), which in a
@@ -42,9 +43,15 @@ qt_add_qml_module(dogzillad
         src/telemetry.cpp
 )
 
+# Register the prebuilt QtRos2 message wrappers (std_msgs etc.) in the generator's
+# dependency registry and pull in qtros2_generate_from_package(). Required so the
+# generator can resolve StampedTelemetry's std_msgs/Header dependency to the
+# installed Qt6::QtRos2StandardMessages wrapper (the downstream find_package
+# fallback looks for the ament-style name and misses the Qt6-style package).
+qt_ros2_configure_target(dogzillad CAPABILITIES PUBLISHER SUBSCRIBER)
+
 # Generate the QtRos2 QML wrapper (import Dogzilla.Telemetry) for our custom
-# dogzilla_interfaces/Telemetry message, via the bridge's downstream macro
-# (installed with rosidl_generator_qtros2). No upstream-bridge changes needed.
+# dogzilla_interfaces/StampedTelemetry message, via the bridge's downstream macro.
 # TARGET dogzilla_telemetry_msgs -> CMake target DogzillaTelemetryMsgs.
 qtros2_generate_from_package(
     SOURCE_PACKAGE dogzilla_interfaces

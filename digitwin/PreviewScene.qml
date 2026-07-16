@@ -7,6 +7,7 @@ import QtRos2.Core as Ros2
 import QtRos2.GeometryMsgs as GeomMsgs
 import QtRos2.SensorMsgs as SensorMsgs
 import Dogzilla
+import Dogzilla.Telemetry
 
 Item {
     id: root
@@ -160,6 +161,16 @@ Item {
                 panel.addTemperatureSample(
                     tempSub.header.stamp.sec + tempSub.header.stamp.nanosec / 1e9,
                     tempSub.temperature)
+            }
+        }
+
+        StampedTelemetrySubscriber {
+            id: teleSub
+            topic: `/${rosNode.nodeName}/telemetry/system`
+            onMessageReceived: (msg) => {
+                panel.addTelemetrySample(
+                    teleSub.header.stamp.sec + teleSub.header.stamp.nanosec / 1e9,
+                    teleSub.cpuPercent, teleSub.fanLevel)
             }
         }
 

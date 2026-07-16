@@ -293,11 +293,13 @@ Ros2.Node {
     // bindable property), so we publish imperatively on each sample.
     property Telemetry telemetry: Telemetry {}
 
-    // fan + cpu via our custom Dogzilla.Telemetry message. It's multi-field, so
-    // it binds DECLARATIVELY -- no publish() in JS; the publisher republishes
-    // when either metric changes. Generated from the dogzilla_interfaces
-    // package by qtros2_generate_from_package (see CMakeLists).
-    TelemetryPublisher {
+    // fan + cpu via our custom dogzilla_interfaces/StampedTelemetry message. It's
+    // multi-field, so it binds DECLARATIVELY -- no publish() in JS; the publisher
+    // republishes when either metric changes. Because StampedTelemetry leads with a
+    // std_msgs/Header, the generated publisher extends QRos2StampedPublisherBase and
+    // auto-fills header.stamp from the node clock -- no manual timestamping here.
+    // Generated from the dogzilla_interfaces package by qtros2_generate_from_package.
+    StampedTelemetryPublisher {
         topic: `/${root.nodeName}/telemetry/system`
         fanLevel: telemetry.fanLevel
         cpuPercent: telemetry.cpuPercent

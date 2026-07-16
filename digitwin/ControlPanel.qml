@@ -17,6 +17,11 @@ ScrollView {
         temperatureChart.addSample(t, v)
     }
 
+    // t in seconds (ROS time, from the message header stamp)
+    function addTelemetrySample(t, cpu, fan) {
+        console.log("t", t, "cpu", cpu, "fan", fan)
+    }
+
     Connections {
         target: root.targetRobot && root.targetRobot.control ? root.targetRobot.control : null
         ignoreUnknownSignals: true

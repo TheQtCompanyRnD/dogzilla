@@ -37,6 +37,25 @@ qt_ros2_configure_target(
     MODULES QtRos2GeometryMessages QtRos2SensorMessages
 )
 
-target_link_libraries(Robot_Dogzilla PUBLIC Qt6::Gui Qt6::Quick Qt6::Quick3D)
+# Generate the QtRos2 QML wrapper (import Dogzilla.Telemetry) for our custom
+# dogzilla_interfaces/StampedTelemetry message, via the bridge's downstream macro
+# (installed with rosidl_generator_qtros2). No upstream-bridge changes needed.
+# TARGET dogzilla_telemetry_msgs -> CMake target DogzillaTelemetryMsgs.
+# NOTE: the URI cannot be "Dogzilla" -- that collides with our own module's
+# output dir and qml_register_types_Dogzilla() symbol. A distinct URI is required.
+qtros2_generate_from_package(
+    SOURCE_PACKAGE dogzilla_interfaces
+    TARGET dogzilla_telemetry_msgs
+    QML_MODULE_URI Dogzilla.Telemetry
+)
+
+target_link_libraries(Robot_Dogzilla PUBLIC Qt6::Gui Qt6::Quick Qt6::Quick3D DogzillaTelemetryMsgs)
+
+# The generated Dogzilla.Telemetry module is a STATIC qml plugin, which the `qml`
+# runtime tool cannot dlopen. Link its plugin (+init) into our already-SHARED
+# Dogzilla plugin so the module self-registers when Robot_Dogzillaplugin.so loads.
+target_link_libraries(Robot_Dogzillaplugin PRIVATE
+    DogzillaTelemetryMsgsplugin
+    DogzillaTelemetryMsgsplugin_init)
 
 target_sources(Robot_Dogzillaplugin PRIVATE dogzillaplugin.cpp)
