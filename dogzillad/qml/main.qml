@@ -4,6 +4,7 @@ import QtQml
 import QtMultimedia
 import QtUniversalInput
 import Dogzilla
+import Dogzilla.Telemetry
 import QtRos2.Core as Ros2
 import QtRos2.GeometryMsgs
 import QtRos2.SensorMsgs
@@ -285,6 +286,28 @@ Ros2.Node {
     readonly property string speechState: stt.busy ? "transcribing"
                                          : mic.listening ? "listening" : "idle"
     onSpeechStateChanged: statePub.publish(speechState)
+
+    // System telemetry (fan level, CPU temperature, CPU load) at 1 Hz, for the
+    // twin's line charts -- e.g. watch PTT silence the fan and the temp/CPU
+    // response. Single-field std_msgs publishers are publish()-only (no
+    // bindable property), so we publish imperatively on each sample.
+    property Telemetry telemetry: Telemetry {}
+
+    // fan + cpu via our custom Dogzilla.Telemetry message. It's multi-field, so
+    // it binds DECLARATIVELY -- no publish() in JS; the publisher republishes
+    // when either metric changes. Generated from the dogzilla_interfaces
+    // package by qtros2_generate_from_package (see CMakeLists).
+    TelemetryPublisher {
+        topic: `/${root.nodeName}/telemetry/system`
+        fanLevel: telemetry.fanLevel
+        cpuPercent: telemetry.cpuPercent
+    }
+
+    // Temperature via the standard sensor_msgs/Temperature -- also declarative.
+    TemperaturePublisher {
+        topic: `/${root.nodeName}/telemetry/temperature`
+        temperature: telemetry.temperatureC
+    }
 
     Component.onCompleted: {
         camera.start();

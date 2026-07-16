@@ -6,6 +6,11 @@ find_package(Qt6Ros2Core REQUIRED)
 find_package(WrapRos2 REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(type_description_interfaces REQUIRED)
+find_package(dogzilla_interfaces REQUIRED)
+# qtros2_generate_from_package() (used below) lives in rosidl_generator_qtros2,
+# whose cmake config is installed alongside Qt6Ros2Core's (see QtRos2Macros.cmake)
+# rather than on the default search path -- point find_package there.
+find_package(rosidl_generator_qtros2 REQUIRED PATHS "${Qt6Ros2Core_DIR}" NO_DEFAULT_PATH)
 # NB: we deliberately do NOT find_package(whisper). Its whisper-config.cmake
 # resolves libwhisper with find_library(... NO_CMAKE_FIND_ROOT_PATH), which in a
 # Yocto cross build defeats --sysroot and links the x86_64 HOST /usr/lib copy
@@ -33,6 +38,18 @@ qt_add_qml_module(dogzillad
         src/audiocapture.cpp
         src/whisperspeechtotext.h
         src/whisperspeechtotext.cpp
+        src/telemetry.h
+        src/telemetry.cpp
+)
+
+# Generate the QtRos2 QML wrapper (import Dogzilla.Telemetry) for our custom
+# dogzilla_interfaces/Telemetry message, via the bridge's downstream macro
+# (installed with rosidl_generator_qtros2). No upstream-bridge changes needed.
+# TARGET dogzilla_telemetry_msgs -> CMake target DogzillaTelemetryMsgs.
+qtros2_generate_from_package(
+    SOURCE_PACKAGE dogzilla_interfaces
+    TARGET dogzilla_telemetry_msgs
+    QML_MODULE_URI Dogzilla.Telemetry
 )
 
 
@@ -60,4 +77,5 @@ target_link_libraries(dogzillad PRIVATE
     whisper
     ggml
     ggml-base
+    DogzillaTelemetryMsgs
 )
