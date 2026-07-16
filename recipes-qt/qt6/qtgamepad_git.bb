@@ -29,8 +29,11 @@ DEPENDS += "qtbase qtdeclarative qtdeclarative-native"
 # on a timer and leaks one udev_device (+ its property strings) per
 # already-attached device per poll (confirmed with LeakSanitizer). Carried
 # locally -- qtgamepad's dev branch is unmaintained.
-FILESEXTRAPATHS:prepend := "${THISDIR}/qtgamepad:"
-SRC_URI += "file://0001-linuxjoystickinput-unref-udev-device-on-early-continue.patch"
+#
+# DISABLED while building from the Gerrit change (see the TEMPORARY block below),
+# which supersedes this fix. Re-enable both lines when reverting to published git.
+#FILESEXTRAPATHS:prepend := "${THISDIR}/qtgamepad:"
+#SRC_URI += "file://0001-linuxjoystickinput-unref-udev-device-on-early-continue.patch"
 
 # qtgamepad lives in its own repo and has no dedicated SRCREV in
 # meta-qt6/qt6-git.inc, so pin it here. Upstream stopped branching after 6.3;
@@ -40,6 +43,20 @@ SRC_URI += "file://0001-linuxjoystickinput-unref-udev-device-on-early-continue.p
 QT_MODULE = "qtgamepad"
 QT_MODULE_BRANCH = "dev"
 SRCREV = "6de4c9d2ad753eac40b9f83bebcc01084fae16a9"
+
+# === TEMPORARY: build qtgamepad from Gerrit change 753303 (the polling->event
+# CPU rework + leak fix) via a LOCAL clone, instead of the published dev branch
+# + the patch above. bitbake can't fetch a Gerrit change ref directly, so
+# prepare the clone once (set QTGAMEPAD_SRC to whichever clone you use):
+#   cd ${QTGAMEPAD_SRC}
+#   git fetch https://codereview.qt-project.org/qt/qtgamepad refs/changes/03/753303/1
+#   git checkout -b gerrit-753303 FETCH_HEAD
+# Revert this whole block (and un-comment the patch lines above) once the change
+# merges upstream, restoring the published-git SRCREV pin.
+QTGAMEPAD_SRC ?= "/home/rutledge/dev/qt6/qtgamepad"
+SRC_URI = "git://${QTGAMEPAD_SRC};protocol=file;branch=gerrit-753303;destsuffix=${BB_GIT_DEFAULT_DESTSUFFIX}"
+SRCREV = "${AUTOREV}"
+# === end TEMPORARY
 
 # The native Linux backend is evdev (built by default); SDL2 is optional and
 # off by default for a headless robot.
