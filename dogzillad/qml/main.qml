@@ -270,8 +270,25 @@ Ros2.Node {
         topic: `/${root.nodeName}/speech/transcript`
     }
 
+    // Readiness/status for the twin: "idle" (ready) / "listening" / "transcribing".
+    // Latched (transient-local) so a twin that connects later immediately gets
+    // the current state and can, e.g., enable the PTT button only when idle.
+    StringPublisher {
+        id: statePub
+        topic: `/${root.nodeName}/speech/state`
+        qos: Ros2.QualityOfService.transientLocal()
+    }
+    // The state itself is a declarative binding. The bridge's single-field
+    // publishers (String/Bool) expose only publish() -- no bindable property --
+    // so the one imperative step is publishing when the derived value changes.
+    // No binding loop: this reads busy/listening and never writes them back.
+    readonly property string speechState: stt.busy ? "transcribing"
+                                         : mic.listening ? "listening" : "idle"
+    onSpeechStateChanged: statePub.publish(speechState)
+
     Component.onCompleted: {
         camera.start();
+        statePub.publish(speechState);   // latch the initial "idle" so a late twin sees it
         console.log("chosen camera", camera.cameraDevice, camera.cameraFormat, "active", camera.active, "feat", camera.supportedFeatures);
     }
 }
