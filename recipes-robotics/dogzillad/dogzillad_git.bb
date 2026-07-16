@@ -35,6 +35,7 @@ DEPENDS += " \
     qtmultimedia \
     qt-ros2-bridge \
     whisper-cpp \
+    dogzilla-interfaces \
     rclcpp \
     type-description-interfaces \
     rosidl-default-generators \
@@ -89,7 +90,13 @@ do_install() {
 # whisper-cpp: libwhisper/libggml at runtime (dogzillad links them for STT).
 # qtmultimedia + the whisper model (tiny.en-q5_1) are already in the image via
 # DOGZILLA_QT / DOGZILLA_AUDIO.
-RDEPENDS:${PN} += "dogzilla-users whisper-cpp"
+RDEPENDS:${PN} += "dogzilla-users whisper-cpp dogzilla-interfaces"
+
+# The generated Dogzilla.Telemetry QML wrapper (from qtros2_generate_from_package)
+# is a static plugin (.a) that gets linked into the dogzillad executable, but its
+# module dir (qmldir + the static .a) is also installed under /usr/lib/qml. The
+# .a is a harmless leftover; allow it rather than splitting a -staticdev package.
+INSANE_SKIP:${PN} += "staticdev"
 
 FILES:${PN} += " \
     ${libdir}/qml \

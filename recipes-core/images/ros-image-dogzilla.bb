@@ -137,6 +137,7 @@ DOGZILLA_ROS = " \
     rclpy \
     dogzillad \
     dogzilla-slam \
+    dogzilla-interfaces \
 "
 
 # Python 3 runtime. numpy + pyserial are used by the Dogzilla-provided scripts
