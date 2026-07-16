@@ -3,26 +3,29 @@
 #
 # The fan is a cooling device driven by the cpu-thermal zone's step_wise
 # governor; on this kernel the user_space thermal policy isn't compiled in
-# (available_policies = "step_wise" only), so we can't hand the fan to
-# user space via `policy`. Instead we suspend the whole zone with its `mode`
-# switch and force the fan off; `auto` re-enables the governor.
+# (available_policies = "step_wise" only), so we can't hand the fan to user
+# space via `policy`. Instead we suspend the whole zone with its `mode` switch
+# and force the fan off; `auto` re-enables the governor.
 #
-# Only the brief capture window needs silence (the fan sits right next to the
-# USB mic). whisper's CPU heat comes *after* capture, with the fan back on, so
-# this is thermally safe for a few seconds.
+# The governor only re-evaluates cur_state on a *temperature change*, so at a
+# steady temp it will NOT lift the fan back off 0 after we re-enable it. So
+# `quiet` saves the current fan level and `auto` restores it; the governor then
+# manages normally from there as the temperature moves.
 #
-# Runs as root (see /etc/sudoers.d/dogzilla-fan); dogzillad calls it via
-# `sudo dogzilla-fan quiet` on PTT-down and `sudo dogzilla-fan auto` on PTT-up.
+# Only the brief capture window needs silence (the fan sits next to the USB
+# mic); whisper's CPU heat comes *after* capture, with the fan back on, so this
+# is thermally safe for a few seconds.
+#
+# Runs as root; re-execs under sudo if not (the dogzilla-fan sudoers drop-in
+# grants pi password-less use). dogzillad's FanController calls `quiet`/`auto`.
 set -eu
 
-# Re-exec under sudo if not already root: mode/cur_state are root-writable only,
-# and the dogzilla-fan sudoers drop-in grants pi password-less use of exactly
-# this command -- so `dogzilla-fan quiet` works both interactively and from
-# dogzillad's FanController without the caller having to prepend sudo.
+# Re-exec under sudo if not already root (mode/cur_state are root-writable only).
 [ "$(id -u)" -eq 0 ] || exec sudo "$0" "$@"
 
 CDEV=/sys/class/thermal/cooling_device0
-SELFHEAL=${2:-60}   # seconds; re-enable the governor if 'auto' never arrives
+SAVED=/run/dogzilla-fan.saved-state
+SELFHEAL=${2:-60}   # seconds; auto-restore if 'auto' never arrives
 
 # Locate the thermal zone that binds this cooling device (don't assume zone0).
 ZONE=
@@ -37,16 +40,28 @@ for z in /sys/class/thermal/thermal_zone*; do
 done
 [ -n "$ZONE" ] || { echo "dogzilla-fan: no thermal zone binds $CDEV" >&2; exit 1; }
 
+fan_auto() {
+    echo enabled > "$ZONE/mode"                 # governor resumes
+    # Restore the pre-quiet fan level (the governor won't re-raise it from 0 at
+    # a steady temp); it then takes over as the temperature changes.
+    if [ -f "$SAVED" ]; then
+        echo "$(cat "$SAVED")" > "$CDEV/cur_state" 2>/dev/null || true
+        rm -f "$SAVED"
+    fi
+}
+
 case "${1:-}" in
     quiet)
-        echo disabled > "$ZONE/mode"        # stop the governor managing this zone
-        echo 0        > "$CDEV/cur_state"   # force the fan off
-        # Self-heal: if the caller crashes before sending 'auto', re-enable the
-        # governor after SELFHEAL seconds so the fan can't stay off forever.
-        ( sleep "$SELFHEAL"; echo enabled > "$ZONE/mode" ) >/dev/null 2>&1 &
+        # Save the current level so 'auto' can restore it. Don't overwrite a
+        # save from an earlier 'quiet' (a double-press would otherwise save 0).
+        [ -f "$SAVED" ] || cat "$CDEV/cur_state" > "$SAVED" 2>/dev/null || true
+        echo disabled > "$ZONE/mode"            # stop the governor managing this zone
+        echo 0        > "$CDEV/cur_state"       # force the fan off
+        # Self-heal: if 'auto' never arrives (caller crashed), restore anyway.
+        ( sleep "$SELFHEAL"; "$0" auto ) >/dev/null 2>&1 &
         ;;
     auto)
-        echo enabled  > "$ZONE/mode"        # governor resumes normal control
+        fan_auto
         ;;
     *)
         echo "usage: dogzilla-fan {quiet|auto} [selfheal-seconds]" >&2; exit 2 ;;
