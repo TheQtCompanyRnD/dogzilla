@@ -153,6 +153,16 @@ Item {
             topic: `/${rosNode.nodeName}/battery_state`
         }
 
+        SensorMsgs.TemperatureSubscriber {
+            id: tempSub
+            topic: `/${rosNode.nodeName}/telemetry/temperature`
+            onTemperatureChanged: {
+                panel.addTemperatureSample(
+                    tempSub.header.stamp.sec + tempSub.header.stamp.nanosec / 1e9,
+                    tempSub.temperature)
+            }
+        }
+
         SensorMsgs.JointStateSubscriber {
             id: jointStateSubscriber
             topic: `/${rosNode.nodeName}/joint_states`

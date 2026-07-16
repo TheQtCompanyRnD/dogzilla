@@ -2,6 +2,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtGraphs
 
 ScrollView {
     id: root
@@ -10,6 +11,11 @@ ScrollView {
     property alias batteryLevel: batteryIndicator.level
     property var joints: targetRobot && targetRobot.control ? targetRobot.control.jointInfos : []
     clip: true
+
+    // time in seconds, v in °C
+    function addTemperatureSample(t, v) {
+        temperatureChart.addSample(t, v)
+    }
 
     Connections {
         target: root.targetRobot && root.targetRobot.control ? root.targetRobot.control : null
@@ -40,6 +46,60 @@ ScrollView {
             }
         }
 
+        GraphsView {
+            id: temperatureChart
+            property int depth: 200
+            property real latestSample: 20
+
+            Layout.fillWidth: true
+            height: 40
+            marginLeft: 6; marginRight: 50; marginTop: 0; marginBottom: 0 // OMG
+            theme: GraphsTheme {
+                colorScheme: GraphsTheme.ColorScheme.Dark
+                grid.mainColor: "#111122"
+            }
+
+            function addSample(t, v) {
+                latestSample = v
+                // keep t small to work around the usual large-number bugs
+                const floatRangeFinaglingFactor = 1780000000
+                t -= floatRangeFinaglingFactor
+                temperatureSeries.append(t, v)
+                xAxis.max = t
+                xAxis.min = t - temperatureChart.depth
+                // window slides left as t grows; trim points that slid off:
+                while (temperatureSeries.count > 0 && temperatureSeries.at(0).x < xAxis.min)
+                    temperatureSeries.remove(0)
+            }
+
+            axisX: ValueAxis {
+                id: xAxis
+                max: 200
+                visible: false
+            }
+            axisY: ValueAxis {
+                id: yAxis
+                min: 20
+                max: 100
+                visible: false // because labels are unreasonable
+                // labelsVisble: false // nope: missing API
+            }
+
+            LineSeries {
+                id: temperatureSeries
+                color: "orange"
+                joinStyle: Qt.RoundJoin
+            }
+
+            data: Text {
+                id: temperatureLabel
+                anchors.right: parent.right
+                anchors.rightMargin: 6
+                anchors.verticalCenter: parent.verticalCenter
+                color: "orange"
+                text: temperatureChart.latestSample.toFixed(1) + " °C"
+            }
+        }
 
         Repeater {
             model: root.joints
