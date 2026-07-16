@@ -15,6 +15,12 @@
 # `sudo dogzilla-fan quiet` on PTT-down and `sudo dogzilla-fan auto` on PTT-up.
 set -eu
 
+# Re-exec under sudo if not already root: mode/cur_state are root-writable only,
+# and the dogzilla-fan sudoers drop-in grants pi password-less use of exactly
+# this command -- so `dogzilla-fan quiet` works both interactively and from
+# dogzillad's FanController without the caller having to prepend sudo.
+[ "$(id -u)" -eq 0 ] || exec sudo "$0" "$@"
+
 CDEV=/sys/class/thermal/cooling_device0
 SELFHEAL=${2:-60}   # seconds; re-enable the governor if 'auto' never arrives
 
