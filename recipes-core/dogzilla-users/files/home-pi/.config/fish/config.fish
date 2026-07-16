@@ -1,4 +1,5 @@
 set -g fish_prompt_pwd_dir_length 0
+set -x QT_MESSAGE_PATTERN "[%{time process} %{if-debug}D%{endif}%{if-warning}W%{endif}%{if-critical}C%{endif}%{if-fatal}F%{endif}] %{category} %{function} - %{message}"
 
 # ~/.config/fish/config.fish -- pre-populated from meta-dogzilla
 # (meta-dogzilla/recipes-core/dogzilla-users/files/home-pi/). Edit here and
