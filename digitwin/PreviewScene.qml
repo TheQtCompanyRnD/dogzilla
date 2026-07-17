@@ -7,7 +7,7 @@ import QtRos2.Core as Ros2
 import QtRos2.GeometryMsgs as GeomMsgs
 import QtRos2.SensorMsgs as SensorMsgs
 import Dogzilla
-import Dogzilla.Telemetry
+import Dogzilla.Interfaces
 
 Item {
     id: root
