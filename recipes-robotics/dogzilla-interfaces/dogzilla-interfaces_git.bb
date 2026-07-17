@@ -25,8 +25,10 @@ ROS_BUILDTOOL_DEPENDS = "ament-cmake-native rosidl-default-generators-native"
 # ... plus the TARGET rosidl packages, so the aarch64 rosidl libs (e.g.
 # librosidl_runtime_c) are staged in the recipe sysroot. Without these the
 # cross link falls back to the native (x86_64) copy -> "file in wrong format".
-ROS_BUILD_DEPENDS = "rosidl-default-generators type-description-interfaces"
-ROS_EXEC_DEPENDS = "rosidl-default-runtime"
+# std-msgs: StampedTelemetry now leads with a std_msgs/Header (for the stamp),
+# so the message package find_package(std_msgs)es it and needs it staged.
+ROS_BUILD_DEPENDS = "rosidl-default-generators type-description-interfaces std-msgs rosidl-default-runtime"
+ROS_EXEC_DEPENDS = "rosidl-default-runtime std-msgs"
 DEPENDS += "${ROS_BUILDTOOL_DEPENDS} ${ROS_BUILD_DEPENDS}"
 RDEPENDS:${PN} += "${ROS_EXEC_DEPENDS}"
 
