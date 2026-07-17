@@ -89,10 +89,14 @@ do_install() {
 
 # whisper-cpp: libwhisper/libggml at runtime (dogzillad links them for STT).
 # qtmultimedia + the whisper model (tiny.en-q5_1) are already in the image via
-# DOGZILLA_QT / DOGZILLA_AUDIO.
+# DOGZILLA_QT / DOGZILLA_AUDIO. Likewise main.qml's TextToSpeech (offline flite
+# TTS) resolves the QtTextToSpeech QML module + flite backend at runtime, carried
+# by DOGZILLA_AUDIO (qtspeech) -- not RDEPENDed here because those are dynamically
+# named subpackages (libqt6texttospeech-qmlplugins etc.) that aren't statically
+# RPROVIDEd at parse time, same as we rely on the image for qtmultimedia.
 RDEPENDS:${PN} += "dogzilla-users whisper-cpp dogzilla-interfaces"
 
-# The generated Dogzilla.Telemetry QML wrapper (from qtros2_generate_from_package)
+# The generated Dogzilla.Interfaces QML wrapper (from qtros2_generate_from_package)
 # is a static plugin (.a) that gets linked into the dogzillad executable, but its
 # module dir (qmldir + the static .a) is also installed under /usr/lib/qml. The
 # .a is a harmless leftover; allow it rather than splitting a -staticdev package.
