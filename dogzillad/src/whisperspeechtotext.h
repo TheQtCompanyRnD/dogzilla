@@ -35,7 +35,9 @@ public slots:
     void transcribe(const QByteArray &pcmS16);
 
 signals:
-    void transcriptReady(const QString &text);
+    // confidence is the mean whisper token probability in [0, 1] (higher = more
+    // certain); it feeds the chat log so the twin can flag shaky transcriptions.
+    void transcriptReady(const QString &text, float confidence);
     void modelPathChanged(const QString &path);
     void busyChanged(bool busy);
     void errorOccurred(const QString &message);

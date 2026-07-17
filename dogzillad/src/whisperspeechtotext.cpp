@@ -66,6 +66,7 @@ void WhisperSpeechToText::transcribe(const QByteArray &pcmS16)
     const QString modelPath = m_modelPath;   // snapshot for the worker
     (void)QtConcurrent::run([this, pcmS16, modelPath]() {
         QString text;
+        float confidence = 0.0f;
         if (ensureContext(modelPath)) {
             // int16 -> normalised float [-1, 1], mono
             const auto *s = reinterpret_cast<const qint16 *>(pcmS16.constData());
@@ -88,9 +89,26 @@ void WhisperSpeechToText::transcribe(const QByteArray &pcmS16)
 
             if (whisper_full(m_ctx, p, pcmf.data(), n) == 0) {
                 const int segs = whisper_full_n_segments(m_ctx);
-                for (int i = 0; i < segs; ++i)
+                // Confidence = mean per-token probability across the utterance,
+                // skipping special tokens (eot/timestamp/etc., whose ids sit at
+                // or above whisper_token_eot). A rough but useful certainty hint.
+                const whisper_token eot = whisper_token_eot(m_ctx);
+                double probSum = 0.0;
+                int probCount = 0;
+                for (int i = 0; i < segs; ++i) {
                     text += QString::fromUtf8(whisper_full_get_segment_text(m_ctx, i));
+                    const int toks = whisper_full_n_tokens(m_ctx, i);
+                    for (int t = 0; t < toks; ++t) {
+                        const whisper_token_data td = whisper_full_get_token_data(m_ctx, i, t);
+                        if (td.id >= eot)   // special (eot / timestamp) token
+                            continue;
+                        probSum += td.p;
+                        ++probCount;
+                    }
+                }
                 text = text.trimmed();
+                if (probCount > 0)
+                    confidence = float(probSum / probCount);
             } else {
                 emit errorOccurred(QStringLiteral("whisper_full() failed"));
             }
@@ -101,8 +119,8 @@ void WhisperSpeechToText::transcribe(const QByteArray &pcmS16)
         // this QObject lives there, so QML handlers run on the GUI thread.
         emit busyChanged(false);
         if (!text.isEmpty()) {
-            qCDebug(lcStt) << "transcript:" << text;
-            emit transcriptReady(text);
+            qCDebug(lcStt) << "transcript:" << text << "confidence" << confidence;
+            emit transcriptReady(text, confidence);
         }
     });
 }

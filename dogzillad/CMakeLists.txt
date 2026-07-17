@@ -50,13 +50,15 @@ qt_add_qml_module(dogzillad
 # fallback looks for the ament-style name and misses the Qt6-style package).
 qt_ros2_configure_target(dogzillad CAPABILITIES PUBLISHER SUBSCRIBER)
 
-# Generate the QtRos2 QML wrapper (import Dogzilla.Telemetry) for our custom
-# dogzilla_interfaces/StampedTelemetry message, via the bridge's downstream macro.
-# TARGET dogzilla_telemetry_msgs -> CMake target DogzillaTelemetryMsgs.
+# Generate the QtRos2 QML wrappers (import Dogzilla.Interfaces) for our custom
+# dogzilla_interfaces package (StampedTelemetry, ChatMessage), via the bridge's
+# downstream macro. The whole package maps to one QML module, so the URI is the
+# generic package name rather than any single message.
+# TARGET dogzilla_interfaces_msgs -> CMake target DogzillaInterfacesMsgs.
 qtros2_generate_from_package(
     SOURCE_PACKAGE dogzilla_interfaces
-    TARGET dogzilla_telemetry_msgs
-    QML_MODULE_URI Dogzilla.Telemetry
+    TARGET dogzilla_interfaces_msgs
+    QML_MODULE_URI Dogzilla.Interfaces
 )
 
 
@@ -84,5 +86,5 @@ target_link_libraries(dogzillad PRIVATE
     whisper
     ggml
     ggml-base
-    DogzillaTelemetryMsgs
+    DogzillaInterfacesMsgs
 )

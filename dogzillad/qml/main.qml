@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR BSD-3-Clause
 import QtQml
 import QtMultimedia
+import QtTextToSpeech
 import QtUniversalInput
 import Dogzilla
-import Dogzilla.Telemetry
+import Dogzilla.Interfaces
 import QtRos2.Core as Ros2
 import QtRos2.GeometryMsgs
 import QtRos2.SensorMsgs
@@ -241,8 +242,8 @@ Ros2.Node {
     // Push-to-talk speech-to-text. The digital twin toggles
     // /dogzilla/speech/listen (true = button pressed, false = released): while
     // held we silence the fan and capture the mic; on release we stop capture,
-    // transcribe the utterance (whisper, on a worker thread) and publish the
-    // text on /dogzilla/speech/transcript.
+    // transcribe the utterance (whisper, on a worker thread) and append it to
+    // the conversation log on /dogzilla/speech/log as a HEARD line.
     property FanController fan: FanController {}
     property AudioCapture mic: AudioCapture {
         onCaptured: (pcm) => stt.transcribe(pcm)
@@ -250,12 +251,43 @@ Ros2.Node {
     property WhisperSpeechToText stt: WhisperSpeechToText {
         // tiny.en-q5_1 is the fast default; swap to ggml-base.en.bin for accuracy.
         modelPath: "/usr/share/whisper.cpp/models/ggml-tiny.en-q5_1.bin"
-        onTranscriptReady: (text) => {
-            console.log("heard:", text);
-            transcriptPub.publish(text);
+        onTranscriptReady: (text, confidence) => {
+            console.log("heard:", text, "confidence", confidence);
+            root.logChat(root.chatHeard, text, confidence);
         }
         onErrorOccurred: (msg) => console.warn("stt:", msg)
     }
+
+    // Text-to-speech (QtTextToSpeech via the offline flite engine -> PipeWire).
+    // The default engine/voice is fine; say() is async (state goes Speaking then
+    // Ready). Non-Ros2 type, so it hangs off a property like the others.
+    property TextToSpeech tts: TextToSpeech {
+        onErrorOccurred: (reason, msg) => console.warn("tts:", msg)
+    }
+
+    // Speak text and record it in the chat log. The single entry point for the
+    // robot's voice: the /speech/say topic (below) and, later, the LLM reply
+    // path both call this, so every spoken line is logged exactly once.
+    function speak(text: string) {
+        if (!text)
+            return;
+        tts.say(text);
+        logChat(chatSpoken, text, 0.0);
+    }
+
+    // Append one line to the conversation log on /dogzilla/speech/log. Imperative
+    // (not a binding): each call is a distinct event. header.stamp is auto-filled
+    // by the publisher from the node clock, so we omit it here.
+    function logChat(source: int, text: string, confidence: real) {
+        speechLog.publish({ "source": source, "text": text, "confidence": confidence });
+    }
+
+    // Mirror of dogzilla_interfaces/ChatMessage's source constants: the QtRos2
+    // wrapper doesn't surface ROS message constants to QML, so keep them in sync
+    // with the .msg by hand (HEARD=0, SPOKEN=1, SYSTEM=2).
+    readonly property int chatHeard: 0
+    readonly property int chatSpoken: 1
+    readonly property int chatSystem: 2
 
     BoolSubscriber {
         topic: `/${root.nodeName}/speech/listen`
@@ -266,9 +298,21 @@ Ros2.Node {
         }
     }
 
-    StringPublisher {
-        id: transcriptPub
-        topic: `/${root.nodeName}/speech/transcript`
+    // The conversation, for the twin's chat log: HEARD (what the human said, with
+    // STT confidence) and SPOKEN (what the dog said) lines, timestamped. Custom
+    // dogzilla_interfaces/ChatMessage (not the deprecated std_msgs/String), so it
+    // carries source + confidence and is Header-stamped. Default (reliable) QoS:
+    // a chat log is a live stream; the twin accumulates from when it connects.
+    ChatMessagePublisher {
+        id: speechLog
+        topic: `/${root.nodeName}/speech/log`
+    }
+
+    // Text for the dog to speak, published by the twin (or the external LLM
+    // bridge). Lets TTS be exercised independently of STT/the LLM.
+    ChatMessageSubscriber {
+        topic: `/${root.nodeName}/speech/say`
+        onMessageReceived: (msg) => root.speak(msg.text)
     }
 
     // Readiness/status for the twin: "idle" (ready) / "listening" / "transcribing".
