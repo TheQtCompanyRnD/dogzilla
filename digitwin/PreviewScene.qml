@@ -174,6 +174,18 @@ Item {
             }
         }
 
+        // TODO stop using the deprecated single-value pub/sub types
+        BoolPublisher {
+            id: listenPublisher
+            topic: `/${rosNode.nodeName}/speech/listen`
+        }
+
+        StringSubscriber {
+            id: speechStateSub
+            topic: `/${rosNode.nodeName}/speech/state`
+            onMessageChanged: ptt.state = message
+        }
+
         SensorMsgs.JointStateSubscriber {
             id: jointStateSubscriber
             topic: `/${rosNode.nodeName}/joint_states`
@@ -251,6 +263,79 @@ Item {
         width: Math.min(420, Math.max(280, parent.width * 0.28))
         targetRobot: robotRoot
         batteryLevel: batterySub.percentage
+    }
+
+    Rectangle {
+        id: ptt
+        // text: "Push to\nTalk"
+        width: 60
+        height: width
+        radius: 6
+        anchors {
+            bottom: parent.bottom
+            right: parent.right
+            rightMargin: 160
+            bottomMargin: 40
+        }
+        border.color: pttH.pressed ? "cyan" : "black"
+        border.width: 1
+        property color readyColor: "grey"
+        gradient: Gradient {
+            GradientStop { position: pttH.pressed ? 1 : 0; color: "lightgreen" }
+            GradientStop { position: pttH.pressed ? 0 : 1; color: ptt.readyColor }
+        }
+
+        states: [
+            State {
+                name: "idle"
+                PropertyChanges { target: ptt; readyColor: "grey" }
+            },
+            State {
+                name: "prep" // ROS message overhead + turning the fan off
+                PropertyChanges { target: ptt; readyColor: "yellow" }
+            },
+            State {
+                name: "listening"
+                PropertyChanges { target: ptt; readyColor: "red" }
+            },
+            State {
+                name: "transcribing"
+                PropertyChanges { target: ptt; readyColor: "blue" }
+            }
+        ]
+        state: "idle"
+        transitions: [
+            Transition {
+                to: "prep"
+                // Ramp readyColor grey -> red (prep's value) over ~1s while held, so
+                // the gradient "charges up" as the fan spins down before listening.
+                // from/to are taken automatically from the idle/prep readyColor values.
+                ColorAnimation { target: ptt; property: "readyColor"; duration: 500 }
+            }
+        ]
+
+        TapHandler {
+            id: pttH
+            onPressedChanged: {
+                listenPublisher.publish(pttH.pressed)
+                if (pttH.pressed)
+                    ptt.state = "prep"
+            }
+        }
+        Text {
+            text: "Press to\nTalk"
+            anchors.centerIn: parent
+            horizontalAlignment: Text.AlignHCenter
+        }
+
+        Text {
+            anchors.bottom: parent.top
+            anchors.margins: 3
+            width: parent.width
+            horizontalAlignment: Text.AlignHCenter
+            text: ptt.state
+            color: "white"
+        }
     }
 
     ThumbStickControl {
