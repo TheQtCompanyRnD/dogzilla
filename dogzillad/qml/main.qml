@@ -322,19 +322,47 @@ Ros2.Node {
         id: statePub
         topic: `/${root.nodeName}/speech/state`
         qos: Ros2.QualityOfService.transientLocal()
+        // Fully declarative: single-field publishers expose one bindable
+        // property (named after the field, `data` for std_msgs/String) that
+        // auto-publishes on change, and latched topics republish the stored
+        // state on connect -- so the initial "idle" is latched for late
+        // twins without an imperative publish. No binding loop: this reads
+        // busy/listening and never writes them back.
+        data: stt.busy ? "transcribing"
+            : mic.listening ? "listening" : "idle"
     }
-    // The state itself is a declarative binding. The bridge's single-field
-    // publishers (String/Bool) expose only publish() -- no bindable property --
-    // so the one imperative step is publishing when the derived value changes.
-    // No binding loop: this reads busy/listening and never writes them back.
-    readonly property string speechState: stt.busy ? "transcribing"
-                                         : mic.listening ? "listening" : "idle"
-    onSpeechStateChanged: statePub.publish(speechState)
+
+    // Master-volume control (wpctl -> PipeWire default sink). dogzillad shares
+    // pi's user session, so no sudo. Volume is read once at startup and echoed
+    // on set; external changes (alsamixer etc.) are not tracked.
+    property VolumeController volumeCtl: VolumeController {}
+
+    // Volume state for the twin, latched so a late-joining twin sees the
+    // current value immediately. Volume is a single-field custom message, so
+    // the publisher exposes one bindable `value` property: publish-on-change
+    // is fully declarative, and the latched republish-on-connect covers the
+    // startup race (the async wpctl read can land before the node is up).
+    VolumePublisher {
+        topic: `/${root.nodeName}/audio/volume`
+        qos: Ros2.QualityOfService.transientLocal()
+        value: volumeCtl.volume
+    }
+
+    // Volume set service -- declarative server: applying the request is the
+    // one effect (onRequestReceived); the response binding then reads back the
+    // applied volume, which VolumeController has already clamped by the time
+    // the response is evaluated (request -> requestReceived -> response order
+    // is guaranteed). The caller detects clamping by comparing value with what
+    // it asked for. No handler needed.
+    SetVolumeServiceServer {
+        topic: `/${root.nodeName}/audio/volume/set`
+        onRequestReceived: (v) => volumeCtl.volume = v
+        response: ({ success: true, value: volumeCtl.volume })
+    }
 
     // System telemetry (fan level, CPU temperature, CPU load) at 1 Hz, for the
     // twin's line charts -- e.g. watch PTT silence the fan and the temp/CPU
-    // response. Single-field std_msgs publishers are publish()-only (no
-    // bindable property), so we publish imperatively on each sample.
+    // response.
     property Telemetry telemetry: Telemetry {}
 
     // fan + cpu via our custom dogzilla_interfaces/StampedTelemetry message. It's
@@ -357,7 +385,6 @@ Ros2.Node {
 
     Component.onCompleted: {
         camera.start();
-        statePub.publish(speechState);   // latch the initial "idle" so a late twin sees it
         console.log("chosen camera", camera.cameraDevice, camera.cameraFormat, "active", camera.active, "feat", camera.supportedFeatures);
     }
 }

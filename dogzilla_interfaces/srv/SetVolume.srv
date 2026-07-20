@@ -1,0 +1,7 @@
+# Set the master (default audio sink) volume. Values outside [0, 1] are
+# clamped; the response reports the volume actually applied, so the caller
+# can detect clamping by comparing it with the request.
+float32 value  # desired linear volume, clamped to 0.0 .. 1.0
+---
+bool success
+float32 value  # the volume actually applied, after clamping

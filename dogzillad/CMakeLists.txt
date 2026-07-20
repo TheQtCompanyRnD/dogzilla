@@ -35,6 +35,8 @@ qt_add_qml_module(dogzillad
         src/lidar.cpp
         src/fancontroller.h
         src/fancontroller.cpp
+        src/volumecontroller.h
+        src/volumecontroller.cpp
         src/audiocapture.h
         src/audiocapture.cpp
         src/whisperspeechtotext.h

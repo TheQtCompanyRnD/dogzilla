@@ -10,6 +10,20 @@ ColumnLayout {
     required property var targetRobot
     signal sendText(string text)
     property alias batteryLevel: batteryIndicator.level
+
+    // Robot master volume. The slider owns the *desired* volume (PreviewScene
+    // binds it into SetVolumeServiceClient.request); robotVolume is what the
+    // robot last reported on the latched state topic. Seed the slider once
+    // from the first latched sample so it starts at the robot's actual
+    // volume, then let the user own it.
+    property real robotVolume: 0
+    readonly property alias desiredVolume: volumeSlider.value
+    onRobotVolumeChanged: {
+        if (!volumeSlider.seeded) {
+            volumeSlider.value = robotVolume
+            volumeSlider.seeded = true
+        }
+    }
     property var joints: targetRobot && targetRobot.control ? targetRobot.control.jointInfos : []
     spacing: 6
 
@@ -70,6 +84,22 @@ ColumnLayout {
                     Layout.alignment: Qt.AlignRight
                 }
             }
+        }
+    }
+
+    RowLayout {
+        Label { text: "🔊" }
+        Slider {
+            id: volumeSlider
+            property bool seeded: false
+            from: 0
+            to: 1
+            Layout.fillWidth: true
+        }
+        Label {
+            // what the robot last reported (the response/state may lag or
+            // differ from the slider while a call is in flight)
+            text: `${Math.round(root.robotVolume * 100)}%`
         }
     }
 
