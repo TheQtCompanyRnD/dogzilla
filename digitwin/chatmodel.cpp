@@ -16,10 +16,10 @@ void ChatModel::setName(const QString &name)
     emit nameChanged();
 }
 
-void ChatModel::addMessage(const QString &message, bool user)
+void ChatModel::addMessage(const QString &message, int source)
 {
     QJsonObject object;
-    object.insert("role", user ? "user" : "assistant");
+    object.insert("source", source);
     object.insert("content", message);
     beginInsertRows(QModelIndex{}, m_messages.size(), m_messages.size());
     m_messages.append(object);
@@ -81,10 +81,10 @@ QVariant ChatModel::data(const QModelIndex &index, int role) const
         const QJsonValue value = m_messages.at(index.row());
         Q_ASSERT(value.isObject());
         const QJsonObject object = value.toObject();
-        auto it = object.find("role");
+        auto it = object.find("source");
         Q_ASSERT(it != object.end());
-        Q_ASSERT(it->isString());
-        return it->toString() == "user";
+        qDebug() << value << "expect source int" << it.value();
+        return it->toInt();
     }
 
     return QVariant{};
@@ -93,6 +93,6 @@ QVariant ChatModel::data(const QModelIndex &index, int role) const
 QHash<int, QByteArray> ChatModel::roleNames() const
 {
     QHash<int, QByteArray> roles = QAbstractListModel::roleNames();
-    roles.insert(MessageRole, "isUser");
+    roles.insert(MessageRole, "source");
     return roles;
 }

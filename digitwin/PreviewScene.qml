@@ -186,6 +186,17 @@ Item {
             onMessageChanged: ptt.state = message
         }
 
+        ChatMessageSubscriber {
+            id: msgSub
+            topic: `/${rosNode.nodeName}/speech/log`
+            onMessageReceived: (msg) => panel.addChatMessage(msg)
+        }
+
+        ChatMessagePublisher {
+            id: dogMsgPub
+            topic: `/${rosNode.nodeName}/speech/say`
+        }
+
         SensorMsgs.JointStateSubscriber {
             id: jointStateSubscriber
             topic: `/${rosNode.nodeName}/joint_states`
@@ -213,7 +224,7 @@ Item {
             // Match the publisher's best-effort: tolerate dropped frames over Wi-Fi.
             qos: Ros2.QualityOfService.sensorData()
             onMessageReceived: function(msg) {
-                console.log(JSON.stringify(msg))
+                // console.log(JSON.stringify(msg))
                 // const QImage &im, int frame, int sec, int nsec
                 ReceivedImageProvider.setImage(msg.image, msg.header.frameId,
                                                msg.header.stamp.sec, msg.header.stamp.nanosec)
@@ -260,9 +271,12 @@ Item {
         anchors.top: parent.top
         anchors.bottom: parent.bottom
         anchors.margins: 12
+        anchors.bottomMargin: 160
         width: Math.min(420, Math.max(280, parent.width * 0.28))
         targetRobot: robotRoot
         batteryLevel: batterySub.percentage
+
+        onSendText: (t) => dogMsgPub.publish({ "source": 1, "text": t, "confidence": 1 })
     }
 
     Rectangle {

@@ -3,14 +3,15 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtGraphs
+import Dogzilla
 
-ScrollView {
+ColumnLayout {
     id: root
-
     required property var targetRobot
+    signal sendText(string text)
     property alias batteryLevel: batteryIndicator.level
     property var joints: targetRobot && targetRobot.control ? targetRobot.control.jointInfos : []
-    clip: true
+    spacing: 6
 
     // ROS header stamp time in seconds, temperature in °C
     function addTemperatureSample(t, v) {
@@ -43,6 +44,10 @@ ScrollView {
             cpuSeries.remove(0)
     }
 
+    function addChatMessage(msg) {
+        console.log("chat message", JSON.stringify(msg))
+        chatModel.addMessage(msg.text, msg.source)
+    }
 
     Connections {
         target: root.targetRobot && root.targetRobot.control ? root.targetRobot.control : null
@@ -52,131 +57,123 @@ ScrollView {
         }
     }
 
-    ColumnLayout {
-        anchors.fill: parent
-        anchors.margins: 6
-        spacing: 6
-
-        RowLayout {
-            Pane {
-                Layout.fillWidth: true
-                padding: 8
-                height: 24
-                RowLayout {
-                    anchors.fill: parent
-                    BatteryIndicator {
-                        id: batteryIndicator
-                        level: 0 // until we know
-                        Layout.alignment: Qt.AlignRight
-                    }
-                }
-            }
-        }
-
-        GraphsView {
-            id: telemetryChart
-            property int depth: 200
-            property real latestTemperature: 20
-            property int latestFan: 0
-            property int latestCpu: 0
-
+    RowLayout {
+        Pane {
             Layout.fillWidth: true
-            height: 60
-            marginLeft: 6; marginRight: 50; marginTop: 0; marginBottom: 0
-            theme: GraphsTheme {
-                colorScheme: GraphsTheme.ColorScheme.Dark
-                grid.mainColor: "#111122"
-            }
-
-            property real secondsWhenTodayBegan: (new Date().setUTCHours(0,0,0,0)) / 1000
-
-            axisX: ValueAxis {
-                id: xAxis
-                max: 200
-                visible: false
-            }
-            axisY: ValueAxis {
-                id: yAxis
-                min: 0
-                max: 100
-                visible: false // because labels are unreasonable
-                // labelsVisble: false // nope: missing API
-            }
-
-            LineSeries {
-                id: temperatureSeries
-                color: "orange"
-                joinStyle: Qt.RoundJoin
-            }
-
-            LineSeries {
-                id: fanSeries
-                color: "cyan"
-                joinStyle: Qt.RoundJoin
-            }
-
-            LineSeries {
-                id: cpuSeries
-                color: "lightgreen"
-                joinStyle: Qt.RoundJoin
-            }
-
-            data: Column {
-                anchors {
-                    right: parent.right
-                    rightMargin: 6
-                    verticalCenter: parent.verticalCenter
-                }
-                Text {
-                    id: temperatureLabel
-                    color: "orange"
-                    anchors.right: parent.right
-                    horizontalAlignment: Text.AlignRight
-                    text: telemetryChart.latestTemperature.toFixed(1) + " °C"
-                }
-                Text {
-                    id: fanLabel
-                    color: "cyan"
-                    anchors.right: parent.right
-                    horizontalAlignment: Text.AlignRight
-                    text: "fan " + telemetryChart.latestFan
-                }
-                Text {
-                    id: cpuLabel
-                    color: "lightgreen"
-                    anchors.right: parent.right
-                    horizontalAlignment: Text.AlignRight
-                    text: `cpu ${telemetryChart.latestCpu}%`
+            padding: 8
+            height: 24
+            RowLayout {
+                anchors.fill: parent
+                BatteryIndicator {
+                    id: batteryIndicator
+                    level: 0 // until we know
+                    Layout.alignment: Qt.AlignRight
                 }
             }
         }
+    }
 
-        Repeater {
-            model: root.joints
-            delegate: Pane {
-                Layout.fillWidth: true
-                padding: 8
+    GraphsView {
+        id: telemetryChart
+        property int depth: 200
+        property real latestTemperature: 20
+        property int latestFan: 0
+        property int latestCpu: 0
 
-                required property string name
-                required property real lower
-                required property real upper
-                required property string type
+        Layout.fillWidth: true
+        height: 60
+        marginLeft: 6; marginRight: 50; marginTop: 0; marginBottom: 0
+        theme: GraphsTheme {
+            colorScheme: GraphsTheme.ColorScheme.Dark
+            grid.mainColor: "#111122"
+        }
 
-                RowLayout {
-                    anchors.fill: parent
+        property real secondsWhenTodayBegan: (new Date().setUTCHours(0,0,0,0)) / 1000
 
-                    Text { text: name; width: 40 }
-                    Slider {
-                        id: s; from: lower; to: upper; Layout.fillWidth: true
-                        stepSize: type === "prismatic" ? 0.001 : 0.1
+        axisX: ValueAxis {
+            id: xAxis
+            max: 200
+            visible: false
+        }
+        axisY: ValueAxis {
+            id: yAxis
+            min: 0
+            max: 100
+            visible: false // because labels are unreasonable
+            // labelsVisble: false // nope: missing API
+        }
 
-                        onValueChanged: {
-                            root.targetRobot.control[name] = value;
-                        }
-                    }
-                    Text { text: Number(s.value).toFixed(1); width: 50; horizontalAlignment: Text.AlignRight }
-                }
+        LineSeries {
+            id: temperatureSeries
+            color: "orange"
+            joinStyle: Qt.RoundJoin
+        }
+
+        LineSeries {
+            id: fanSeries
+            color: "cyan"
+            joinStyle: Qt.RoundJoin
+        }
+
+        LineSeries {
+            id: cpuSeries
+            color: "lightgreen"
+            joinStyle: Qt.RoundJoin
+        }
+
+        data: Column {
+            anchors {
+                right: parent.right
+                rightMargin: 6
+                verticalCenter: parent.verticalCenter
             }
+            Text {
+                id: temperatureLabel
+                color: "orange"
+                anchors.right: parent.right
+                horizontalAlignment: Text.AlignRight
+                text: telemetryChart.latestTemperature.toFixed(1) + " °C"
+            }
+            Text {
+                id: fanLabel
+                color: "cyan"
+                anchors.right: parent.right
+                horizontalAlignment: Text.AlignRight
+                text: "fan " + telemetryChart.latestFan
+            }
+            Text {
+                id: cpuLabel
+                color: "lightgreen"
+                anchors.right: parent.right
+                horizontalAlignment: Text.AlignRight
+                text: `cpu ${telemetryChart.latestCpu}%`
+            }
+        }
+    }
+
+    ChatView {
+        id: chatView
+        Layout.fillWidth: true
+        Layout.fillHeight: true
+        implicitHeight: 1024
+        model: ChatModel {
+            id: chatModel
+            onSizeChanged: chatView.positionViewAtEnd()
+        }
+    }
+
+    RowLayout {
+        TextField {
+            id: textToSend
+            placeholderText: "talk to Dogzilla"
+            Layout.alignment: Qt.AlignVCenter
+            Layout.fillWidth: true
+            onAccepted: root.sendText(textToSend.text)
+        }
+        RoundButton {
+            text: "Send"
+            Layout.alignment: Qt.AlignVCenter
+            onClicked: root.sendText(textToSend.text)
         }
     }
 }

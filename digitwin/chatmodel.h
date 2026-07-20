@@ -21,7 +21,7 @@ public:
 
     int getSize() const { return rowCount(QModelIndex{}); }
 
-    void addMessage(const QString &message, bool user);
+    Q_INVOKABLE void addMessage(const QString &message, int source);
     void updateMessage(const QString &message);
 
     QByteArray toJson() const;
