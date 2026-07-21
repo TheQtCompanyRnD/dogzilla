@@ -3,9 +3,11 @@
 
 #include <QEventLoop>
 #include <QJsonArray>
+#include <QJsonDocument>
 #include <QJsonObject>
 #include <QNetworkReply>
-#include <QRestReply>
+
+#include <memory>
 
 static inline QNetworkAccessManager *getUnderlyingNetworkManager()
 {
@@ -23,6 +25,14 @@ void OllamaApi::setApiUrl(const QUrl &url)
         return;
     m_apiUrl = url;
     emit apiUrlChanged();
+}
+
+void OllamaApi::setModel(const QString &name)
+{
+    if (m_modelName == name)
+        return;
+    m_modelName = name;
+    emit modelChanged();
 }
 
 void OllamaApi::setGenerating(bool generating)
@@ -61,13 +71,6 @@ QStringList OllamaApi::list()
     return QStringList{};
 }
 
-void OllamaApi::startChat(const QString &modelName)
-{
-    if (m_model.getName() == modelName)
-        return;
-    m_model.setName(modelName);
-}
-
 void OllamaApi::chat(const QString &message)
 {
     QUrl url = getApiUrl();
@@ -75,27 +78,41 @@ void OllamaApi::chat(const QString &message)
         return;
     url.setPath("/api/chat");
 
-    m_model.addMessage(message, true);
-    const QByteArray data = m_model.toJson();
+    // Single-turn request: just this utterance, no prior history.
+    QJsonObject userMessage;
+    userMessage.insert("role", "user");
+    userMessage.insert("content", message);
+    QJsonObject body;
+    body.insert("model", m_modelName);
+    body.insert("messages", QJsonArray{ userMessage });
 
     QNetworkRequest request{url};
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-    QNetworkReply *reply = post(request, data);
+    QNetworkReply *reply = post(request, QJsonDocument{body}.toJson());
 
-    m_model.addMessage("", false);
     setGenerating(true);
 
-    auto onReply = [this, reply](qint64, qint64){
-        QString response;
+    // /api/chat streams NDJSON: one JSON object per line, each with an
+    // incremental message.content. Accumulate across downloadProgress events
+    // (readLine drains only the newly-arrived bytes) into a shared buffer so the
+    // finished handler can emit the full reply.
+    auto accumulated = std::make_shared<QString>();
+
+    auto onReply = [this, reply, accumulated](qint64, qint64){
         OllamaResponse ollamaResponse;
         while (reply->bytesAvailable() > 0) {
             ollamaResponse.reset(reply->readLine());
-            response += ollamaResponse.getChatContent();
+            if (ollamaResponse.hasError())
+                continue; // partial line: wait for the rest on the next event
+            *accumulated += ollamaResponse.getChatContent();
         }
-        m_model.updateMessage(response);
+        emit responseChanged(*accumulated);
     };
 
-    auto onReplyFinished = [this](){ setGenerating(false); };
+    auto onReplyFinished = [this, accumulated](){
+        setGenerating(false);
+        emit responseReceived(*accumulated);
+    };
 
     connect(this, &OllamaApi::stopGenerating, reply, &QNetworkReply::abort);
     connect(reply, &QNetworkReply::finished, reply, &QNetworkReply::deleteLater);

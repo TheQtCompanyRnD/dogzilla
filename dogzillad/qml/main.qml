@@ -255,8 +255,23 @@ Ros2.Node {
         onTranscriptReady: (text, confidence) => {
             console.log("heard:", text, "confidence", confidence);
             root.logChat(root.chatHeard, text, confidence);
+            // Hand the utterance to the LLM; the reply comes back async on
+            // ollama.onResponseReceived below. No-op until apiUrl/model are set.
+            root.ollama.chat(text);
         }
         onErrorOccurred: (msg) => console.warn("stt:", msg)
+    }
+
+    // Remote Ollama LLM: whisper transcripts go in via chat(), and the reply
+    // comes back on responseReceived(), which we route to speak() so the dog
+    // answers out loud (and the line lands in the /speech/log chat the twin
+    // shows). Set apiUrl to your Ollama host (e.g. http://192.168.x.x:11434)
+    // and model to an installed model; both are still placeholders here.
+    property OllamaApi ollama: OllamaApi {
+        // set to the actual LLM host IP; empty means chat() is a no-op.
+        apiUrl: "http://strn.local:11434"
+        model: "qwen3.6:35b"
+        onResponseReceived: (text) => root.speak(text)
     }
 
     // Text-to-speech (QtTextToSpeech via the offline flite engine -> PipeWire).
