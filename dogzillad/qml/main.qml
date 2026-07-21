@@ -14,15 +14,16 @@ import QtRos2.Transforms
 
 Ros2.Node {
     id: root
-    nodeName: "dogzilla"
+    nodeName: "dogzillad"   // FQN /dogzilla/dogzillad
     // Namespace the node so TF lands on /dogzilla/tf_static (QtRos2 remaps
-    // tf2's absolute /tf, /tf_static to follow the namespace). The other topics
-    // are already written with an explicit /dogzilla/ prefix below.
+    // tf2's absolute /tf, /tf_static to follow the namespace). All other
+    // topics below derive their /dogzilla/ prefix from this too, so the
+    // node name is free to describe the program rather than the robot.
     nodeNamespace: "/dogzilla"
 
     TwistPublisher {
         id: twp
-        topic: `/${root.nodeName}/vel`
+        topic: `${root.nodeNamespace}/vel`
         linear.x: controller.walkSpeed
         linear.y: controller.sideStepSpeed
         angular.z: controller.steerAngle
@@ -30,7 +31,7 @@ Ros2.Node {
 
     JointStatePublisher {
         id: jsp
-        topic: `/${root.nodeName}/joint_states`
+        topic: `${root.nodeNamespace}/joint_states`
         name:  [
                 "lf_lower_leg_joint",
                 "lf_upper_leg_joint",
@@ -54,7 +55,7 @@ Ros2.Node {
 
     BatteryStatePublisher {
         id: bsp
-        topic: `/${root.nodeName}/battery_state`
+        topic: `${root.nodeNamespace}/battery_state`
         percentage: controller.batteryPercent / 100
         present: true
     }
@@ -121,7 +122,7 @@ Ros2.Node {
 
     TwistSubscriber {
         id: cmdVelSub
-        topic: `/${root.nodeName}/cmd_vel`
+        topic: `${root.nodeNamespace}/cmd_vel`
         // TODO declarative multi-binding: either this or univin can comnmand the controller;
         // or, drive TwistPublisher from univin
         onMessageReceived: (msg) => {
@@ -135,7 +136,7 @@ Ros2.Node {
 
     PoseStampedSubscriber {
         id: poseSub
-        topic: `/${root.nodeName}/body_pose/command`
+        topic: `${root.nodeNamespace}/body_pose/command`
         onPoseChanged: {
             // pose.orientation.rpyDegrees is a ROS vector3 (degrees, double)
             // eulerAngles is a single-precision QVector3D, and would need QtQuick
@@ -155,7 +156,7 @@ Ros2.Node {
     // (Same fromEulerAngles pattern the digital twin uses on the command side.)
     PoseStampedPublisher {
         id: posePub
-        topic: `/${root.nodeName}/body_pose/state`
+        topic: `${root.nodeNamespace}/body_pose/state`
         pose.orientation: Quaternion.fromEulerAngles(controller.measuredRoll,
                                                       controller.measuredPitch,
                                                       0)
@@ -163,7 +164,7 @@ Ros2.Node {
 
     CompressedImagePublisher {
         id: imagePublisher
-        topic: `/${root.nodeName}/camera/image/compressed`
+        topic: `${root.nodeNamespace}/camera/image/compressed`
         // Best-effort: over a congested Wi-Fi link, drop frames rather than
         // retransmit/block. Stale video is useless, and reliable delivery of a
         // high-rate JPEG stream is what clogs the link. The digitwin's
@@ -212,7 +213,7 @@ Ros2.Node {
 
     LaserScanPublisher {
         id: frickenLaserPublisher
-        topic: `/${root.nodeName}/sensor_msgs/msg/LaserScan`
+        topic: `${root.nodeNamespace}/sensor_msgs/msg/LaserScan`
     }
 
     // Static base_link -> laser_frame transform, from the URDF laser_Joint origin
@@ -290,7 +291,7 @@ Ros2.Node {
     readonly property int chatSystem: 2
 
     BoolSubscriber {
-        topic: `/${root.nodeName}/speech/listen`
+        topic: `${root.nodeNamespace}/speech/listen`
         // std_msgs/Bool single-field collapse: the handler gets the bool directly.
         onMessageReceived: (listening) => {
             fan.quiet = listening;       // sudo dogzilla-fan quiet / auto
@@ -305,13 +306,13 @@ Ros2.Node {
     // a chat log is a live stream; the twin accumulates from when it connects.
     ChatMessagePublisher {
         id: speechLog
-        topic: `/${root.nodeName}/speech/log`
+        topic: `${root.nodeNamespace}/speech/log`
     }
 
     // Text for the dog to speak, published by the twin (or the external LLM
     // bridge). Lets TTS be exercised independently of STT/the LLM.
     ChatMessageSubscriber {
-        topic: `/${root.nodeName}/speech/say`
+        topic: `${root.nodeNamespace}/speech/say`
         onMessageReceived: (msg) => root.speak(msg.text)
     }
 
@@ -320,7 +321,7 @@ Ros2.Node {
     // the current state and can, e.g., enable the PTT button only when idle.
     StringPublisher {
         id: statePub
-        topic: `/${root.nodeName}/speech/state`
+        topic: `${root.nodeNamespace}/speech/state`
         qos: Ros2.QualityOfService.transientLocal()
         // Fully declarative: single-field publishers expose one bindable
         // property (named after the field, `data` for std_msgs/String) that
@@ -374,14 +375,14 @@ Ros2.Node {
     // auto-fills header.stamp from the node clock -- no manual timestamping here.
     // Generated from the dogzilla_interfaces package by qtros2_generate_from_package.
     StampedTelemetryPublisher {
-        topic: `/${root.nodeName}/telemetry/system`
+        topic: `${root.nodeNamespace}/telemetry/system`
         fanLevel: telemetry.fanLevel
         cpuPercent: telemetry.cpuPercent
     }
 
     // Temperature via the standard sensor_msgs/Temperature -- also declarative.
     TemperaturePublisher {
-        topic: `/${root.nodeName}/telemetry/temperature`
+        topic: `${root.nodeNamespace}/telemetry/temperature`
         temperature: telemetry.temperatureC
     }
 

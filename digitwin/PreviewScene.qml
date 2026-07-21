@@ -147,16 +147,21 @@ Item {
 
     Ros2.Node {
         id: rosNode
-        nodeName: "dogzilla"
+        nodeName: "digitwin"
+        // The robot's namespace: all of its topics live under it, and its
+        // daemon node is ${robotNamespace}/dogzillad. Kept separate from
+        // this node's own name so `ros2 node list` reads honestly
+        // (/digitwin vs /dogzilla/dogzillad).
+        readonly property string robotNamespace: "/dogzilla"
 
         SensorMsgs.BatteryStateSubscriber {
             id: batterySub
-            topic: `/${rosNode.nodeName}/battery_state`
+            topic: `${rosNode.robotNamespace}/battery_state`
         }
 
         SensorMsgs.TemperatureSubscriber {
             id: tempSub
-            topic: `/${rosNode.nodeName}/telemetry/temperature`
+            topic: `${rosNode.robotNamespace}/telemetry/temperature`
             onTemperatureChanged: {
                 panel.addTemperatureSample(
                     tempSub.header.stamp.sec + tempSub.header.stamp.nanosec / 1e9,
@@ -166,7 +171,7 @@ Item {
 
         StampedTelemetrySubscriber {
             id: teleSub
-            topic: `/${rosNode.nodeName}/telemetry/system`
+            topic: `${rosNode.robotNamespace}/telemetry/system`
             onMessageReceived: (msg) => {
                 panel.addTelemetrySample(
                     teleSub.header.stamp.sec + teleSub.header.stamp.nanosec / 1e9,
@@ -183,14 +188,14 @@ Item {
         // values are rejected by the robot's declared bounds.
         Ros2.RemoteParameter {
             id: masterParam
-            remoteNode: "/dogzilla/dogzilla"   // nodeName "dogzilla" in namespace "/dogzilla"
+            remoteNode: `${rosNode.robotNamespace}/dogzillad`
             name: "audio.master"
             autoApply: panel.masterVolumeLive
             value: panel.desiredMasterVolume
         }
         Ros2.RemoteParameter {
             id: micParam
-            remoteNode: "/dogzilla/dogzilla"
+            remoteNode: `${rosNode.robotNamespace}/dogzillad`
             name: "audio.mic"
             autoApply: panel.micVolumeLive
             value: panel.desiredMicVolume
@@ -199,29 +204,29 @@ Item {
         // TODO stop using the deprecated single-value pub/sub types
         BoolPublisher {
             id: listenPublisher
-            topic: `/${rosNode.nodeName}/speech/listen`
+            topic: `${rosNode.robotNamespace}/speech/listen`
         }
 
         StringSubscriber {
             id: speechStateSub
-            topic: `/${rosNode.nodeName}/speech/state`
+            topic: `${rosNode.robotNamespace}/speech/state`
             onMessageChanged: ptt.state = message
         }
 
         ChatMessageSubscriber {
             id: msgSub
-            topic: `/${rosNode.nodeName}/speech/log`
+            topic: `${rosNode.robotNamespace}/speech/log`
             onMessageReceived: (msg) => panel.addChatMessage(msg)
         }
 
         ChatMessagePublisher {
             id: dogMsgPub
-            topic: `/${rosNode.nodeName}/speech/say`
+            topic: `${rosNode.robotNamespace}/speech/say`
         }
 
         SensorMsgs.JointStateSubscriber {
             id: jointStateSubscriber
-            topic: `/${rosNode.nodeName}/joint_states`
+            topic: `${rosNode.robotNamespace}/joint_states`
             qos.queueSize: 1
             qos.reliability: Ros2.QualityOfService.ReliabilityBestEffort
             qos.history: Ros2.QualityOfService.HistoryKeepLast
@@ -234,7 +239,7 @@ Item {
 
         GeomMsgs.PoseStampedSubscriber {
             id: poseSubscriber
-            topic: `/${rosNode.nodeName}/body_pose/state` // modern style for command/state topic separation
+            topic: `${rosNode.robotNamespace}/body_pose/state` // modern style for command/state topic separation
             onMessageReceived: function (msg) {
                 console.log(JSON.stringify(msg))
             }
@@ -242,7 +247,7 @@ Item {
 
         SensorMsgs.CompressedImageSubscriber {
             id: imageSubscriber
-            topic: `/${rosNode.nodeName}/camera/image/compressed`
+            topic: `${rosNode.robotNamespace}/camera/image/compressed`
             // Match the publisher's best-effort: tolerate dropped frames over Wi-Fi.
             qos: Ros2.QualityOfService.sensorData()
             onMessageReceived: function(msg) {
@@ -255,7 +260,7 @@ Item {
 
         SensorMsgs.LaserScanSubscriber {
             id: laserSub
-            topic: `/${rosNode.nodeName}/sensor_msgs/msg/LaserScan`
+            topic: `${rosNode.robotNamespace}/sensor_msgs/msg/LaserScan`
             // Remote viewer: request best-effort. The publisher stays reliable
             // (onboard SLAM needs it), and reliable-offered satisfies this.
             qos: Ros2.QualityOfService.sensorData()
@@ -275,13 +280,13 @@ Item {
 
         GeomMsgs.TwistPublisher {
             id: cmdVel
-            topic: `/${rosNode.nodeName}/cmd_vel` // legacy ROS1-style command topic, still in use
+            topic: `${rosNode.robotNamespace}/cmd_vel` // legacy ROS1-style command topic, still in use
             linear: Qt.vector3d(rosNode.walkSpeed, rosNode.strafeSpeed, 0)
             angular: Qt.vector3d(0, 0, rosNode.turnSpeed)
         }
 
         GeomMsgs.PoseStampedPublisher {
-            topic: `/${rosNode.nodeName}/body_pose/command` // modern style for command/state topic separation
+            topic: `${rosNode.robotNamespace}/body_pose/command` // modern style for command/state topic separation
             header.frameId: "base_link" // name of link (main body part) as declared in dogzilla.urdf
             pose.orientation: GeomMsgs.Quaternion.fromEulerAngles(0, rosNode.pitch, 0)
         }
