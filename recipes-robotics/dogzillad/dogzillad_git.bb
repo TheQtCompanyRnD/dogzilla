@@ -24,7 +24,7 @@ S = "${UNPACKDIR}/${BP}/dogzillad"
 
 # Qt side (host tools moc/rcc/qmltyperegistrar via *-native); ROS side (Jazzy
 # env + python rosidl tooling) -- mirrors the qt-ros2-bridge recipe.
-inherit qt6-cmake ros_distro_jazzy python3native
+inherit qt6-cmake ros_distro_jazzy python3native pkgconfig
 
 DEPENDS += " \
     qtbase \
@@ -34,6 +34,7 @@ DEPENDS += " \
     qtgamepad \
     qtmultimedia \
     qt-ros2-bridge \
+    pulseaudio \
     whisper-cpp \
     dogzilla-interfaces \
     rclcpp \
