@@ -12,6 +12,11 @@ find_package(dogzilla_interfaces REQUIRED)
 # its helper scripts (dependency_analyzer.py etc.); qt_ros2_configure_target()
 # below additionally registers the prebuilt wrappers. Both are needed.
 find_package(rosidl_generator_qtros2 REQUIRED PATHS "${Qt6Ros2Core_DIR}" NO_DEFAULT_PATH)
+# libpulse for VolumeController (talks to pipewire-pulse; the libpulse0 client
+# stack is already in the image). Located via pkg-config, which respects the
+# Yocto sysroot -- unlike whisper's find_library, see the note below.
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(PULSE REQUIRED IMPORTED_TARGET libpulse)
 # NB: we deliberately do NOT find_package(whisper). Its whisper-config.cmake
 # resolves libwhisper with find_library(... NO_CMAKE_FIND_ROOT_PATH), which in a
 # Yocto cross build defeats --sysroot and links the x86_64 HOST /usr/lib copy
@@ -92,5 +97,6 @@ target_link_libraries(dogzillad PRIVATE
     whisper
     ggml
     ggml-base
+    PkgConfig::PULSE
     DogzillaInterfacesMsgs
 )
