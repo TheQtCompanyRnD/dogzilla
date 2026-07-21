@@ -174,32 +174,26 @@ Item {
             }
         }
 
-        // Robot audio mixer, both directions, fully declarative: latched
-        // multi-field state in (one read-only property per channel; a
-        // late-joining twin gets current values immediately), and a
-        // channel-addressed set service out -- one lightweight client per
-        // slider, each binding only its own channel, so independent knobs
-        // can never overwrite each other. Dragging a slider auto-calls the
-        // service (coalesced, latest wins), and a value set while the robot
-        // is unreachable is applied as soon as the service appears; autoCall
-        // stays off until the slider has a real starting point (see
-        // ControlPanel's `live`).
-        MixerSubscriber {
-            id: mixerSub
-            topic: `/${rosNode.nodeName}/audio/mixer`
-            qos: Ros2.QualityOfService.transientLocal()
+        // Robot audio mixer: each channel is a parameter of the robot's
+        // node -- one RemoteParameter per slider. `value` is desired state
+        // (coalesced latest-wins, applied when the robot appears),
+        // `reported` is what the robot actually holds (initial get +
+        // /parameter_events). autoApply stays off until the slider has a
+        // real starting point (see ControlPanel's `live`); out-of-range
+        // values are rejected by the robot's declared bounds.
+        Ros2.RemoteParameter {
+            id: masterParam
+            remoteNode: "/dogzilla/dogzilla"   // nodeName "dogzilla" in namespace "/dogzilla"
+            name: "audio.master"
+            autoApply: panel.masterVolumeLive
+            value: panel.desiredMasterVolume
         }
-
-        SetVolumeServiceClient {
-            topic: `/${rosNode.nodeName}/audio/mixer/set`
-            autoCall: panel.masterVolumeLive
-            request: ({ channel: "master", value: panel.desiredMasterVolume })
-        }
-
-        SetVolumeServiceClient {
-            topic: `/${rosNode.nodeName}/audio/mixer/set`
-            autoCall: panel.micVolumeLive
-            request: ({ channel: "mic", value: panel.desiredMicVolume })
+        Ros2.RemoteParameter {
+            id: micParam
+            remoteNode: "/dogzilla/dogzilla"
+            name: "audio.mic"
+            autoApply: panel.micVolumeLive
+            value: panel.desiredMicVolume
         }
 
         // TODO stop using the deprecated single-value pub/sub types
@@ -303,8 +297,8 @@ Item {
         width: Math.min(420, Math.max(280, parent.width * 0.28))
         targetRobot: robotRoot
         batteryLevel: batterySub.percentage
-        robotMasterVolume: mixerSub.master
-        robotMicVolume: mixerSub.mic
+        robotMasterVolume: masterParam.reported ?? 0
+        robotMicVolume: micParam.reported ?? 0
 
         onSendText: (t) => dogMsgPub.publish({ "source": 1, "text": t, "confidence": 1 })
     }

@@ -4,7 +4,6 @@
 
 #include <QProcess>
 #include <QLoggingCategory>
-#include <QtNumeric>
 
 Q_LOGGING_CATEGORY(lcVolume, "dogzilla.volume")
 
@@ -18,15 +17,6 @@ VolumeController::VolumeController(QObject *parent) : QObject(parent)
     m_mic.target = QStringLiteral("@DEFAULT_AUDIO_SOURCE@");
     readChannel(m_master);
     readChannel(m_mic);
-}
-
-VolumeController::Channel *VolumeController::channelByName(const QString &name)
-{
-    if (name == m_master.name)
-        return &m_master;
-    if (name == m_mic.name)
-        return &m_mic;
-    return nullptr;
 }
 
 void VolumeController::notifyChanged(const Channel &c)
@@ -117,15 +107,4 @@ void VolumeController::setMaster(qreal volume)
 void VolumeController::setMic(qreal volume)
 {
     setChannel(m_mic, volume);
-}
-
-qreal VolumeController::setChannelVolume(const QString &channel, qreal value)
-{
-    Channel *c = channelByName(channel);
-    if (!c) {
-        qCWarning(lcVolume) << "unknown mixer channel" << channel;
-        return qQNaN();
-    }
-    setChannel(*c, value);
-    return c->volume;   // the applied (possibly clamped, possibly unchanged) value
 }

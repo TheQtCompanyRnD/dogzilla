@@ -36,10 +36,6 @@ public:
     qreal master() const { return m_master.volume; }
     qreal mic() const { return m_mic.volume; }
 
-    // Channel-addressed set for the SetVolume service. Returns the volume
-    // actually applied (after clamping), or NaN for an unknown channel.
-    Q_INVOKABLE qreal setChannelVolume(const QString &channel, qreal value);
-
 public slots:
     void setMaster(qreal volume);
     void setMic(qreal volume);
@@ -57,7 +53,6 @@ private:
         bool setPending = false;
     };
 
-    Channel *channelByName(const QString &name);
     void readChannel(Channel &c);
     void setChannel(Channel &c, qreal value);
     void applyChannel(Channel &c);

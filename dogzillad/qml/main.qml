@@ -338,30 +338,28 @@ Ros2.Node {
     // and echoed on set; external changes (alsamixer etc.) are not tracked.
     property VolumeController volumeCtl: VolumeController {}
 
-    // Mixer state for the twin, latched so a late-joining twin sees current
-    // values immediately. Mixer is multi-field, so the publisher exposes one
-    // bindable property per channel: publish-on-change is fully declarative,
-    // and the latched republish-on-connect covers the startup race (the
-    // async wpctl reads can land before the node is up).
-    MixerPublisher {
-        topic: `/${root.nodeName}/audio/mixer`
-        qos: Ros2.QualityOfService.transientLocal()
-        master: volumeCtl.master
-        mic: volumeCtl.mic
+    // Each mixer channel is one node parameter: settable with feedback
+    // (ros2 param set / RemoteParameter; out-of-range requests are rejected
+    // by rclcpp from the declared bounds before we ever see them),
+    // observable via /parameter_events, introspectable with
+    // ros2 param describe. VolumeController is the source of truth: the
+    // value binding publishes its state, and valueEdited routes external
+    // sets back into it.
+    Ros2.Parameter {
+        name: "audio.master"
+        value: volumeCtl.master
+        minimum: 0.0
+        maximum: 1.0
+        description: "Master (default audio sink) volume"
+        onValueEdited: (v) => volumeCtl.master = v
     }
-
-    // Channel-addressed volume set service -- declarative server: applying
-    // the request is the one effect (onRequestReceived); the response binding
-    // then reads back the applied (clamped) value, already in place by the
-    // time the response is evaluated (request -> requestReceived -> response
-    // order is guaranteed). An unknown channel name yields NaN from
-    // setChannelVolume and an in-band { success: false } response.
-    property real lastApplied: 0
-    SetVolumeServiceServer {
-        topic: `/${root.nodeName}/audio/mixer/set`
-        onRequestReceived: (req) => root.lastApplied = volumeCtl.setChannelVolume(req.channel, req.value)
-        response: ({ success: !isNaN(root.lastApplied),
-                     value: isNaN(root.lastApplied) ? 0 : root.lastApplied })
+    Ros2.Parameter {
+        name: "audio.mic"
+        value: volumeCtl.mic
+        minimum: 0.0
+        maximum: 1.0
+        description: "Microphone (default audio source) capture gain"
+        onValueEdited: (v) => volumeCtl.mic = v
     }
 
     // System telemetry (fan level, CPU temperature, CPU load) at 1 Hz, for the
