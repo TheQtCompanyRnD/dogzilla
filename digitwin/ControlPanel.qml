@@ -11,19 +11,51 @@ ColumnLayout {
     signal sendText(string text)
     property alias batteryLevel: batteryIndicator.level
 
-    // Robot master volume. The slider owns the *desired* volume (PreviewScene
-    // binds it into SetVolumeServiceClient.request); robotVolume is what the
-    // robot last reported on the latched state topic. Seed the slider once
-    // from the first latched sample so it starts at the robot's actual
-    // volume, then let the user own it.
-    property real robotVolume: 0
-    readonly property alias desiredVolume: volumeSlider.value
-    onRobotVolumeChanged: {
-        if (!volumeSlider.seeded) {
-            volumeSlider.value = robotVolume
-            volumeSlider.seeded = true
+    // Robot audio mixer, one row per channel. Each slider owns the *desired*
+    // value for its channel (PreviewScene binds it into that channel's
+    // SetVolumeServiceClient.request); robotVolume is what the robot last
+    // reported on the latched mixer topic. The slider is seeded once from the
+    // first latched sample, then the user owns it. `live` gates the client's
+    // autoCall: nothing is dispatched until the slider has a real starting
+    // point (seeded, or the user deliberately moved it -- their intent wins
+    // and is applied when the robot appears), so a freshly started twin can
+    // never zero the robot's mixer with its untouched sliders. The first
+    // dispatch after seeding just echoes the robot's own value (harmless).
+    component VolumeRow : RowLayout {
+        id: volumeRow
+        property alias label: iconLabel.text
+        property real robotVolume: 0
+        readonly property real desired: slider.value
+        readonly property bool live: slider.seeded || slider.touched
+        onRobotVolumeChanged: {
+            if (!slider.seeded && !slider.touched) {
+                slider.value = robotVolume
+                slider.seeded = true
+            }
+        }
+        Label { id: iconLabel }
+        Slider {
+            id: slider
+            property bool seeded: false
+            property bool touched: false
+            from: 0
+            to: 1
+            Layout.fillWidth: true
+            onMoved: touched = true
+        }
+        Label {
+            // what the robot last reported (may lag the slider while a call
+            // is in flight)
+            text: `${Math.round(volumeRow.robotVolume * 100)}%`
         }
     }
+
+    property alias robotMasterVolume: masterRow.robotVolume
+    readonly property real desiredMasterVolume: masterRow.desired
+    readonly property bool masterVolumeLive: masterRow.live
+    property alias robotMicVolume: micRow.robotVolume
+    readonly property real desiredMicVolume: micRow.desired
+    readonly property bool micVolumeLive: micRow.live
     property var joints: targetRobot && targetRobot.control ? targetRobot.control.jointInfos : []
     spacing: 6
 
@@ -87,21 +119,8 @@ ColumnLayout {
         }
     }
 
-    RowLayout {
-        Label { text: "🔊" }
-        Slider {
-            id: volumeSlider
-            property bool seeded: false
-            from: 0
-            to: 1
-            Layout.fillWidth: true
-        }
-        Label {
-            // what the robot last reported (the response/state may lag or
-            // differ from the slider while a call is in flight)
-            text: `${Math.round(root.robotVolume * 100)}%`
-        }
-    }
+    VolumeRow { id: masterRow; label: "🔊"; Layout.fillWidth: true }
+    VolumeRow { id: micRow; label: "🎤"; Layout.fillWidth: true }
 
     GraphsView {
         id: telemetryChart

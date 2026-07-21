@@ -332,32 +332,36 @@ Ros2.Node {
             : mic.listening ? "listening" : "idle"
     }
 
-    // Master-volume control (wpctl -> PipeWire default sink). dogzillad shares
-    // pi's user session, so no sudo. Volume is read once at startup and echoed
-    // on set; external changes (alsamixer etc.) are not tracked.
+    // Audio mixer (wpctl -> PipeWire): "master" is the default sink,
+    // "mic" the default source (capture gain for PTT). dogzillad shares
+    // pi's user session, so no sudo. Each channel is read once at startup
+    // and echoed on set; external changes (alsamixer etc.) are not tracked.
     property VolumeController volumeCtl: VolumeController {}
 
-    // Volume state for the twin, latched so a late-joining twin sees the
-    // current value immediately. Volume is a single-field custom message, so
-    // the publisher exposes one bindable `value` property: publish-on-change
-    // is fully declarative, and the latched republish-on-connect covers the
-    // startup race (the async wpctl read can land before the node is up).
-    VolumePublisher {
-        topic: `/${root.nodeName}/audio/volume`
+    // Mixer state for the twin, latched so a late-joining twin sees current
+    // values immediately. Mixer is multi-field, so the publisher exposes one
+    // bindable property per channel: publish-on-change is fully declarative,
+    // and the latched republish-on-connect covers the startup race (the
+    // async wpctl reads can land before the node is up).
+    MixerPublisher {
+        topic: `/${root.nodeName}/audio/mixer`
         qos: Ros2.QualityOfService.transientLocal()
-        value: volumeCtl.volume
+        master: volumeCtl.master
+        mic: volumeCtl.mic
     }
 
-    // Volume set service -- declarative server: applying the request is the
-    // one effect (onRequestReceived); the response binding then reads back the
-    // applied volume, which VolumeController has already clamped by the time
-    // the response is evaluated (request -> requestReceived -> response order
-    // is guaranteed). The caller detects clamping by comparing value with what
-    // it asked for. No handler needed.
+    // Channel-addressed volume set service -- declarative server: applying
+    // the request is the one effect (onRequestReceived); the response binding
+    // then reads back the applied (clamped) value, already in place by the
+    // time the response is evaluated (request -> requestReceived -> response
+    // order is guaranteed). An unknown channel name yields NaN from
+    // setChannelVolume and an in-band { success: false } response.
+    property real lastApplied: 0
     SetVolumeServiceServer {
-        topic: `/${root.nodeName}/audio/volume/set`
-        onRequestReceived: (v) => volumeCtl.volume = v
-        response: ({ success: true, value: volumeCtl.volume })
+        topic: `/${root.nodeName}/audio/mixer/set`
+        onRequestReceived: (req) => root.lastApplied = volumeCtl.setChannelVolume(req.channel, req.value)
+        response: ({ success: !isNaN(root.lastApplied),
+                     value: isNaN(root.lastApplied) ? 0 : root.lastApplied })
     }
 
     // System telemetry (fan level, CPU temperature, CPU load) at 1 Hz, for the

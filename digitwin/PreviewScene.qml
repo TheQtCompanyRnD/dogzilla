@@ -174,22 +174,32 @@ Item {
             }
         }
 
-        // Robot master volume, both directions, fully declarative:
-        // latched state in (a late-joining twin gets the current value
-        // immediately), set-service out (the slider binds the request).
-        VolumeSubscriber {
-            id: volumeSub
-            topic: `/${rosNode.nodeName}/audio/volume`
+        // Robot audio mixer, both directions, fully declarative: latched
+        // multi-field state in (one read-only property per channel; a
+        // late-joining twin gets current values immediately), and a
+        // channel-addressed set service out -- one lightweight client per
+        // slider, each binding only its own channel, so independent knobs
+        // can never overwrite each other. Dragging a slider auto-calls the
+        // service (coalesced, latest wins), and a value set while the robot
+        // is unreachable is applied as soon as the service appears; autoCall
+        // stays off until the slider has a real starting point (see
+        // ControlPanel's `live`).
+        MixerSubscriber {
+            id: mixerSub
+            topic: `/${rosNode.nodeName}/audio/mixer`
             qos: Ros2.QualityOfService.transientLocal()
         }
 
         SetVolumeServiceClient {
-            id: volumeClient
-            topic: `/${rosNode.nodeName}/audio/volume/set`
-            // Desired volume: dragging the slider auto-calls the service
-            // (coalesced, latest wins), and a value set while the robot is
-            // unreachable is applied as soon as the service appears.
-            request: panel.desiredVolume
+            topic: `/${rosNode.nodeName}/audio/mixer/set`
+            autoCall: panel.masterVolumeLive
+            request: ({ channel: "master", value: panel.desiredMasterVolume })
+        }
+
+        SetVolumeServiceClient {
+            topic: `/${rosNode.nodeName}/audio/mixer/set`
+            autoCall: panel.micVolumeLive
+            request: ({ channel: "mic", value: panel.desiredMicVolume })
         }
 
         // TODO stop using the deprecated single-value pub/sub types
@@ -293,7 +303,8 @@ Item {
         width: Math.min(420, Math.max(280, parent.width * 0.28))
         targetRobot: robotRoot
         batteryLevel: batterySub.percentage
-        robotVolume: volumeSub.message
+        robotMasterVolume: mixerSub.master
+        robotMicVolume: mixerSub.mic
 
         onSendText: (t) => dogMsgPub.publish({ "source": 1, "text": t, "confidence": 1 })
     }
