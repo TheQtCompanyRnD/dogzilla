@@ -33,6 +33,7 @@ ListView {
                 anchors.fill: parent
                 anchors.margins: 12
                 wrapMode: Label.Wrap
+                textFormat: Text.MarkdownText
                 text: conversationDelegate.message
                 color: "white"
             }

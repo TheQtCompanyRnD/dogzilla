@@ -287,13 +287,18 @@ Ros2.Node {
     // Ready). Non-Ros2 type, so it hangs off a property like the others.
     property TextToSpeech tts: TextToSpeech {
         onErrorOccurred: (reason, msg) => console.warn("tts:", msg)
-        // TTS finished: if it was serving a Speak goal, report success. say()
-        // drives Ready -> Speaking -> Ready, so we complete on the return to
-        // Ready (a cancel/abort clears activeSpeak first, so this won't fire).
+        // TTS returned to Ready: succeed the goal whose speech was actually
+        // playing. We key off speakingGoal, not activeSpeak, because Ready is
+        // ALSO the state after stop() -- so a stop() from a supersede/cancel
+        // would otherwise land here and falsely succeed the *next* goal (which
+        // is only "thinking", not speaking). Clearing speakingGoal before every
+        // stop() makes those stray Ready transitions no-ops.
         onStateChanged: {
-            if (state === TextToSpeech.Ready && root.activeSpeak) {
-                root.activeSpeak.succeed({ spokenText: root.activeSpokenText, completed: true });
-                root.activeSpeak = null;
+            if (state === TextToSpeech.Ready && root.speakingGoal) {
+                root.speakingGoal.succeed({ spokenText: root.activeSpokenText, completed: true });
+                if (root.activeSpeak === root.speakingGoal)
+                    root.activeSpeak = null;
+                root.speakingGoal = null;
             }
         }
     }
@@ -352,6 +357,10 @@ Ros2.Node {
     // can interrupt speech and report the goal as canceled.
     property var activeSpeak: null
     property string activeSpokenText: ""
+    // The goal whose TTS is actually playing right now (set when say() starts,
+    // cleared before any stop() and on completion). Distinct from activeSpeak:
+    // an active goal can be "thinking" (awaiting the LLM) and not yet speaking.
+    property var speakingGoal: null
 
     // Start executing a Speak goal from the twin. use_llm=false speaks the text
     // verbatim; use_llm=true asks the LLM first and speaks the reply. Either way
@@ -359,15 +368,21 @@ Ros2.Node {
     function beginSpeak(handle, goal) {
         // Supersede any goal still in flight: one voice, one goal at a time.
         if (activeSpeak && activeSpeak !== handle) {
+            speakingGoal = null;   // before stop(): don't let its Ready succeed anything
             tts.stop();
             activeSpeak.abort({ spokenText: activeSpokenText, completed: false });
         }
         activeSpeak = handle;
         activeSpokenText = "";
         // The stop button cancels the goal; interrupt TTS and finish canceled.
-        handle.cancelRequested.connect(() => {
-            if (root.activeSpeak !== handle)
+        // NB: on the goal handle, cancelRequested is a bool Q_PROPERTY *and* a
+        // same-named signal; in QML the property shadows the signal, so
+        // `handle.cancelRequested` is the bool (not connectable). Connect to the
+        // property's notifier instead and read the flag (it only latches true).
+        handle.cancelRequestedChanged.connect(() => {
+            if (!handle.cancelRequested || root.activeSpeak !== handle)
                 return;
+            root.speakingGoal = null;   // before stop(): suppress the stray Ready
             tts.stop();
             handle.canceled({ spokenText: root.activeSpokenText, completed: false });
             root.activeSpeak = null;
@@ -392,6 +407,7 @@ Ros2.Node {
             return;
         }
         activeSpeak.publishFeedback({ state: "speaking", spokenSoFar: text });
+        speakingGoal = activeSpeak;   // this goal's speech is starting; Ready now means "done"
         speak(text);
     }
 
