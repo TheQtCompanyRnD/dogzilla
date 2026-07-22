@@ -295,6 +295,58 @@ Item {
             header.frameId: "base_link" // name of link (main body part) as declared in dogzilla.urdf
             pose.orientation: GeomMsgs.Quaternion.fromEulerAngles(0, rosNode.pitch, 0)
         }
+
+        // ---- Teach pendant plumbing ------------------------------------------
+        // Engage/disengage the legs via the robot's motors.engaged parameter.
+        // Like the audio mixer: `reported` is the robot's actual state (so the
+        // switch tracks the joystick too), autoApply gates on the user having
+        // touched it so a fresh twin never disengages the dog on connect.
+        property bool motorsDesired: false
+        property bool motorsTouched: false
+        Ros2.RemoteParameter {
+            id: engageParam
+            remoteNode: `${rosNode.robotNamespace}/dogzillad`
+            name: "motors.engaged"
+            autoApply: rosNode.motorsTouched
+            value: rosNode.motorsDesired
+        }
+
+        // Plays a taught JointTrajectory; feedback drives the panel's progress.
+        PlayMotionActionClient {
+            id: motionAction
+            topic: `${rosNode.robotNamespace}/motion/play`
+        }
+        property bool motionPlaying: false
+        readonly property int motionCurrentPoint:
+            (motionPlaying && motionAction.feedback) ? motionAction.feedback.currentPoint : -1
+
+        // "lfLowerLegJointAngle" (twin, degrees) -> "lf_lower_leg_joint" (ROS).
+        function rosJointName(camel) {
+            return camel.replace(/Angle$/, "").replace(/([A-Z])/g, "_$1").toLowerCase();
+        }
+
+        // Convert the panel's waypoints to a JointTrajectory and send the goal.
+        // Each waypoint's duration is the hold after reaching that pose, so point k
+        // sits at the exclusive prefix sum of prior durations (the daemon dwells on
+        // point k for the gap to point k+1). Degrees -> radians here.
+        function playMotion(wps) {
+            if (!wps || wps.length === 0)
+                return;
+            const order = robotRoot.control.jointInfos.map(j => j.name); // 12 camel names
+            const names = order.map(rosJointName);
+            let points = [];
+            let t = 0;
+            for (let k = 0; k < wps.length; ++k) {
+                const positions = order.map(cn => (wps[k].pose[cn] || 0) * Math.PI / 180);
+                points.push({ positions: positions,
+                              timeFromStart: { sec: Math.floor(t), nanosec: Math.round((t % 1) * 1e9) } });
+                t += wps[k].duration;
+            }
+            rosNode.motionPlaying = true;
+            motionAction.sendGoal({ trajectory: { jointNames: names, points: points }, name: "teach" })
+                .then(() => rosNode.motionPlaying = false)
+                .catch((e) => { console.warn("playMotion:", e); rosNode.motionPlaying = false; });
+        }
     }
 
     ControlPanel {
@@ -313,6 +365,37 @@ Item {
         onStopSpeaking: speakAction.cancelGoal()
         onSpeakText: (t) => speakAction.sendGoal({ "text": t, "useLlm": false }).catch(e => console.warn("speak:", e))
         onSendText: (t) => speakAction.sendGoal({ "text": t, "useLlm": true }).catch(e => console.warn("speak:", e))
+    }
+
+    // Teach pendant: a toggleable panel on the left (over the 3D view), revealed
+    // by the "Teach" button so the tooling stays out of the way until wanted.
+    Button {
+        id: teachButton
+        text: "Teach"
+        checkable: true
+        anchors { left: parent.left; top: parent.top; margins: 12 }
+    }
+
+    TeachPanel {
+        id: teachPanel
+        visible: teachButton.checked
+        anchors {
+            left: parent.left
+            top: teachButton.bottom
+            bottom: parent.bottom
+            margins: 12
+            bottomMargin: 180  // clear the left thumbstick
+        }
+        width: Math.min(460, Math.max(300, parent.width * 0.30))
+        targetRobot: robotRoot
+        engaged: engageParam.reported ?? false
+        playing: rosNode.motionPlaying
+        currentPoint: rosNode.motionCurrentPoint
+
+        onClosed: teachButton.checked = false
+        onSetEngaged: (on) => { rosNode.motorsTouched = true; rosNode.motorsDesired = on }
+        onStop: motionAction.cancelGoal()
+        onPlay: (wps) => rosNode.playMotion(wps)
     }
 
     Rectangle {
