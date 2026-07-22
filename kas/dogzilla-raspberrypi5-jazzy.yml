@@ -29,6 +29,10 @@ repos:
   meta-ros:
     url: "https://github.com/ros/meta-ros.git"
     branch: "build"
+    # Pin to a specific commit for reproducibility (kas warns when a repo tracks
+    # a bare branch). Bump deliberately when picking up upstream shared-include
+    # changes; the branch is kept for context.
+    commit: "750cb90bc00241fc7a776cf5974dd714fa41bf73"
     layers:
       "": "disabled"
 
