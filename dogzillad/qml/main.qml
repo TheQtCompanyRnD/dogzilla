@@ -271,7 +271,15 @@ Ros2.Node {
         // set to the actual LLM host IP; empty means chat() is a no-op.
         apiUrl: "http://strn.local:11434"
         model: "qwen3.6:35b"
-        onResponseReceived: (text) => root.speak(text)
+        onResponseReceived: (text) => {
+            // If a twin Speak(use_llm) goal is waiting on this reply, speak it
+            // as part of that goal so the twin's stop button can interrupt it;
+            // otherwise this is the autonomous STT->LLM path.
+            if (root.activeSpeak)
+                root.speakForGoal(text);
+            else
+                root.speak(text);
+        }
     }
 
     // Text-to-speech (QtTextToSpeech via the offline flite engine -> PipeWire).
@@ -279,16 +287,49 @@ Ros2.Node {
     // Ready). Non-Ros2 type, so it hangs off a property like the others.
     property TextToSpeech tts: TextToSpeech {
         onErrorOccurred: (reason, msg) => console.warn("tts:", msg)
+        // TTS finished: if it was serving a Speak goal, report success. say()
+        // drives Ready -> Speaking -> Ready, so we complete on the return to
+        // Ready (a cancel/abort clears activeSpeak first, so this won't fire).
+        onStateChanged: {
+            if (state === TextToSpeech.Ready && root.activeSpeak) {
+                root.activeSpeak.succeed({ spokenText: root.activeSpokenText, completed: true });
+                root.activeSpeak = null;
+            }
+        }
     }
 
     // Speak text and record it in the chat log. The single entry point for the
-    // robot's voice: the /speech/say topic (below) and, later, the LLM reply
-    // path both call this, so every spoken line is logged exactly once.
+    // robot's voice: the Speak action and the autonomous STT->LLM path both call
+    // this, so every spoken line is logged exactly once. The chat log keeps the
+    // original text (the twin's ChatView renders markdown), but TTS gets a
+    // stripped copy -- flite/QTextToSpeech have no emphasis/SSML support, so an
+    // LLM's "**bold**" would otherwise be read aloud as "asterisk asterisk".
     function speak(text: string) {
         if (!text)
             return;
-        tts.say(text);
+        tts.say(stripForSpeech(text));
         logChat(chatSpoken, text, 0.0);
+    }
+
+    // Drop markdown so it isn't spoken literally. QtCore-only (plain JS RegExp):
+    // dogzillad is a headless QCoreApplication, so QTextDocument (QtGui) is out.
+    // Handles the inline markup an LLM typically emits; the log keeps the raw
+    // text for rich display in the twin.
+    function stripForSpeech(md: string): string {
+        return md
+            .replace(/```[\s\S]*?```/g, " ")         // fenced code blocks
+            .replace(/`([^`]+)`/g, "$1")             // inline code
+            .replace(/!\[[^\]]*\]\([^)]*\)/g, "")    // images
+            .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1") // links -> link text
+            .replace(/(\*\*|__)(.*?)\1/g, "$2")      // bold
+            .replace(/(\*|_)(.*?)\1/g, "$2")         // italic
+            .replace(/~~(.*?)~~/g, "$2")             // strikethrough
+            .replace(/^\s{0,3}#{1,6}\s+/gm, "")      // headings
+            .replace(/^\s*>+\s?/gm, "")              // blockquotes
+            .replace(/^\s*[-*+]\s+/gm, "")           // bullet lists
+            .replace(/^\s*\d+\.\s+/gm, "")           // numbered lists
+            .replace(/\s+/g, " ")                    // collapse whitespace
+            .trim();
     }
 
     // Append one line to the conversation log on /dogzilla/speech/log. Imperative
@@ -304,6 +345,55 @@ Ros2.Node {
     readonly property int chatHeard: 0
     readonly property int chatSpoken: 1
     readonly property int chatSystem: 2
+
+    // ---- Speak action (the twin's "Speak"/"Send" buttons + "stop") --------
+    // The currently-executing Speak goal handle, or null. TTS and LLM
+    // completion are tied to it so the twin's stop button (an action cancel)
+    // can interrupt speech and report the goal as canceled.
+    property var activeSpeak: null
+    property string activeSpokenText: ""
+
+    // Start executing a Speak goal from the twin. use_llm=false speaks the text
+    // verbatim; use_llm=true asks the LLM first and speaks the reply. Either way
+    // the goal stays active until TTS finishes (succeed) or the twin cancels it.
+    function beginSpeak(handle, goal) {
+        // Supersede any goal still in flight: one voice, one goal at a time.
+        if (activeSpeak && activeSpeak !== handle) {
+            tts.stop();
+            activeSpeak.abort({ spokenText: activeSpokenText, completed: false });
+        }
+        activeSpeak = handle;
+        activeSpokenText = "";
+        // The stop button cancels the goal; interrupt TTS and finish canceled.
+        handle.cancelRequested.connect(() => {
+            if (root.activeSpeak !== handle)
+                return;
+            tts.stop();
+            handle.canceled({ spokenText: root.activeSpokenText, completed: false });
+            root.activeSpeak = null;
+        });
+        if (goal.useLlm) {
+            handle.publishFeedback({ state: "thinking", spokenSoFar: "" });
+            ollama.chat(goal.text);
+        } else {
+            speakForGoal(goal.text);
+        }
+    }
+
+    // Speak text as part of the active goal: publish "speaking" feedback, then
+    // hand off to speak() (TTS + chat log). Empty text completes immediately.
+    function speakForGoal(text: string) {
+        activeSpokenText = text;
+        if (!activeSpeak)
+            return;
+        if (!text) {
+            activeSpeak.succeed({ spokenText: "", completed: true });
+            activeSpeak = null;
+            return;
+        }
+        activeSpeak.publishFeedback({ state: "speaking", spokenSoFar: text });
+        speak(text);
+    }
 
     BoolSubscriber {
         topic: `${root.nodeNamespace}/speech/listen`
@@ -324,17 +414,14 @@ Ros2.Node {
         topic: `${root.nodeNamespace}/speech/log`
     }
 
-    // Text for the dog to speak, published by the twin (or the external LLM
-    // bridge). Lets TTS be exercised independently of STT/the LLM.
-    ChatMessageSubscriber {
-        topic: `${root.nodeNamespace}/speech/say`
-        onMessageReceived: (msg) => root.speak(msg.text)
-    }
-
-    // Text published by the twin, for the dog to "respond to" by passing it to Ollama.
-    ChatMessageSubscriber {
-        topic: `${root.nodeNamespace}/speech/respond`
-        onMessageReceived: (msg) => root.ollama.chat(msg.text)
+    // The twin's "Speak" / "Send" buttons: one cancellable Speak goal. The
+    // goal's use_llm flag selects verbatim TTS ("Speak") vs LLM-then-speak
+    // ("Send"); the twin's stop button cancels the active goal, which stops
+    // TTS. Replaces the older fire-and-forget /speech/say, /speech/respond and
+    // /speech/stop topics.
+    SpeakActionServer {
+        topic: `${root.nodeNamespace}/speech/speak`
+        onGoalReceived: (goal, handle) => root.beginSpeak(handle, goal)
     }
 
     // Readiness/status for the twin: "idle" (ready) / "listening" / "transcribing".

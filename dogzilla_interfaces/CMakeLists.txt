@@ -8,6 +8,7 @@ find_package(std_msgs REQUIRED)  # for the std_msgs/Header in StampedTelemetry
 rosidl_generate_interfaces(${PROJECT_NAME}
     "msg/StampedTelemetry.msg"
     "msg/ChatMessage.msg"
+    "action/Speak.action"
     DEPENDENCIES std_msgs
 )
 

@@ -219,19 +219,14 @@ Item {
             onMessageReceived: (msg) => panel.addChatMessage(msg)
         }
 
-        BoolPublisher { // TODO use a better type
-            id: dogStopSpeakingPub
-            topic: `${rosNode.robotNamespace}/speech/stop`
-        }
-
-        ChatMessagePublisher {
-            id: dogSayPub
-            topic: `${rosNode.robotNamespace}/speech/say`
-        }
-
-        ChatMessagePublisher {
-            id: dogRespondPub
-            topic: `${rosNode.robotNamespace}/speech/respond`
+        // The dog's voice as one cancellable action: "Speak" sends a verbatim
+        // goal (use_llm=false), "Send" an LLM goal (use_llm=true), and the stop
+        // button cancels the in-flight goal, which interrupts TTS on the robot.
+        // Replaces the fire-and-forget /speech/say, /speech/respond and
+        // /speech/stop topics.
+        SpeakActionClient {
+            id: speakAction
+            topic: `${rosNode.robotNamespace}/speech/speak`
         }
 
         SensorMsgs.JointStateSubscriber {
@@ -315,9 +310,9 @@ Item {
         robotMasterVolume: masterParam.reported ?? 0
         robotMicVolume: micParam.reported ?? 0
 
-        onStopSpeaking: dogStopSpeakingPub.publish()
-        onSpeakText: (t) => dogSayPub.publish({ "source": 1, "text": t, "confidence": 1 })
-        onSendText: (t) => dogRespondPub.publish({ "source": 1, "text": t, "confidence": 1 })
+        onStopSpeaking: speakAction.cancelGoal()
+        onSpeakText: (t) => speakAction.sendGoal({ "text": t, "useLlm": false }).catch(e => console.warn("speak:", e))
+        onSendText: (t) => speakAction.sendGoal({ "text": t, "useLlm": true }).catch(e => console.warn("speak:", e))
     }
 
     Rectangle {

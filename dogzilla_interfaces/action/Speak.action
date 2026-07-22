@@ -1,0 +1,18 @@
+# A cancellable "make the robot talk" goal for the digital twin.
+#
+# The twin sends text to be spoken. With use_llm=false the robot speaks the
+# text verbatim (TTS). With use_llm=true the robot forwards the text to its
+# local LLM and speaks the reply instead. Either way the goal stays active
+# until speech finishes, so the twin's "stop" button can cancel it.
+
+# Goal
+string text          # what to say (use_llm=false) or the prompt (use_llm=true)
+bool use_llm          # false: speak verbatim; true: ask the LLM, then speak
+---
+# Result
+string spoken_text    # the text actually uttered (the LLM reply when use_llm)
+bool completed        # true if fully spoken; false if canceled or aborted
+---
+# Feedback
+string state          # "thinking" (LLM) or "speaking"
+string spoken_so_far  # cumulative text uttered so far (best effort)
