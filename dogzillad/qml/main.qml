@@ -431,8 +431,10 @@ Ros2.Node {
         "rh_lower_leg_joint", "rh_upper_leg_joint", "rh_hip_joint",
     ]
 
-    Timer {
-        id: motionTimer
+    // Held in a property, not a bare child: the root Ros2.Node only accepts
+    // QRos2NodeChild in its default childEntities list (same reason controller/tts
+    // are properties above), so a bare Timer aborts QML load.
+    property Timer motionTimer: Timer {
         repeat: false
         onTriggered: root.advanceMotion()
     }
