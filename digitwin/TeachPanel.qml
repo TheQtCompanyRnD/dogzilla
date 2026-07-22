@@ -7,8 +7,9 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 
-Pane {
+ColumnLayout {
     id: root
+    spacing: 6
 
     // The Dogzilla 3D root; targetRobot.control is the DogzillaControl with the 12
     // <joint>Angle degree properties (writable) and jointInfos metadata.
@@ -23,11 +24,8 @@ Pane {
     property real progress: 0
 
     signal closed()                 // ✕ button: parent hides the panel
-    signal setEngaged(bool on)      // -> motors.engaged parameter
     signal play(var waypoints)      // [{ pose: {camelName: deg, ...}, duration: s }]
     signal stop()                   // cancel the in-flight goal
-
-    padding: 8
 
     readonly property var control: targetRobot ? targetRobot.control : null
     readonly property var joints: control ? control.jointInfos : []
@@ -76,140 +74,122 @@ Pane {
     // pose is stored as a JSON string (robust in ListModel) of camelName -> degrees.
     ListModel { id: waypointModel }
 
-    ColumnLayout {
-        anchors.fill: parent
-        spacing: 6
-
-        RowLayout {
-            Label { text: "Teach pendant"; font.bold: true; Layout.fillWidth: true }
-            RoundButton { text: "✕"; flat: true; onClicked: root.closed() }
-        }
-
-        RowLayout {
-            Switch {
-                id: engageSwitch
-                text: checked ? "Engaged" : "Relaxed"
-                checked: root.engaged
-                onToggled: root.setEngaged(checked)
-            }
-            Item { Layout.fillWidth: true }
-            CheckBox { id: mirrorToggle; text: "Mirror L↔R" }
-        }
-
-        // Per-leg joint sliders (model only). Grouped 3 joints per leg.
-        ScrollView {
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            clip: true
-            ColumnLayout {
-                width: parent.width
-                spacing: 4
-                Repeater {
-                    model: 4  // legs
-                    delegate: GroupBox {
-                        required property int index
-                        readonly property int legStart: index * 3
-                        Layout.fillWidth: true
-                        title: root.legLabels[index]
-                        ColumnLayout {
-                            width: parent.width
-                            Repeater {
-                                model: 3  // joints within the leg
-                                delegate: RowLayout {
-                                    required property int index
-                                    readonly property var info: root.joints[legStart + index]
-                                    Label {
-                                        text: info ? info.name.replace(/Joint(Angle)?$/, "")
-                                                                .replace(/^(lf|rf|lh|rh)/, "") : ""
-                                        Layout.preferredWidth: 70
-                                    }
-                                    Slider {
-                                        id: sl
-                                        enabled: !!info
-                                        from: info ? info.lower : -1
-                                        to: info ? info.upper : 1
-                                        stepSize: 0.5
-                                        Layout.fillWidth: true
-                                        onMoved: if (info) root.setJoint(info.name, value)
-                                        // Track the model when the user isn't dragging, so the
-                                        // slider follows loaded poses / the live robot pose.
-                                        Binding on value {
-                                            when: info && !sl.pressed
-                                            value: info ? root.control[info.name] : 0
-                                            restoreMode: Binding.RestoreBindingOrValue
-                                        }
-                                    }
-                                    Label {
-                                        text: sl.value.toFixed(0) + "°"
-                                        Layout.preferredWidth: 40
-                                        horizontalAlignment: Text.AlignRight
-                                    }
+    // Per-leg joint sliders (model only). Grouped 3 joints per leg.
+    GridLayout {
+        Layout.fillWidth: true
+        Layout.fillHeight: true
+        columns: 2
+        columnSpacing: 4
+        rowSpacing: 4
+        Repeater {
+            model: 4  // legs
+            delegate: GroupBox {
+                required property int index
+                readonly property int legStart: index * 3
+                Layout.fillWidth: true
+                title: root.legLabels[index]
+                ColumnLayout {
+                    width: parent.width
+                    spacing: 2
+                    Repeater {
+                        model: 3  // joints within the leg
+                        delegate: RowLayout {
+                            required property int index
+                            readonly property var info: root.joints[legStart + index]
+                            Label {
+                                text: info ? info.name.replace(/Joint(Angle)?$/, "")
+                                             .replace("Leg", "")
+                                             .replace(/^(lf|rf|lh|rh)/, "") : ""
+                                Layout.preferredWidth: 40
+                            }
+                            Slider {
+                                id: sl
+                                enabled: !!info
+                                from: info ? info.lower : -1
+                                to: info ? info.upper : 1
+                                stepSize: 0.5
+                                Layout.fillWidth: true
+                                onMoved: if (info) root.setJoint(info.name, value)
+                                // Track the model when the user isn't dragging, so the
+                                // slider follows loaded poses / the live robot pose.
+                                Binding on value {
+                                    when: info && !sl.pressed
+                                    value: info ? root.control[info.name] : 0
+                                    restoreMode: Binding.RestoreBindingOrValue
                                 }
+                            }
+                            Label {
+                                text: sl.value.toFixed(0) + "°"
+                                Layout.preferredWidth: 30
+                                horizontalAlignment: Text.AlignRight
                             }
                         }
                     }
                 }
             }
         }
+    }
 
-        RowLayout {
-            Button { text: "Capture pose"; onClicked: root.capturePose() }
-            Item { Layout.fillWidth: true }
-            Button { text: "Clear"; enabled: waypointModel.count > 0; onClicked: waypointModel.clear() }
-        }
+    RowLayout {
+        Action { id: captureAction; shortcut: StandardKey.Copy; text: qsTr("&Capture pose"); onTriggered: root.capturePose() }
+        Button { action: captureAction }
+        Item { Layout.fillWidth: true }
+        CheckBox { id: mirrorToggle; checked: true; text: "Mirror L↔R" }
+        Button { text: "Clear"; enabled: waypointModel.count > 0; onClicked: waypointModel.clear() }
+    }
 
-        // The taught sequence.
-        ListView {
-            id: waypointView
-            Layout.fillWidth: true
-            Layout.preferredHeight: 140
-            clip: true
-            model: waypointModel
-            ScrollBar.vertical: ScrollBar {}
-            delegate: RowLayout {
-                required property int index
-                required property real duration
-                width: ListView.view.width
-                Label {
-                    text: (index + 1) + "."
-                    color: index === root.currentPoint ? "cyan" : "white"
-                    Layout.preferredWidth: 24
-                }
-                SpinBox {
-                    from: 0; to: 60000; stepSize: 100   // milliseconds, shown as seconds
-                    value: Math.round(duration * 1000)
-                    editable: true
-                    textFromValue: (v) => (v / 1000).toFixed(1) + "s"
-                    valueFromText: (t) => Math.round(parseFloat(t) * 1000)
-                    onValueModified: waypointModel.setProperty(index, "duration", value / 1000)
-                }
-                Item { Layout.fillWidth: true }
-                RoundButton { text: "↑"; flat: true; enabled: index > 0
-                    onClicked: waypointModel.move(index, index - 1, 1) }
-                RoundButton { text: "↓"; flat: true; enabled: index < waypointModel.count - 1
-                    onClicked: waypointModel.move(index, index + 1, 1) }
-                RoundButton { text: "🗑"; flat: true; onClicked: waypointModel.remove(index) }
-            }
-        }
-
-        RowLayout {
-            Button {
-                text: "▶ Play"
-                enabled: waypointModel.count > 0 && root.engaged && !root.playing
-                onClicked: root.doPlay()
-            }
-            Button {
-                text: "⬛ Stop"
-                enabled: root.playing
-                onClicked: root.stop()
-            }
+    // The taught sequence.
+    ListView {
+        id: waypointView
+        Layout.fillWidth: true
+        Layout.fillHeight: true
+        Layout.preferredHeight: 140
+        clip: true
+        model: waypointModel
+        ScrollBar.vertical: ScrollBar {}
+        delegate: RowLayout {
+            required property int index
+            required property real duration
+            width: ListView.view.width
             Label {
-                Layout.fillWidth: true
-                horizontalAlignment: Text.AlignRight
-                text: root.playing ? `playing ${root.currentPoint + 1}/${waypointModel.count}`
-                    : !root.engaged ? "engage to play"
-                    : `${waypointModel.count} waypoint(s)`
+                text: (index + 1) + "."
+                color: index === root.currentPoint ? "cyan" : "white"
+                Layout.preferredWidth: 24
             }
+            SpinBox {
+                from: 0; to: 60000; stepSize: 100   // milliseconds, shown as seconds
+                value: Math.round(duration * 1000)
+                editable: true
+                textFromValue: (v) => (v / 1000).toFixed(1) + "s"
+                valueFromText: (t) => Math.round(parseFloat(t) * 1000)
+                onValueModified: waypointModel.setProperty(index, "duration", value / 1000)
+            }
+            Item { Layout.fillWidth: true }
+            RoundButton { text: "↑"; flat: true; enabled: index > 0
+                onClicked: waypointModel.move(index, index - 1, 1) }
+            RoundButton { text: "↓"; flat: true; enabled: index < waypointModel.count - 1
+                onClicked: waypointModel.move(index, index + 1, 1) }
+            RoundButton { text: "🗑"; flat: true; onClicked: waypointModel.remove(index) }
+        }
+    }
+
+    RowLayout {
+        Button {
+            text: "▶ Play"
+            enabled: waypointModel.count > 0 && root.engaged && !root.playing
+            onClicked: root.doPlay()
+        }
+        Button {
+            text: "⬛ Stop"
+            enabled: root.playing
+            onClicked: root.stop()
+        }
+        Label {
+            Layout.fillWidth: true
+            horizontalAlignment: Text.AlignRight
+            text: root.playing ? `playing ${root.currentPoint + 1}/${waypointModel.count}`
+                : !root.engaged ? "engage to play"
+                : `${waypointModel.count} waypoint(s)`
         }
     }
 }
