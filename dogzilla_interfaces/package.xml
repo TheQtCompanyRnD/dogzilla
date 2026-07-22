@@ -11,6 +11,7 @@
   <buildtool_depend>rosidl_default_generators</buildtool_depend>
 
   <depend>std_msgs</depend>
+  <depend>action_msgs</depend>  <!-- Speak.action pulls in action_msgs (goal/result wrappers) -->
 
   <exec_depend>rosidl_default_runtime</exec_depend>
 
