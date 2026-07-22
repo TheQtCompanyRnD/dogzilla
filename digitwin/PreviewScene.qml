@@ -219,9 +219,19 @@ Item {
             onMessageReceived: (msg) => panel.addChatMessage(msg)
         }
 
+        BoolPublisher { // TODO use a better type
+            id: dogStopSpeakingPub
+            topic: `${rosNode.robotNamespace}/speech/stop`
+        }
+
         ChatMessagePublisher {
-            id: dogMsgPub
+            id: dogSayPub
             topic: `${rosNode.robotNamespace}/speech/say`
+        }
+
+        ChatMessagePublisher {
+            id: dogRespondPub
+            topic: `${rosNode.robotNamespace}/speech/respond`
         }
 
         SensorMsgs.JointStateSubscriber {
@@ -298,14 +308,16 @@ Item {
         anchors.top: parent.top
         anchors.bottom: parent.bottom
         anchors.margins: 12
-        anchors.bottomMargin: 160
+        anchors.bottomMargin: 170
         width: Math.min(420, Math.max(280, parent.width * 0.28))
         targetRobot: robotRoot
         batteryLevel: batterySub.percentage
         robotMasterVolume: masterParam.reported ?? 0
         robotMicVolume: micParam.reported ?? 0
 
-        onSendText: (t) => dogMsgPub.publish({ "source": 1, "text": t, "confidence": 1 })
+        onStopSpeaking: dogStopSpeakingPub.publish()
+        onSpeakText: (t) => dogSayPub.publish({ "source": 1, "text": t, "confidence": 1 })
+        onSendText: (t) => dogRespondPub.publish({ "source": 1, "text": t, "confidence": 1 })
     }
 
     Rectangle {

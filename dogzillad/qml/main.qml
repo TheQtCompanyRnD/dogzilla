@@ -257,7 +257,7 @@ Ros2.Node {
             root.logChat(root.chatHeard, text, confidence);
             // Hand the utterance to the LLM; the reply comes back async on
             // ollama.onResponseReceived below. No-op until apiUrl/model are set.
-            root.ollama.chat(text);
+            root.ollama.chat(text)
         }
         onErrorOccurred: (msg) => console.warn("stt:", msg)
     }
@@ -329,6 +329,12 @@ Ros2.Node {
     ChatMessageSubscriber {
         topic: `${root.nodeNamespace}/speech/say`
         onMessageReceived: (msg) => root.speak(msg.text)
+    }
+
+    // Text published by the twin, for the dog to "respond to" by passing it to Ollama.
+    ChatMessageSubscriber {
+        topic: `${root.nodeNamespace}/speech/respond`
+        onMessageReceived: (msg) => root.ollama.chat(msg.text)
     }
 
     // Readiness/status for the twin: "idle" (ready) / "listening" / "transcribing".

@@ -8,6 +8,8 @@ import Dogzilla
 ColumnLayout {
     id: root
     required property var targetRobot
+    signal speakText(string text)
+    signal stopSpeaking()
     signal sendText(string text)
     property alias batteryLevel: batteryIndicator.level
 
@@ -212,12 +214,22 @@ ColumnLayout {
     }
 
     RowLayout {
+        RoundButton {
+            text: "⬛"
+            Layout.alignment: Qt.AlignVCenter
+            onClicked: root.stopSpeaking()
+        }
         TextField {
             id: textToSend
             placeholderText: "talk to Dogzilla"
             Layout.alignment: Qt.AlignVCenter
             Layout.fillWidth: true
             onAccepted: root.sendText(textToSend.text)
+        }
+        RoundButton {
+            text: "Speak"
+            Layout.alignment: Qt.AlignVCenter
+            onClicked: root.speakText(textToSend.text)
         }
         RoundButton {
             text: "Send"
