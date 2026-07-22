@@ -612,6 +612,20 @@ Ros2.Node {
         onValueEdited: (v) => volumeCtl.mic = v
     }
 
+    // Engage (load/stand) or disengage (unload/relax) the leg servos from the
+    // twin, without needing the joystick -- and the teach pendant needs the dog
+    // engaged before playing a motion. A bool node parameter so it's both
+    // settable and observable-with-feedback like audio.*: the value binding
+    // republishes when the joystick Start toggles motorsEngaged (so the twin
+    // stays in sync with the actual state), and valueEdited routes external sets
+    // into the controller. Controller is the source of truth.
+    Ros2.Parameter {
+        name: "motors.engaged"
+        value: controller.motorsEngaged
+        description: "Leg servos engaged (loaded/standing) vs relaxed"
+        onValueEdited: (v) => controller.motorsEngaged = v
+    }
+
     // System telemetry (fan level, CPU temperature, CPU load) at 1 Hz, for the
     // twin's line charts -- e.g. watch PTT silence the fan and the temp/CPU
     // response.
