@@ -1,0 +1,18 @@
+# A cancellable "play a taught motion" goal for the digital twin's teach pendant.
+#
+# The twin authors a motion as a sequence of joint-angle waypoints with per-point
+# timing (a standard trajectory_msgs/JointTrajectory) and sends it here. The robot
+# plays it back: it drives to each waypoint's joint angles in turn, dwelling per
+# the point's time_from_start. The goal stays active until the last waypoint is
+# reached (succeed), or the twin's "stop" button cancels it (canceled).
+
+# Goal
+trajectory_msgs/JointTrajectory trajectory   # waypoints: joint_names + points[].positions + time_from_start
+string name                                   # optional label, for logging (e.g. "sit")
+---
+# Result
+bool completed        # true if the whole motion played; false if canceled/aborted
+---
+# Feedback
+int32 current_point   # index of the waypoint currently being driven to
+float32 progress      # 0.0 .. 1.0 through the motion

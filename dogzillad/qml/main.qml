@@ -411,6 +411,122 @@ Ros2.Node {
         speak(text);
     }
 
+    // ---- PlayMotion action (the twin's teach-pendant playback + "stop") ----
+    // Plays a taught trajectory_msgs/JointTrajectory: drive to each waypoint's
+    // joint angles in turn, dwelling per the point's time_from_start. We send one
+    // set of per-servo targets per waypoint and let the firmware slew (MotorSpeed),
+    // rather than software-interpolating every tick -- at 115200 baud, 12 servo
+    // writes per frame per tick would swamp the link. Modeled on the Speak action.
+    property var activeMotion: null            // the in-flight PlayMotion handle, or null
+    property var motionPositions: []           // per-waypoint 12-elem radian arrays (canonical order)
+    property var motionDurations: []           // ms to dwell after each waypoint
+    property int motionIndex: -1
+
+    // Canonical joint order = the JointStatePublisher name list above = the order
+    // Controller::setJointAngles expects. Incoming trajectories are reordered to it.
+    readonly property var motionJointOrder: [
+        "lf_lower_leg_joint", "lf_upper_leg_joint", "lf_hip_joint",
+        "rf_lower_leg_joint", "rf_upper_leg_joint", "rf_hip_joint",
+        "lh_lower_leg_joint", "lh_upper_leg_joint", "lh_hip_joint",
+        "rh_lower_leg_joint", "rh_upper_leg_joint", "rh_hip_joint",
+    ]
+
+    Timer {
+        id: motionTimer
+        repeat: false
+        onTriggered: root.advanceMotion()
+    }
+
+    function beginMotion(handle, goal) {
+        // One motion at a time: abort any in flight.
+        if (activeMotion && activeMotion !== handle) {
+            motionTimer.stop();
+            activeMotion.abort({ completed: false });
+            activeMotion = null;
+        }
+        if (!controller.motorsEngaged) {
+            console.warn("PlayMotion: motors disengaged; aborting");
+            handle.abort({ completed: false });
+            return;
+        }
+        const traj = goal.trajectory;
+        const pts = traj ? traj.points : [];
+        if (!pts || pts.length === 0) {
+            console.warn("PlayMotion: empty trajectory; aborting");
+            handle.abort({ completed: false });
+            return;
+        }
+        // Reorder each waypoint's positions to canonical joint order (requires all
+        // 12 joints); compute per-segment dwell from cumulative time_from_start.
+        let positions = [];
+        let times = [];
+        for (let k = 0; k < pts.length; ++k) {
+            const canon = root.toCanonicalPositions(traj.jointNames, pts[k].positions);
+            if (!canon) {
+                console.warn("PlayMotion: waypoint", k, "is not a full 12-joint pose; aborting");
+                handle.abort({ completed: false });
+                return;
+            }
+            positions.push(canon);
+            const t = pts[k].timeFromStart;
+            times.push(t.sec * 1000 + t.nanosec / 1e6);
+        }
+        let durations = [];
+        for (let k = 0; k < positions.length; ++k)
+            durations.push(k < positions.length - 1 ? Math.max(0, times[k + 1] - times[k]) : 300);
+
+        root.motionPositions = positions;
+        root.motionDurations = durations;
+        activeMotion = handle;
+        // Stop button = action cancel (same property-shadows-signal caveat as Speak).
+        handle.cancelRequestedChanged.connect(() => {
+            if (!handle.cancelRequested || root.activeMotion !== handle)
+                return;
+            motionTimer.stop();
+            handle.canceled({ completed: false });   // hold the current pose
+            root.activeMotion = null;
+        });
+
+        controller.setMotorSpeed(80);   // moderate slew; crouch()/sit-style poses use ~30-80
+        root.motionIndex = -1;
+        root.advanceMotion();
+    }
+
+    // Drive to the next waypoint (or succeed after the last one's dwell).
+    function advanceMotion() {
+        if (!activeMotion)
+            return;
+        root.motionIndex++;
+        const i = root.motionIndex;
+        if (i >= root.motionPositions.length) {
+            activeMotion.succeed({ completed: true });
+            activeMotion = null;
+            return;
+        }
+        controller.setJointAngles(root.motionPositions[i]);
+        activeMotion.publishFeedback({ currentPoint: i, progress: (i + 1) / root.motionPositions.length });
+        motionTimer.interval = root.motionDurations[i];
+        motionTimer.start();
+    }
+
+    // Reorder a waypoint's positions into canonical joint order. Returns null if it
+    // isn't a full 12-joint pose (a name is missing, or the wrong length) -- v1
+    // plays whole-body poses only. Empty joint_names => assume already canonical.
+    function toCanonicalPositions(names, positions) {
+        if (!positions || positions.length !== 12)
+            return null;
+        if (!names || names.length === 0)
+            return positions;
+        let out = new Array(12);
+        for (let c = 0; c < 12; ++c) {
+            const idx = names.indexOf(root.motionJointOrder[c]);
+            if (idx < 0)
+                return null;
+            out[c] = positions[idx];
+        }
+        return out;
+    }
+
     BoolSubscriber {
         topic: `${root.nodeNamespace}/speech/listen`
         // std_msgs/Bool single-field collapse: the handler gets the bool directly.
@@ -438,6 +554,13 @@ Ros2.Node {
     SpeakActionServer {
         topic: `${root.nodeNamespace}/speech/speak`
         onGoalReceived: (goal, handle) => root.beginSpeak(handle, goal)
+    }
+
+    // Teach-pendant playback: the twin sends a taught JointTrajectory here; the
+    // robot walks its waypoints (see beginMotion). Cancel = the twin's stop button.
+    PlayMotionActionServer {
+        topic: `${root.nodeNamespace}/motion/play`
+        onGoalReceived: (goal, handle) => root.beginMotion(handle, goal)
     }
 
     // Readiness/status for the twin: "idle" (ready) / "listening" / "transcribing".

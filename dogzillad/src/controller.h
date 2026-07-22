@@ -163,6 +163,10 @@ private:
     void maybeOpenSerialPort();
     bool handleFrame(const QByteArray &frame);
     void handleMotorAngles(const QByteArray &packet);
+    // Per-servo angle write: mode 0x01 to address 0x50 + servoIndex (0..11), one
+    // value byte. The MotorAngle command entry is the *read* form; the write is
+    // addressed per servo (mirrors the vendor SDK's motor(id, angle)).
+    void sendMotorAngle(int servoIndex, uint8_t value);
     // Reads are serialized through a small queue so their replies can't
     // interleave and corrupt each other's checksums.
     void enqueueRead(Command cmd);

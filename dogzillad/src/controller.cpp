@@ -190,6 +190,26 @@ void Controller::sendOneArgCommand(Command cmd, int8_t arg)
     qCDebug(lcCrLow) << "wrote" << len << "bytes:" << m_commands[int(cmd)].toHex() << buf.toHex();
 }
 
+void Controller::sendMotorAngle(int servoIndex, uint8_t value)
+{
+    // Write frame: mode 0x01, per-servo address 0x50 + servoIndex, one value byte.
+    // Framed identically to sendThunkCommand/sendOneArgCommand (checksum is computed
+    // over the payload before the header/footer are attached).
+    QByteArray buf(3, 0);
+    buf[0] = 0x01;                              // write mode
+    buf[1] = char(0x50 + servoIndex);           // per-servo angle address
+    buf[2] = char(value);
+    QByteArray header = QByteArrayLiteral("\x55\x00\x00");
+    header[2] = buf.size() + 6;
+    QByteArray footer = QByteArrayLiteral("\x00\x00\xaa");
+    footer[0] = checksum(buf);
+    buf.prepend(header);
+    buf.append(footer);
+    maybeOpenSerialPort();
+    const auto len = m_port.write(buf);
+    qCDebug(lcCrLow) << "wrote motor" << servoIndex << "=" << value << ":" << buf.toHex();
+}
+
 void Controller::pollMotorAngles()
 {
     if (m_disengageCountdown > 0) {
@@ -320,6 +340,16 @@ double byteToReal(uint8_t b, const Controller::RealPair &limits)
     const auto limitMin = limits.first;
     const auto limitMax = limits.second;
     return b / 255.0 * (limitMax - limitMin) + limitMin;
+}
+
+// Inverse of byteToReal (the SDK's conver2u8 for a [min,max] limit): map a degree
+// value onto the firmware's 0..255 servo byte, clamping out-of-range to the ends.
+uint8_t realToByte(double degrees, const Controller::RealPair &limits)
+{
+    const auto limitMin = limits.first;
+    const auto limitMax = limits.second;
+    const double t = (degrees - limitMin) / (limitMax - limitMin) * 255.0;
+    return static_cast<uint8_t>(qBound(0, qRound(t), 255));
 }
 
 // Encode a posture angle (degrees) to the firmware attitude byte. The protocol
@@ -597,9 +627,26 @@ void Controller::setTranslationZ(qreal v)
 
 void Controller::setJointAngles(const QList<double> &angles)
 {
-    if (jointAngles() == angles)
+    if (angles.size() != 12) {
+        qCWarning(lcCtrl) << "setJointAngles: expected 12 angles, got" << angles.size();
         return;
-    // TODO send commands to change them
+    }
+    if (!m_motorsEngaged) {
+        qCWarning(lcCtrl) << "setJointAngles: ignoring, motors are disengaged";
+        return;
+    }
+    // Inverse of handleMotorAngles: angles are radians in jointNames order (lower,
+    // middle, upper per leg). Convert to firmware degrees, undo the lower-leg -106
+    // offset the read path applies, encode to the per-servo byte, and write each
+    // servo (address 0x50 + i). We do NOT optimistically update m_motorAngles here;
+    // the motor-angle poll reports the achieved pose and emits jointAnglesChanged.
+    for (int i = 0; i < 12; ++i) {
+        const int perLegIdx = i % 3;
+        double deg = angles.at(i) * 180.0 / M_PI;
+        if (perLegIdx == 0)
+            deg += 106.0;
+        sendMotorAngle(i, realToByte(deg, m_motorLimits[perLegIdx]));
+    }
 }
 
 void Controller::setRoll(qreal v)
