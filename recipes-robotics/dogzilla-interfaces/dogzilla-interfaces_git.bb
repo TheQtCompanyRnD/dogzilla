@@ -31,8 +31,10 @@ ROS_BUILDTOOL_DEPENDS = "ament-cmake-native rosidl-default-generators-native"
 # (goal/result wrappers use action_msgs/msg/GoalStatus etc.); without it staged,
 # the lookup falls through to the native ros prefix (missing the .so) and ninja
 # fails on libaction_msgs__rosidl_generator_c.so.
-ROS_BUILD_DEPENDS = "rosidl-default-generators type-description-interfaces std-msgs action-msgs rosidl-default-runtime"
-ROS_EXEC_DEPENDS = "rosidl-default-runtime std-msgs action-msgs"
+# trajectory-msgs: PlayMotion.action's goal embeds a trajectory_msgs/JointTrajectory,
+# so the package find_package(trajectory_msgs)es it (same staging rationale as std-msgs).
+ROS_BUILD_DEPENDS = "rosidl-default-generators type-description-interfaces std-msgs action-msgs trajectory-msgs rosidl-default-runtime"
+ROS_EXEC_DEPENDS = "rosidl-default-runtime std-msgs action-msgs trajectory-msgs"
 DEPENDS += "${ROS_BUILDTOOL_DEPENDS} ${ROS_BUILD_DEPENDS}"
 RDEPENDS:${PN} += "${ROS_EXEC_DEPENDS}"
 
