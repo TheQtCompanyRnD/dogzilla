@@ -120,8 +120,18 @@ void Controller::maybeOpenSerialPort()
         m_port.setBaudRate(m_baudRate);
         const bool success = m_port.open(QIODevice::ReadWrite);
         qCDebug(lcCtrl) << m_port.portName() << m_port.baudRate() << "opened successfully?" << success;
-        if (success && !m_batteryPollCountdown)
-            pollBattery();
+        if (success) {
+            if (!m_batteryPollCountdown)
+                pollBattery();
+            // The firmware exposes no read for motor load state, so we can't
+            // discover whether the legs are engaged -- impose a known one instead:
+            // disengage at startup so m_motorsEngaged (false) matches reality.
+            // Safe for the usual boot (dog resting on its charger); a mid-session
+            // restart just relaxes the legs. Emitting the change syncs QML bindings.
+            sendThunkCommand(Command::UnloadMotor);
+            m_motorsEngaged = false;
+            emit motorsEngagedChanged(false);
+        }
     }
 }
 
