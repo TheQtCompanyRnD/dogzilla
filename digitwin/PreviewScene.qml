@@ -325,28 +325,37 @@ Item {
             topic: `${rosNode.robotNamespace}/motion/play`
         }
         property bool motionPlaying: false
-        readonly property int motionCurrentPoint:
-            (motionPlaying && motionAction.feedback) ? motionAction.feedback.currentPoint : -1
+        // Fraction 0..1 through the motion (the panel maps this to a highlighted
+        // row; point count != waypoint count once holds add duplicate points).
+        readonly property real motionProgress:
+            (motionPlaying && motionAction.feedback) ? motionAction.feedback.progress : 0
 
         // "lfLowerLegJointAngle" (twin, degrees) -> "lf_lower_leg_joint" (ROS).
         function rosJointName(camel) {
             return camel.replace(/Angle$/, "").replace(/([A-Z])/g, "_$1").toLowerCase();
         }
 
-        // Convert panel waypoints [{pose:{camelName:deg}, duration}] to a ROS
-        // JointTrajectory (snake joint_names, radians). Each waypoint's duration is
-        // the hold after reaching that pose, so point k sits at the exclusive prefix
-        // sum of prior durations (the daemon dwells on point k for the gap to k+1).
+        // Convert panel waypoints [{pose:{camelName:deg}, move, hold}] to a ROS
+        // JointTrajectory (snake joint_names, radians). time_from_start is each
+        // point's ARRIVAL time: waypoint k arrives after `move` seconds (the robot
+        // interpolates to it over that span), and a non-zero `hold` adds a second,
+        // identical point `hold` seconds later so the robot dwells there.
         function buildTrajectory(wps) {
             const order = robotRoot.control.jointInfos.map(j => j.name); // 12 camel names
             const names = order.map(rosJointName);
+            const dur = (sec) => ({ sec: Math.floor(sec), nanosec: Math.round((sec % 1) * 1e9) });
             let points = [];
             let t = 0;
             for (let k = 0; k < wps.length; ++k) {
                 const positions = order.map(cn => (wps[k].pose[cn] || 0) * Math.PI / 180);
-                points.push({ positions: positions,
-                              timeFromStart: { sec: Math.floor(t), nanosec: Math.round((t % 1) * 1e9) } });
-                t += wps[k].duration;
+                const move = wps[k].move ?? wps[k].duration ?? 1.0;   // back-compat: old `duration`
+                const hold = wps[k].hold ?? 0;
+                t += move;
+                points.push({ positions: positions, timeFromStart: dur(t) });   // arrive
+                if (hold > 0) {
+                    t += hold;
+                    points.push({ positions: positions, timeFromStart: dur(t) }); // hold
+                }
             }
             return { jointNames: names, points: points };
         }
@@ -420,7 +429,7 @@ Item {
                 library: motionLib
                 engaged: engageParam.reported ?? false
                 playing: rosNode.motionPlaying
-                currentPoint: rosNode.motionCurrentPoint
+                progress: rosNode.motionProgress
 
                 onStop: motionAction.cancelGoal()
                 onPlay: (wps) => rosNode.playMotion(wps)

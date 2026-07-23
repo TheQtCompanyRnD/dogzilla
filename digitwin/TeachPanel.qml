@@ -20,9 +20,12 @@ ColumnLayout {
     // a motion is currently playing; both driven by the parent.
     property bool engaged: false
     property bool playing: false
-    // Live feedback from the running goal (parent sets these from action feedback).
-    property int currentPoint: -1
+    // Live feedback from the running goal (parent sets progress from action feedback).
     property real progress: 0
+    // Which waypoint row to highlight while playing, derived from progress (the
+    // trajectory has more points than waypoints once holds add duplicates).
+    readonly property int playingRow:
+        playing ? Math.min(waypointModel.count - 1, Math.floor(progress * waypointModel.count)) : -1
 
     // The waypoint currently being edited (-1 = none/free posing). Selecting a row
     // loads its pose into the model; slider edits then write back to that row.
@@ -68,7 +71,9 @@ ColumnLayout {
     }
 
     function capturePose() {
-        waypointModel.append({ duration: 0.1, poseJson: JSON.stringify(currentPose()) });
+        // move = time to travel into this pose; hold = time to dwell once there.
+        waypointModel.append({ moveDuration: 1.0, holdDuration: 0.5,
+                               poseJson: JSON.stringify(currentPose()) });
         root.selectedIndex = waypointModel.count - 1;   // select the new row for editing
     }
 
@@ -101,12 +106,12 @@ ColumnLayout {
         waypointModel.setProperty(selectedIndex, "poseJson", JSON.stringify(currentPose()));
     }
 
-    // The current sequence as a plain waypoint array [{ pose, duration }].
+    // The current sequence as a plain waypoint array [{ pose, move, hold }].
     function toList() {
         let list = [];
         for (let i = 0; i < waypointModel.count; ++i) {
             const e = waypointModel.get(i);
-            list.push({ pose: JSON.parse(e.poseJson), duration: e.duration });
+            list.push({ pose: JSON.parse(e.poseJson), move: e.moveDuration, hold: e.holdDuration });
         }
         return list;
     }
@@ -129,7 +134,10 @@ ColumnLayout {
         root.selectedIndex = -1;
         waypointModel.clear();
         for (const wp of list)
-            waypointModel.append({ duration: wp.duration, poseJson: JSON.stringify(wp.pose) });
+            // Back-compat: older motions stored a single `duration` (= hold).
+            waypointModel.append({ moveDuration: wp.move ?? 1.0,
+                                   holdDuration: wp.hold ?? wp.duration ?? 0.5,
+                                   poseJson: JSON.stringify(wp.pose) });
     }
 
     // Waypoints: duration = seconds to hold this pose before moving to the next.
@@ -222,7 +230,8 @@ ColumnLayout {
         delegate: Rectangle {
             id: wpDelegate
             required property int index
-            required property real duration
+            required property real moveDuration
+            required property real holdDuration
             width: ListView.view.width
             implicitHeight: wpRow.implicitHeight
             // Highlight the selected (editable) row; the playing point is cyan.
@@ -236,16 +245,27 @@ ColumnLayout {
                 anchors.leftMargin: 2
                 Label {
                     text: (index + 1) + "."
-                    color: index === root.currentPoint ? "cyan" : "white"
+                    color: index === root.playingRow ? "cyan" : "white"
                     Layout.preferredWidth: 24
                 }
+                // Move = time to travel into this pose (interpolated); hold = dwell.
+                Label { text: "▸"; color: "#bbb"; ToolTip.text: "move time" }
                 SpinBox {
                     from: 0; to: 60000; stepSize: 100   // milliseconds, shown as seconds
-                    value: Math.round(wpDelegate.duration * 1000)
+                    value: Math.round(wpDelegate.moveDuration * 1000)
                     editable: true
                     textFromValue: (v) => (v / 1000).toFixed(1) + "s"
                     valueFromText: (t) => Math.round(parseFloat(t) * 1000)
-                    onValueModified: waypointModel.setProperty(index, "duration", value / 1000)
+                    onValueModified: waypointModel.setProperty(index, "moveDuration", value / 1000)
+                }
+                Label { text: "⏱"; color: "#bbb"; ToolTip.text: "hold time" }
+                SpinBox {
+                    from: 0; to: 60000; stepSize: 100
+                    value: Math.round(wpDelegate.holdDuration * 1000)
+                    editable: true
+                    textFromValue: (v) => (v / 1000).toFixed(1) + "s"
+                    valueFromText: (t) => Math.round(parseFloat(t) * 1000)
+                    onValueModified: waypointModel.setProperty(index, "holdDuration", value / 1000)
                 }
                 Item { Layout.fillWidth: true }
                 // Reordering/removing shifts indices, so drop the selection to avoid
@@ -300,7 +320,7 @@ ColumnLayout {
         Label {
             Layout.fillWidth: true
             horizontalAlignment: Text.AlignRight
-            text: root.playing ? `playing ${root.currentPoint + 1}/${waypointModel.count}`
+            text: root.playing ? `playing ${root.playingRow + 1}/${waypointModel.count}`
                 : !root.engaged ? "engage to play"
                 : `${waypointModel.count} waypoint(s)`
         }
