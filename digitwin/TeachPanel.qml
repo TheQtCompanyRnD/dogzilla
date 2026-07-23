@@ -6,6 +6,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import Dogzilla
 
 ColumnLayout {
     id: root
@@ -100,18 +101,41 @@ ColumnLayout {
         waypointModel.setProperty(selectedIndex, "poseJson", JSON.stringify(currentPose()));
     }
 
-    function doPlay() {
+    // The current sequence as a plain waypoint array [{ pose, duration }].
+    function toList() {
         let list = [];
         for (let i = 0; i < waypointModel.count; ++i) {
             const e = waypointModel.get(i);
             list.push({ pose: JSON.parse(e.poseJson), duration: e.duration });
         }
-        root.play(list);
+        return list;
+    }
+
+    function doPlay() {
+        root.play(toList());
+    }
+
+    // Persist / restore named motions (JSON on disk via MotionLibrary).
+    function saveMotion(name) {
+        if (!name || waypointModel.count === 0)
+            return;
+        library.save(name, JSON.stringify(toList()));
+    }
+    function loadMotion(name) {
+        const s = library.load(name);
+        if (!s)
+            return;
+        const list = JSON.parse(s);
+        root.selectedIndex = -1;
+        waypointModel.clear();
+        for (const wp of list)
+            waypointModel.append({ duration: wp.duration, poseJson: JSON.stringify(wp.pose) });
     }
 
     // Waypoints: duration = seconds to hold this pose before moving to the next.
     // pose is stored as a JSON string (robust in ListModel) of camelName -> degrees.
     ListModel { id: waypointModel }
+    MotionLibrary { id: library }
 
     // Per-leg joint sliders (model only). Grouped 3 joints per leg.
     GridLayout {
@@ -231,6 +255,32 @@ ColumnLayout {
                 RoundButton { text: "🗑"; flat: true; palette.buttonText: "white"
                     onClicked: { root.selectedIndex = -1; waypointModel.remove(index) } }
             }
+        }
+    }
+
+    // Named-motion library: type a name and Save, or pick a saved one to Load/Delete.
+    RowLayout {
+        ComboBox {
+            id: libraryCombo
+            Layout.fillWidth: true
+            editable: true
+            model: library.names
+            // Type a new name to Save, or pick an existing motion to Load/Delete.
+        }
+        Button {
+            text: "Save"
+            enabled: libraryCombo.editText.length > 0 && waypointModel.count > 0
+            onClicked: root.saveMotion(libraryCombo.editText)
+        }
+        Button {
+            text: "Load"
+            enabled: library.names.indexOf(libraryCombo.editText) >= 0
+            onClicked: root.loadMotion(libraryCombo.editText)
+        }
+        Button {
+            text: "🗑"
+            enabled: library.names.indexOf(libraryCombo.editText) >= 0
+            onClicked: library.remove(libraryCombo.editText)
         }
     }
 

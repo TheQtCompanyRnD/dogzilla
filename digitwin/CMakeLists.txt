@@ -29,6 +29,8 @@ qt_add_qml_module(Robot_Dogzilla
         "DogzillaControl.cpp"
         "receivedimageprovider.h"
         "receivedimageprovider.cpp"
+        "motionlibrary.h"
+        "motionlibrary.cpp"
     RESOURCES
         "dogzilla_joints.json"
         SOURCES lidarinstancetable.h lidarinstancetable.cpp
