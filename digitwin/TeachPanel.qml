@@ -135,7 +135,9 @@ ColumnLayout {
     // Waypoints: duration = seconds to hold this pose before moving to the next.
     // pose is stored as a JSON string (robust in ListModel) of camelName -> degrees.
     ListModel { id: waypointModel }
-    MotionLibrary { id: library }
+    // The named-motion store, owned by the parent (which also publishes it to the
+    // robot); TeachPanel just saves/loads/deletes through it.
+    required property var library
 
     // Per-leg joint sliders (model only). Grouped 3 joints per leg.
     GridLayout {

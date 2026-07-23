@@ -146,6 +146,13 @@ Item {
         }
     }
 
+    // Named-motion store (persisted JSON); shared with the teach panel and
+    // published to the robot by rosNode.publishLibrary().
+    MotionLibrary {
+        id: motionLib
+        onChanged: rosNode.publishLibrary()
+    }
+
     Ros2.Node {
         id: rosNode
         nodeName: "digitwin"
@@ -326,13 +333,11 @@ Item {
             return camel.replace(/Angle$/, "").replace(/([A-Z])/g, "_$1").toLowerCase();
         }
 
-        // Convert the panel's waypoints to a JointTrajectory and send the goal.
-        // Each waypoint's duration is the hold after reaching that pose, so point k
-        // sits at the exclusive prefix sum of prior durations (the daemon dwells on
-        // point k for the gap to point k+1). Degrees -> radians here.
-        function playMotion(wps) {
-            if (!wps || wps.length === 0)
-                return;
+        // Convert panel waypoints [{pose:{camelName:deg}, duration}] to a ROS
+        // JointTrajectory (snake joint_names, radians). Each waypoint's duration is
+        // the hold after reaching that pose, so point k sits at the exclusive prefix
+        // sum of prior durations (the daemon dwells on point k for the gap to k+1).
+        function buildTrajectory(wps) {
             const order = robotRoot.control.jointInfos.map(j => j.name); // 12 camel names
             const names = order.map(rosJointName);
             let points = [];
@@ -343,11 +348,38 @@ Item {
                               timeFromStart: { sec: Math.floor(t), nanosec: Math.round((t % 1) * 1e9) } });
                 t += wps[k].duration;
             }
+            return { jointNames: names, points: points };
+        }
+
+        function playMotion(wps) {
+            if (!wps || wps.length === 0)
+                return;
             rosNode.motionPlaying = true;
-            motionAction.sendGoal({ trajectory: { jointNames: names, points: points }, name: "teach" })
+            motionAction.sendGoal({ trajectory: buildTrajectory(wps), name: "teach" })
                 .then(() => rosNode.motionPlaying = false)
                 .catch((e) => { console.warn("playMotion:", e); rosNode.motionPlaying = false; });
         }
+
+        // Publish the whole named-motion library to the robot as { name: trajectory }
+        // so it can play a spoken pose locally. Latched (transient-local) so a robot
+        // that connects later still gets the current set. Called on any library edit.
+        StringPublisher {
+            id: libraryPub
+            topic: `${rosNode.robotNamespace}/motion/library`
+            qos: Ros2.QualityOfService.transientLocal()
+        }
+        function publishLibrary() {
+            let lib = {};
+            for (const name of motionLib.names) {
+                try {
+                    lib[name] = buildTrajectory(JSON.parse(motionLib.load(name)));
+                } catch (e) {
+                    console.warn("publishLibrary: skipping", name, e);
+                }
+            }
+            libraryPub.publish(JSON.stringify(lib));
+        }
+        Component.onCompleted: rosNode.publishLibrary()
     }
 
     ColumnLayout {
@@ -385,6 +417,7 @@ Item {
                 Layout.alignment: Qt.AlignTop
                 Layout.preferredHeight: panel.height
                 targetRobot: robotRoot
+                library: motionLib
                 engaged: engageParam.reported ?? false
                 playing: rosNode.motionPlaying
                 currentPoint: rosNode.motionCurrentPoint

@@ -255,8 +255,15 @@ Ros2.Node {
         onTranscriptReady: (text, confidence) => {
             console.log("heard:", text, "confidence", confidence);
             root.logChat(root.chatHeard, text, confidence);
-            // Hand the utterance to the LLM; the reply comes back async on
-            // ollama.onResponseReceived below. No-op until apiUrl/model are set.
+            // Voice command? If the utterance names a taught pose ("dogzilla,
+            // please sit"), play it directly -- no LLM round-trip. Otherwise it's
+            // conversation, so hand it to the LLM (async reply below).
+            const motion = root.matchMotionCommand(text);
+            if (motion) {
+                root.logChat(root.chatSystem, "▶ " + motion, 0.0);
+                root.playTrajectory(root.motionLibrary[motion], null);
+                return;
+            }
             root.ollama.chat(text)
         }
         onErrorOccurred: (msg) => console.warn("stt:", msg)
@@ -417,10 +424,16 @@ Ros2.Node {
     // set of per-servo targets per waypoint and let the firmware slew (MotorSpeed),
     // rather than software-interpolating every tick -- at 115200 baud, 12 servo
     // writes per frame per tick would swamp the link. Modeled on the Speak action.
-    property var activeMotion: null            // the in-flight PlayMotion handle, or null
+    property var activeMotion: null            // the in-flight PlayMotion handle, or null (voice-triggered)
+    property bool motionRunning: false         // a motion is playing (with or without a handle)
     property var motionPositions: []           // per-waypoint 12-elem radian arrays (canonical order)
     property var motionDurations: []           // ms to dwell after each waypoint
     property int motionIndex: -1
+
+    // Named motions synced from the twin (name -> JointTrajectory {jointNames, points}),
+    // so a spoken command like "dogzilla, please sit" can play one locally. See the
+    // /motion/library subscriber and matchMotionCommand below.
+    property var motionLibrary: ({})
 
     // Canonical joint order = the JointStatePublisher name list above = the order
     // Controller::setJointAngles expects. Incoming trajectories are reordered to it.
@@ -439,34 +452,45 @@ Ros2.Node {
         onTriggered: root.advanceMotion()
     }
 
+    // Action entry point: the twin's PlayMotion goal.
     function beginMotion(handle, goal) {
-        // One motion at a time: abort any in flight.
-        if (activeMotion && activeMotion !== handle) {
+        root.playTrajectory(goal ? goal.trajectory : null, handle);
+    }
+
+    // Play a JointTrajectory. `handle` is the PlayMotion goal handle for
+    // twin-initiated motions (feedback + cancel); null for voice-triggered ones.
+    function playTrajectory(traj, handle) {
+        // One motion at a time: abort/stop any in flight.
+        if (motionRunning) {
             motionTimer.stop();
-            activeMotion.abort({ completed: false });
+            if (activeMotion)
+                activeMotion.abort({ completed: false });
             activeMotion = null;
+            motionRunning = false;
         }
-        if (!controller.motorsEngaged) {
-            console.warn("PlayMotion: motors disengaged; aborting");
-            handle.abort({ completed: false });
-            return;
-        }
-        const traj = goal.trajectory;
         const pts = traj ? traj.points : [];
         if (!pts || pts.length === 0) {
-            console.warn("PlayMotion: empty trajectory; aborting");
-            handle.abort({ completed: false });
+            console.warn("playTrajectory: empty trajectory");
+            if (handle) handle.abort({ completed: false });
             return;
         }
+        if (!controller.motorsEngaged) {
+            if (handle) {                      // twin: the operator engages first
+                console.warn("playTrajectory: motors disengaged; aborting");
+                handle.abort({ completed: false });
+                return;
+            }
+            controller.motorsEngaged = true;   // voice: stand up, then play
+        }
         // Reorder each waypoint's positions to canonical joint order (requires all
-        // 12 joints); compute per-segment dwell from cumulative time_from_start.
+        // 12 joints); dwell after each point = the gap to the next point's time.
         let positions = [];
         let times = [];
         for (let k = 0; k < pts.length; ++k) {
             const canon = root.toCanonicalPositions(traj.jointNames, pts[k].positions);
             if (!canon) {
-                console.warn("PlayMotion: waypoint", k, "is not a full 12-joint pose; aborting");
-                handle.abort({ completed: false });
+                console.warn("playTrajectory: waypoint", k, "is not a full 12-joint pose");
+                if (handle) handle.abort({ completed: false });
                 return;
             }
             positions.push(canon);
@@ -479,36 +503,59 @@ Ros2.Node {
 
         root.motionPositions = positions;
         root.motionDurations = durations;
-        activeMotion = handle;
-        // Stop button = action cancel (same property-shadows-signal caveat as Speak).
-        handle.cancelRequestedChanged.connect(() => {
-            if (!handle.cancelRequested || root.activeMotion !== handle)
-                return;
-            motionTimer.stop();
-            handle.canceled({ completed: false });   // hold the current pose
-            root.activeMotion = null;
-        });
+        activeMotion = handle;   // may be null (voice)
+        motionRunning = true;
+        if (handle) {
+            // Stop button = action cancel (property-shadows-signal caveat as Speak).
+            handle.cancelRequestedChanged.connect(() => {
+                if (!handle.cancelRequested || root.activeMotion !== handle)
+                    return;
+                motionTimer.stop();
+                handle.canceled({ completed: false });   // hold the current pose
+                root.activeMotion = null;
+                root.motionRunning = false;
+            });
+        }
 
         controller.setMotorSpeed(50);   // moderate slew; crouch()/sit-style poses use ~30-80
         root.motionIndex = -1;
         root.advanceMotion();
     }
 
-    // Drive to the next waypoint (or succeed after the last one's dwell).
+    // Drive to the next waypoint (or finish after the last one's dwell).
     function advanceMotion() {
-        if (!activeMotion)
+        if (!motionRunning)
             return;
         root.motionIndex++;
         const i = root.motionIndex;
         if (i >= root.motionPositions.length) {
-            activeMotion.succeed({ completed: true });
+            if (activeMotion)
+                activeMotion.succeed({ completed: true });
             activeMotion = null;
+            motionRunning = false;
             return;
         }
         controller.setJointAngles(root.motionPositions[i]);
-        activeMotion.publishFeedback({ currentPoint: i, progress: (i + 1) / root.motionPositions.length });
+        if (activeMotion)
+            activeMotion.publishFeedback({ currentPoint: i, progress: (i + 1) / root.motionPositions.length });
         motionTimer.interval = root.motionDurations[i];
         motionTimer.start();
+    }
+
+    // If the transcript is a "<wake> ... <pose>" command whose last word(s) name a
+    // motion in the synced library, return that name; else "". Requires the wake
+    // word "dogzilla" to avoid triggering on ordinary conversation.
+    function matchMotionCommand(text) {
+        const norm = text.toLowerCase().replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
+        // Wake word: match "zilla" so whisper's "dog zilla"/"godzilla" still trigger.
+        if (!norm || norm.indexOf("zilla") < 0)
+            return "";
+        for (const name of Object.keys(root.motionLibrary)) {
+            const n = name.toLowerCase();
+            if (norm === n || norm.endsWith(" " + n))
+                return name;
+        }
+        return "";
     }
 
     // Reorder a waypoint's positions into canonical joint order. Returns null if it
@@ -563,6 +610,22 @@ Ros2.Node {
     PlayMotionActionServer {
         topic: `${root.nodeNamespace}/motion/play`
         onGoalReceived: (goal, handle) => root.beginMotion(handle, goal)
+    }
+
+    // The twin's named-motion library, as a JSON object { name: JointTrajectory }.
+    // Latched (transient-local) so we get the current set on (re)connect; lets a
+    // spoken pose name be played locally without the twin in the loop each time.
+    StringSubscriber {
+        topic: `${root.nodeNamespace}/motion/library`
+        qos: Ros2.QualityOfService.transientLocal()
+        onMessageChanged: {
+            try {
+                root.motionLibrary = JSON.parse(message) || ({});
+                console.log("motion library:", Object.keys(root.motionLibrary).join(", "));
+            } catch (e) {
+                console.warn("motion library parse error:", e);
+            }
+        }
     }
 
     // Readiness/status for the twin: "idle" (ready) / "listening" / "transcribing".
