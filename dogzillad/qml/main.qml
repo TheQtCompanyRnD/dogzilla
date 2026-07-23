@@ -419,21 +419,24 @@ Ros2.Node {
     }
 
     // ---- PlayMotion action (the twin's teach-pendant playback + "stop") ----
-    // Plays a taught trajectory_msgs/JointTrajectory: drive to each waypoint's
-    // joint angles in turn, dwelling per the point's time_from_start. We send one
-    // set of per-servo targets per waypoint and let the firmware slew (MotorSpeed),
-    // rather than software-interpolating every tick -- at 115200 baud, 12 servo
-    // writes per frame per tick would swamp the link. Modeled on the Speak action.
+    // Plays a taught trajectory_msgs/JointTrajectory the standard ROS way:
+    // time_from_start is each point's ARRIVAL time, and we LINEARLY INTERPOLATE the
+    // joint angles between points (at ~20 Hz) so motion is smooth and timed -- not a
+    // step to each target left to the firmware's fixed-speed slew (which was jerky).
+    // A held pose is just two consecutive points with the same positions. At 115200
+    // baud, 12 servo writes per tick @ 20 Hz is ~15% of the link -- comfortable.
     property var activeMotion: null            // the in-flight PlayMotion handle, or null (voice-triggered)
     property bool motionRunning: false         // a motion is playing (with or without a handle)
-    property var motionPositions: []           // per-waypoint 12-elem radian arrays (canonical order)
-    property var motionDurations: []           // ms to dwell after each waypoint
-    property int motionIndex: -1
+    property var motionPositions: []           // per-point 12-elem radian arrays (canonical order), incl. the t=0 start pose
+    property var motionTimes: []               // per-point arrival time in ms (motionTimes[0] === 0)
+    property double motionStartMs: 0           // wall-clock start of the motion
 
     // Named motions synced from the twin (name -> JointTrajectory {jointNames, points}),
     // so a spoken command like "dogzilla, please sit" can play one locally. See the
     // /motion/library subscriber and matchMotionCommand below.
     property var motionLibrary: ({})
+    // Persists the library to disk so it survives restarts / twin disconnects.
+    property MotionStore motionStore: MotionStore {}
 
     // Canonical joint order = the JointStatePublisher name list above = the order
     // Controller::setJointAngles expects. Incoming trajectories are reordered to it.
@@ -448,8 +451,9 @@ Ros2.Node {
     // QRos2NodeChild in its default childEntities list (same reason controller/tts
     // are properties above), so a bare Timer aborts QML load.
     property Timer motionTimer: Timer {
-        repeat: false
-        onTriggered: root.advanceMotion()
+        interval: 50            // ~20 Hz interpolation
+        repeat: true
+        onTriggered: root.interpolateTick()
     }
 
     // Action entry point: the twin's PlayMotion goal.
@@ -482,27 +486,25 @@ Ros2.Node {
             }
             controller.motorsEngaged = true;   // voice: stand up, then play
         }
-        // Reorder each waypoint's positions to canonical joint order (requires all
-        // 12 joints); dwell after each point = the gap to the next point's time.
-        let positions = [];
-        let times = [];
+        // Anchor the interpolation at the dog's CURRENT pose (t=0), then each
+        // trajectory point at its arrival time. Reorder positions to canonical
+        // joint order (requires all 12 joints).
+        let positions = [controller.jointAngles];   // radians, canonical order already
+        let times = [0];
         for (let k = 0; k < pts.length; ++k) {
             const canon = root.toCanonicalPositions(traj.jointNames, pts[k].positions);
             if (!canon) {
-                console.warn("playTrajectory: waypoint", k, "is not a full 12-joint pose");
+                console.warn("playTrajectory: point", k, "is not a full 12-joint pose");
                 if (handle) handle.abort({ completed: false });
                 return;
             }
-            positions.push(canon);
             const t = pts[k].timeFromStart;
+            positions.push(canon);
             times.push(t.sec * 1000 + t.nanosec / 1e6);
         }
-        let durations = [];
-        for (let k = 0; k < positions.length; ++k)
-            durations.push(k < positions.length - 1 ? Math.max(0, times[k + 1] - times[k]) : 300);
 
         root.motionPositions = positions;
-        root.motionDurations = durations;
+        root.motionTimes = times;
         activeMotion = handle;   // may be null (voice)
         motionRunning = true;
         if (handle) {
@@ -517,29 +519,46 @@ Ros2.Node {
             });
         }
 
-        controller.setMotorSpeed(50);   // moderate slew; crouch()/sit-style poses use ~30-80
-        root.motionIndex = -1;
-        root.advanceMotion();
+        // Fast servo slew so the servos track the interpolated setpoints tightly
+        // (the interpolation, not the firmware, sets the effective speed).
+        controller.setMotorSpeed(200);
+        root.motionStartMs = Date.now();
+        root.interpolateTick();     // apply the first setpoint immediately
+        motionTimer.start();
     }
 
-    // Drive to the next waypoint (or finish after the last one's dwell).
-    function advanceMotion() {
+    // Send the interpolated joint setpoint for the elapsed time (or finish).
+    function interpolateTick() {
         if (!motionRunning)
             return;
-        root.motionIndex++;
-        const i = root.motionIndex;
-        if (i >= root.motionPositions.length) {
+        const times = root.motionTimes;
+        const pos = root.motionPositions;
+        const n = times.length;
+        const total = times[n - 1];
+        const elapsed = Date.now() - root.motionStartMs;
+
+        if (elapsed >= total) {                 // done: land exactly on the last pose
+            controller.setJointAngles(pos[n - 1]);
+            motionTimer.stop();
             if (activeMotion)
                 activeMotion.succeed({ completed: true });
             activeMotion = null;
             motionRunning = false;
             return;
         }
-        controller.setJointAngles(root.motionPositions[i]);
+        // Find the segment [k, k+1] containing elapsed, and lerp within it.
+        let k = 0;
+        while (k < n - 1 && times[k + 1] <= elapsed)
+            ++k;
+        const span = times[k + 1] - times[k];
+        const a = span > 0 ? (elapsed - times[k]) / span : 1;
+        const p0 = pos[k], p1 = pos[k + 1];
+        let interp = new Array(12);
+        for (let j = 0; j < 12; ++j)
+            interp[j] = p0[j] + (p1[j] - p0[j]) * a;
+        controller.setJointAngles(interp);
         if (activeMotion)
-            activeMotion.publishFeedback({ currentPoint: i, progress: (i + 1) / root.motionPositions.length });
-        motionTimer.interval = root.motionDurations[i];
-        motionTimer.start();
+            activeMotion.publishFeedback({ currentPoint: k, progress: elapsed / total });
     }
 
     // If the transcript is a "<wake> ... <pose>" command whose last word(s) name a
@@ -620,8 +639,14 @@ Ros2.Node {
         qos: Ros2.QualityOfService.transientLocal()
         onMessageChanged: {
             try {
-                root.motionLibrary = JSON.parse(message) || ({});
-                console.log("motion library:", Object.keys(root.motionLibrary).join(", "));
+                const lib = JSON.parse(message) || ({});
+                // Ignore an empty publish so a fresh/motionless twin can't wipe the
+                // robot's persisted poses; a non-empty library is authoritative.
+                if (Object.keys(lib).length === 0)
+                    return;
+                root.motionLibrary = lib;
+                root.motionStore.save(message);
+                console.log("motion library:", Object.keys(lib).join(", "));
             } catch (e) {
                 console.warn("motion library parse error:", e);
             }
@@ -715,5 +740,16 @@ Ros2.Node {
     Component.onCompleted: {
         camera.start();
         console.log("chosen camera", camera.cameraDevice, camera.cameraFormat, "active", camera.active, "feat", camera.supportedFeatures);
+        // Seed the motion library from disk; a connected twin's latched publish
+        // (if any) overrides this shortly after.
+        const saved = motionStore.load();
+        if (saved) {
+            try {
+                root.motionLibrary = JSON.parse(saved) || ({});
+                console.log("loaded persisted motions:", Object.keys(root.motionLibrary).join(", "));
+            } catch (e) {
+                console.warn("persisted motions parse error:", e);
+            }
+        }
     }
 }

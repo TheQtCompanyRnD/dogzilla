@@ -52,6 +52,8 @@ qt_add_qml_module(dogzillad
         src/ollamaapi.cpp
         src/ollamaresponse.h
         src/ollamaresponse.cpp
+        src/motionstore.h
+        src/motionstore.cpp
 )
 
 # Register the prebuilt QtRos2 message wrappers (std_msgs etc.) in the generator's
