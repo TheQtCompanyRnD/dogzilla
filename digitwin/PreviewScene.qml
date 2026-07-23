@@ -363,8 +363,6 @@ Item {
             TabButton { text: "Teach"; width: 100 }
         }
         StackLayout {
-            palette.text: "white"
-            palette.windowText: "white"
             Layout.fillHeight: true
             Layout.fillWidth: true
             currentIndex: tabBar.currentIndex

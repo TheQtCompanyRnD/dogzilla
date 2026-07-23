@@ -23,6 +23,10 @@ ColumnLayout {
     property int currentPoint: -1
     property real progress: 0
 
+    // The waypoint currently being edited (-1 = none/free posing). Selecting a row
+    // loads its pose into the model; slider edits then write back to that row.
+    property int selectedIndex: -1
+
     signal closed()                 // ✕ button: parent hides the panel
     signal play(var waypoints)      // [{ pose: {camelName: deg, ...}, duration: s }]
     signal stop()                   // cancel the in-flight goal
@@ -41,6 +45,7 @@ ColumnLayout {
             if (m)
                 control[m] = value;
         }
+        syncSelected();   // if a waypoint row is selected, keep it live-edited
     }
     function mirroredName(name) {
         let idx = -1;
@@ -54,11 +59,45 @@ ColumnLayout {
         return joints[paired] ? joints[paired].name : "";
     }
 
-    function capturePose() {
+    function currentPose() {
         let pose = {};
         for (let i = 0; i < joints.length; ++i)
             pose[joints[i].name] = control[joints[i].name];
-        waypointModel.append({ duration: 1.0, poseJson: JSON.stringify(pose) });
+        return pose;
+    }
+
+    function capturePose() {
+        waypointModel.append({ duration: 0.1, poseJson: JSON.stringify(currentPose()) });
+        root.selectedIndex = waypointModel.count - 1;   // select the new row for editing
+    }
+
+    // Load a waypoint's pose into the model (moves the sliders + 3D preview).
+    function loadPose(i) {
+        if (i < 0 || i >= waypointModel.count)
+            return;
+        const pose = JSON.parse(waypointModel.get(i).poseJson);
+        for (let j = 0; j < joints.length; ++j) {
+            const n = joints[j].name;
+            if (pose[n] !== undefined)
+                control[n] = pose[n];
+        }
+    }
+
+    // Click a row to edit it (preview + live edits); click it again to deselect.
+    function selectRow(i) {
+        if (selectedIndex === i) {
+            selectedIndex = -1;   // deselect -> free posing (edits no longer write back)
+            return;
+        }
+        selectedIndex = i;
+        loadPose(i);
+    }
+
+    // Write the current model pose back into the selected waypoint (live editing).
+    function syncSelected() {
+        if (selectedIndex < 0 || selectedIndex >= waypointModel.count)
+            return;
+        waypointModel.setProperty(selectedIndex, "poseJson", JSON.stringify(currentPose()));
     }
 
     function doPlay() {
@@ -81,9 +120,11 @@ ColumnLayout {
         columns: 2
         columnSpacing: 4
         rowSpacing: 4
+        palette.windowText: "white"
         Repeater {
             model: 4  // legs
             delegate: GroupBox {
+                id: sliderGB
                 required property int index
                 readonly property int legStart: index * 3
                 Layout.fillWidth: true
@@ -134,8 +175,9 @@ ColumnLayout {
         Action { id: captureAction; shortcut: StandardKey.Copy; text: qsTr("&Capture pose"); onTriggered: root.capturePose() }
         Button { action: captureAction }
         Item { Layout.fillWidth: true }
-        CheckBox { id: mirrorToggle; checked: true; text: "Mirror L↔R" }
-        Button { text: "Clear"; enabled: waypointModel.count > 0; onClicked: waypointModel.clear() }
+        CheckBox { id: mirrorToggle; checked: true; text: "Mirror L↔R"; palette.windowText: "white" }
+        Button { text: "Clear"; enabled: waypointModel.count > 0
+            onClicked: { root.selectedIndex = -1; waypointModel.clear() } }
     }
 
     // The taught sequence.
@@ -146,30 +188,49 @@ ColumnLayout {
         Layout.preferredHeight: 140
         clip: true
         model: waypointModel
+        spacing: 2
+        move: Transition {
+            NumberAnimation { properties: "x,y"; duration: 100 }
+        }
         ScrollBar.vertical: ScrollBar {}
-        delegate: RowLayout {
+        delegate: Rectangle {
+            id: wpDelegate
             required property int index
             required property real duration
             width: ListView.view.width
-            Label {
-                text: (index + 1) + "."
-                color: index === root.currentPoint ? "cyan" : "white"
-                Layout.preferredWidth: 24
+            implicitHeight: wpRow.implicitHeight
+            // Highlight the selected (editable) row; the playing point is cyan.
+            color: index === root.selectedIndex ? "steelblue" : "#44888888"
+            border.color: "transparent"
+            // Click to select/edit this waypoint, click again to deselect.
+            TapHandler { onTapped: root.selectRow(index) }
+            RowLayout {
+                id: wpRow
+                anchors.fill: parent
+                anchors.leftMargin: 2
+                Label {
+                    text: (index + 1) + "."
+                    color: index === root.currentPoint ? "cyan" : "white"
+                    Layout.preferredWidth: 24
+                }
+                SpinBox {
+                    from: 0; to: 60000; stepSize: 100   // milliseconds, shown as seconds
+                    value: Math.round(wpDelegate.duration * 1000)
+                    editable: true
+                    textFromValue: (v) => (v / 1000).toFixed(1) + "s"
+                    valueFromText: (t) => Math.round(parseFloat(t) * 1000)
+                    onValueModified: waypointModel.setProperty(index, "duration", value / 1000)
+                }
+                Item { Layout.fillWidth: true }
+                // Reordering/removing shifts indices, so drop the selection to avoid
+                // editing the wrong row afterward.
+                RoundButton { text: "↑"; flat: true; enabled: index > 0
+                    onClicked: { root.selectedIndex = -1; waypointModel.move(index, index - 1, 1) } }
+                RoundButton { text: "↓"; flat: true; enabled: index < waypointModel.count - 1
+                    onClicked: { root.selectedIndex = -1; waypointModel.move(index, index + 1, 1) } }
+                RoundButton { text: "🗑"; flat: true; palette.buttonText: "white"
+                    onClicked: { root.selectedIndex = -1; waypointModel.remove(index) } }
             }
-            SpinBox {
-                from: 0; to: 60000; stepSize: 100   // milliseconds, shown as seconds
-                value: Math.round(duration * 1000)
-                editable: true
-                textFromValue: (v) => (v / 1000).toFixed(1) + "s"
-                valueFromText: (t) => Math.round(parseFloat(t) * 1000)
-                onValueModified: waypointModel.setProperty(index, "duration", value / 1000)
-            }
-            Item { Layout.fillWidth: true }
-            RoundButton { text: "↑"; flat: true; enabled: index > 0
-                onClicked: waypointModel.move(index, index - 1, 1) }
-            RoundButton { text: "↓"; flat: true; enabled: index < waypointModel.count - 1
-                onClicked: waypointModel.move(index, index + 1, 1) }
-            RoundButton { text: "🗑"; flat: true; onClicked: waypointModel.remove(index) }
         }
     }
 
