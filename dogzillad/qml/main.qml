@@ -489,7 +489,7 @@ Ros2.Node {
             root.activeMotion = null;
         });
 
-        controller.setMotorSpeed(80);   // moderate slew; crouch()/sit-style poses use ~30-80
+        controller.setMotorSpeed(50);   // moderate slew; crouch()/sit-style poses use ~30-80
         root.motionIndex = -1;
         root.advanceMotion();
     }

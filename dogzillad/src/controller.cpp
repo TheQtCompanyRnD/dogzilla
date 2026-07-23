@@ -579,7 +579,7 @@ void Controller::setSteerAngle(qreal v)
 
 void Controller::setSideStepSpeed(qreal v)
 {
-    if (qFuzzyCompare(m_steerAngle, v))
+    if (qFuzzyCompare(m_sideStepSpeed, v))
         return;
 
     setMotorsEngaged(true);
@@ -592,10 +592,8 @@ void Controller::setSideStepSpeed(qreal v)
 
 void Controller::setMotorSpeed(qreal v)
 {
-    if (qFuzzyCompare(m_steerAngle, v))
-        return;
-
-    uint8_t arg = 0x80 + lroundf(v);
+    // No cached member to guard against, so just send.
+    uint8_t arg = lroundf(v);
     qCDebug(lcCtrl) << "speed" << lroundf(v) << arg;
     sendOneArgCommand(Command::MotorSpeed, arg);
 }
