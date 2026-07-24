@@ -524,10 +524,10 @@ void Controller::setMotorsEngaged(bool v)
     if (m_motorsEngaged == v)
         return;
 
+    setMotorSpeed(50);
     if (v) {
         if (m_motorPollTimerId < 0)
             m_motorPollTimerId = startTimer(100);
-        setMotorSpeed(50);
         setTranslationZ(100); // stand up; TODO this doesn't go high enough
         sendThunkCommand(Command::LoadMotor);
         m_tareCountdown = 20; // ~2 s for the legs to extend and the body to settle level
@@ -535,7 +535,11 @@ void Controller::setMotorsEngaged(bool v)
         qCDebug(lcCtrl) << m_motorsEngaged << "->" << v;
         emit motorsEngagedChanged(v);
     } else {
-        setTranslationZ(0); // crouch; TODO this doesn't go low enough
+        // crouch before disengaging. setTranslationZ(0) doesn't go low enough.
+        // angles in radians: lower, upper, hip
+        const auto lower = qDegreesToRadians(-175);
+        const auto upper = qDegreesToRadians(93);
+        setJointAngles({lower, upper, 0,  lower, upper, 0,  lower, upper, 0,  lower, upper, 0});
         m_disengageCountdown = 25; // ticks
     }
 }
