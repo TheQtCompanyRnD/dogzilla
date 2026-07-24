@@ -44,7 +44,7 @@ add_custom_target(QmlFiles
 qt_ros2_configure_target(
     Robot_Dogzilla
     CAPABILITIES PUBLISHER SUBSCRIBER SERVICE ACTION
-    MODULES QtRos2GeometryMessages QtRos2SensorMessages
+    MODULES QtRos2GeometryMessages QtRos2SensorMessages QtRos2StandardServices
 )
 
 # Generate the QtRos2 QML wrapper (import Dogzilla.Interfaces) for our custom

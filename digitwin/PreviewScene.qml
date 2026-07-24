@@ -7,6 +7,7 @@ import QtQuick3D.Helpers
 import QtRos2.Core as Ros2
 import QtRos2.GeometryMsgs as GeomMsgs
 import QtRos2.SensorMsgs as SensorMsgs
+import QtRos2.StdSrvs as StdSrvs
 import Dogzilla
 import Dogzilla.Interfaces
 
@@ -241,14 +242,21 @@ Item {
             onMessageReceived: (msg) => panel.addChatMessage(msg)
         }
 
-        // The dog's voice as one cancellable action: "Speak" sends a verbatim
-        // goal (use_llm=false), "Send" an LLM goal (use_llm=true), and the stop
-        // button cancels the in-flight goal, which interrupts TTS on the robot.
-        // Replaces the fire-and-forget /speech/say, /speech/respond and
-        // /speech/stop topics.
+        // The dog's voice: "Speak" sends a verbatim goal (use_llm=false), "Send"
+        // an LLM goal (use_llm=true). Replaces the fire-and-forget /speech/say
+        // and /speech/respond topics. Stopping is NOT a goal cancel -- see
+        // stopSpeech below -- so the stop button also silences the robot's
+        // autonomous STT->LLM voice, which has no goal here to cancel.
         SpeakActionClient {
             id: speakAction
             topic: `${rosNode.robotNamespace}/speech/speak`
+        }
+
+        // The stop button's "shut up now": silences TTS on the robot however the
+        // speech started (twin goal or autonomous). std_srvs/Trigger for an ack.
+        StdSrvs.TriggerServiceClient {
+            id: stopSpeech
+            topic: `${rosNode.robotNamespace}/speech/stop`
         }
 
         SensorMsgs.JointStateSubscriber {
@@ -416,7 +424,7 @@ Item {
                 robotMasterVolume: masterParam.reported ?? 0
                 robotMicVolume: micParam.reported ?? 0
 
-                onStopSpeaking: speakAction.cancelGoal()
+                onStopSpeaking: stopSpeech.callService().catch(e => console.warn("stop:", e))
                 onSpeakText: (t) => speakAction.sendGoal({ "text": t, "useLlm": false }).catch(e => console.warn("speak:", e))
                 onSendText: (t) => speakAction.sendGoal({ "text": t, "useLlm": true }).catch(e => console.warn("speak:", e))
             }

@@ -61,7 +61,7 @@ qt_add_qml_module(dogzillad
 # generator can resolve StampedTelemetry's std_msgs/Header dependency to the
 # installed Qt6::QtRos2StandardMessages wrapper (the downstream find_package
 # fallback looks for the ament-style name and misses the Qt6-style package).
-qt_ros2_configure_target(dogzillad CAPABILITIES PUBLISHER SUBSCRIBER)
+qt_ros2_configure_target(dogzillad CAPABILITIES PUBLISHER SUBSCRIBER SERVICE ACTION)
 
 # Generate the QtRos2 QML wrappers (import Dogzilla.Interfaces) for our custom
 # dogzilla_interfaces package (StampedTelemetry, ChatMessage), via the bridge's

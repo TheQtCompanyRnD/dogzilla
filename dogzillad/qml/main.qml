@@ -10,6 +10,7 @@ import QtRos2.Core as Ros2
 import QtRos2.GeometryMsgs
 import QtRos2.SensorMsgs
 import QtRos2.StdMsgs
+import QtRos2.StdSrvs
 import QtRos2.Transforms
 
 Ros2.Node {
@@ -376,35 +377,35 @@ Ros2.Node {
     property var speakingGoal: null
 
     // Start executing a Speak goal from the twin. use_llm=false speaks the text
-    // verbatim; use_llm=true asks the LLM first and speaks the reply. Either way
-    // the goal stays active until TTS finishes (succeed) or the twin cancels it.
+    // verbatim; use_llm=true asks the LLM first and speaks the reply. The goal
+    // stays active until TTS finishes (succeed) or stopSpeaking() interrupts it
+    // (abort) -- there's no goal-scoped cancel: the twin's stop button hits the
+    // /speech/stop service instead, so it silences autonomous speech too.
     function beginSpeak(handle, goal) {
-        // Supersede any goal still in flight: one voice, one goal at a time.
-        if (activeSpeak && activeSpeak !== handle) {
-            speakingGoal = null;   // before stop(): don't let its Ready succeed anything
-            tts.stop();
-            activeSpeak.abort({ spokenText: activeSpokenText, completed: false });
-        }
+        // One voice, one goal: stop anything already speaking before taking over.
+        if (activeSpeak && activeSpeak !== handle)
+            stopSpeaking();
         activeSpeak = handle;
         activeSpokenText = "";
-        // The stop button cancels the goal; interrupt TTS and finish canceled.
-        // NB: on the goal handle, cancelRequested is a bool Q_PROPERTY *and* a
-        // same-named signal; in QML the property shadows the signal, so
-        // `handle.cancelRequested` is the bool (not connectable). Connect to the
-        // property's notifier instead and read the flag (it only latches true).
-        handle.cancelRequestedChanged.connect(() => {
-            if (!handle.cancelRequested || root.activeSpeak !== handle)
-                return;
-            root.speakingGoal = null;   // before stop(): suppress the stray Ready
-            tts.stop();
-            handle.canceled({ spokenText: root.activeSpokenText, completed: false });
-            root.activeSpeak = null;
-        });
         if (goal.useLlm) {
             handle.publishFeedback({ state: "thinking", spokenSoFar: "" });
             ollama.chat(goal.text);
         } else {
             speakForGoal(goal.text);
+        }
+    }
+
+    // Stop the robot's voice NOW, whatever started it. The single stop authority:
+    // TTS is the one voice, so we stop it directly rather than through a goal --
+    // autonomous STT->LLM speech (speak() with no handle) has no goal to cancel.
+    // If a twin Speak goal is mid-utterance, abort it so the twin sees it finish.
+    // Called by the /speech/stop service and by beginSpeak when superseding.
+    function stopSpeaking() {
+        speakingGoal = null;   // before stop(): suppress the stray Ready (see tts.onStateChanged)
+        tts.stop();
+        if (activeSpeak) {
+            activeSpeak.abort({ spokenText: activeSpokenText, completed: false });
+            activeSpeak = null;
         }
     }
 
@@ -617,14 +618,26 @@ Ros2.Node {
         topic: `${root.nodeNamespace}/speech/log`
     }
 
-    // The twin's "Speak" / "Send" buttons: one cancellable Speak goal. The
-    // goal's use_llm flag selects verbatim TTS ("Speak") vs LLM-then-speak
-    // ("Send"); the twin's stop button cancels the active goal, which stops
-    // TTS. Replaces the older fire-and-forget /speech/say, /speech/respond and
-    // /speech/stop topics.
+    // The twin's "Speak" / "Send" buttons: one Speak goal at a time. The goal's
+    // use_llm flag selects verbatim TTS ("Speak") vs LLM-then-speak ("Send").
+    // The goal isn't cancelled to stop speech -- see /speech/stop below: the
+    // twin's stop button is a service that silences TTS regardless of how the
+    // speech started, so it also stops the autonomous STT->LLM voice, which has
+    // no goal. Replaces the older fire-and-forget /speech/say, /speech/respond.
     SpeakActionServer {
         topic: `${root.nodeNamespace}/speech/speak`
         onGoalReceived: (goal, handle) => root.beginSpeak(handle, goal)
+    }
+
+    // "Stop the voice": the single authority for silencing TTS, regardless of
+    // how speech started (twin Speak goal or autonomous STT->LLM). std_srvs/
+    // Trigger so the caller gets an ack; the response is declarative. Distinct
+    // from an action cancel, which could only reach a goal the twin itself sent
+    // -- never the robot's own autonomous speech.
+    TriggerServiceServer {
+        topic: `${root.nodeNamespace}/speech/stop`
+        onRequestReceived: root.stopSpeaking()
+        response: ({ success: true, message: "speech stopped" })
     }
 
     // Teach-pendant playback: the twin sends a taught JointTrajectory here; the
