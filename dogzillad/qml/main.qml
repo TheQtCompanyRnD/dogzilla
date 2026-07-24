@@ -103,16 +103,20 @@ Ros2.Node {
         onJoyButtonEvent:
             (device, button, isPressed) => {
                 console.log("button", button, isPressed)
-                if (!isPressed)
-                    return
                 switch (button) {
                 case 6: // JoyButton.Start
+                    if (!isPressed)
+                        return
                     const engage = !controller.motorsEngaged
                     controller.motorsEngaged = engage
                     lidar.running = engage
                     break
                 case 4: // JoyButton.Back
-                    controller.stop()
+                    if (isPressed)
+                        controller.stop()
+                    break
+                case 0: // JoyButton.A
+                    mic.listening = isPressed
                     break
                 }
             }
@@ -245,7 +249,9 @@ Ros2.Node {
     // held we silence the fan and capture the mic; on release we stop capture,
     // transcribe the utterance (whisper, on a worker thread) and append it to
     // the conversation log on /dogzilla/speech/log as a HEARD line.
-    property FanController fan: FanController {}
+    property FanController fan: FanController {
+        quiet: mic.listening
+    }
     property AudioCapture mic: AudioCapture {
         onCaptured: (pcm) => stt.transcribe(pcm)
     }
@@ -301,7 +307,7 @@ Ros2.Node {
         // is only "thinking", not speaking). Clearing speakingGoal before every
         // stop() makes those stray Ready transitions no-ops.
         onStateChanged: {
-            if (state === TextToSpeech.Ready && root.speakingGoal) {
+            if (tts.state === TextToSpeech.Ready && root.speakingGoal) {
                 root.speakingGoal.succeed({ spokenText: root.activeSpokenText, completed: true });
                 if (root.activeSpeak === root.speakingGoal)
                     root.activeSpeak = null;
@@ -598,10 +604,7 @@ Ros2.Node {
     BoolSubscriber {
         topic: `${root.nodeNamespace}/speech/listen`
         // std_msgs/Bool single-field collapse: the handler gets the bool directly.
-        onMessageReceived: (listening) => {
-            fan.quiet = listening;       // sudo dogzilla-fan quiet / auto
-            mic.listening = listening;   // false edge -> captured() -> stt.transcribe()
-        }
+        onMessageReceived: (listening) => mic.listening = listening
     }
 
     // The conversation, for the twin's chat log: HEARD (what the human said, with
