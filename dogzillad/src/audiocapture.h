@@ -7,6 +7,7 @@
 #include <QObject>
 #include <QByteArray>
 #include <QAudioFormat>
+#include <QtMultimedia/qaudio.h>   // QtAudio::State / QtAudio::Error
 
 QT_BEGIN_NAMESPACE
 class QAudioSource;
@@ -18,6 +19,13 @@ QT_END_NAMESPACE
 // writes an encoded file). Fixed at 16 kHz / mono / int16, i.e. exactly what
 // WhisperSpeechToText consumes. Drive from QML via `listening`; on the
 // true->false edge it emits captured() with the buffered PCM (no temp file).
+//
+// `listening` reports the REAL capture state, not the request: writing true is a
+// request that only latches (and notifies) once the QAudioSource actually opens,
+// so a failed start (no input device, backend error) leaves it false. If the
+// source later stops on its own (device lost), listening flips back to false and
+// captured() fires with whatever was buffered. This keeps /dogzilla/speech/state
+// honest -- it can't claim "listening" while the mic never opened.
 class AudioCapture : public QObject
 {
     Q_OBJECT
@@ -39,9 +47,10 @@ signals:
 
 private slots:
     void onReadyRead();
+    void onStateChanged(QtAudio::State state);
 
 private:
-    void start();
+    bool start();   // true if capture actually opened
     void stop();
 
     bool m_listening = false;
