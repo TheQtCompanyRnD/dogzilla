@@ -291,6 +291,8 @@ Ros2.Node {
 */
         apiUrl: "http://t440u.local:11434"
         model: "qwen3.5:4b"
+        // promptSource: "/usr/share/dogzillad/prompt.txt"
+        promptSource: Qt.resolvedUrl("prompt.txt")
         onResponseReceived: (text) => {
             // If a twin Speak(use_llm) goal is waiting on this reply, speak it
             // as part of that goal so the twin's stop button can interrupt it;

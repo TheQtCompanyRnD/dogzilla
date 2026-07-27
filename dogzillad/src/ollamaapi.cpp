@@ -2,17 +2,43 @@
 #include "ollamaresponse.h"
 
 #include <QEventLoop>
+#include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QLoggingCategory>
 #include <QNetworkReply>
 
 #include <memory>
+
+Q_LOGGING_CATEGORY(lcLlm, "dogzilla.llm")
 
 static inline QNetworkAccessManager *getUnderlyingNetworkManager()
 {
     static auto gUnderlyingManager = std::make_unique<QNetworkAccessManager>();
     return gUnderlyingManager.get();
+}
+
+// Read the prompt file addressed by a QUrl. Handles the forms promptSource can
+// take: a resolved file: URL (Qt.resolvedUrl from disk), a qrc: URL (from a
+// resource-loaded main.qml), or a bare filesystem path assigned to the QUrl
+// property (e.g. "/usr/share/dogzillad/prompt.txt", which has no scheme).
+static QString readPromptFile(const QUrl &url)
+{
+    QString path;
+    if (url.scheme() == QLatin1String("qrc"))
+        path = QLatin1Char(':') + url.path();
+    else if (url.isLocalFile())
+        path = url.toLocalFile();
+    else
+        path = url.path().isEmpty() ? url.toString() : url.path();
+
+    QFile file{path};
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        qCWarning(lcLlm) << "could not open prompt" << path << ":" << file.errorString();
+        return QString{};
+    }
+    return QString::fromUtf8(file.readAll());
 }
 
 OllamaApi::OllamaApi(QObject *parent)
@@ -25,6 +51,7 @@ void OllamaApi::setApiUrl(const QUrl &url)
         return;
     m_apiUrl = url;
     emit apiUrlChanged();
+    maybeSendPrompt();
 }
 
 void OllamaApi::setModel(const QString &name)
@@ -33,6 +60,39 @@ void OllamaApi::setModel(const QString &name)
         return;
     m_modelName = name;
     emit modelChanged();
+    maybeSendPrompt();
+}
+
+void OllamaApi::setPromptSource(const QUrl &newPromptSource)
+{
+    if (m_promptSource == newPromptSource)
+        return;
+    m_promptSource = newPromptSource;
+    emit promptSourceChanged();
+    maybeSendPrompt();
+}
+
+void OllamaApi::maybeSendPrompt()
+{
+    // Once per session: fire only when fully configured and not yet primed.
+    if (m_promptSent || !m_apiUrl.isValid() || m_modelName.isEmpty()
+        || m_promptSource.isEmpty())
+        return;
+
+    const QString prompt = readPromptFile(m_promptSource);
+    if (prompt.isEmpty())
+        return; // couldn't read it; retry if promptSource is set again
+
+    m_promptSent = true;
+
+    QJsonObject systemMessage;
+    systemMessage.insert("role", "system");
+    systemMessage.insert("content", prompt);
+    m_messages.append(systemMessage);
+
+    // Open the session: the model's acknowledgement of the system prompt is
+    // logged rather than spoken (see sendConversation).
+    sendConversation(/*isPrompt*/ true);
 }
 
 void OllamaApi::setGenerating(bool generating)
@@ -73,18 +133,26 @@ QStringList OllamaApi::list()
 
 void OllamaApi::chat(const QString &message)
 {
+    // Append this utterance to the running history, then send the whole
+    // conversation so the model keeps its context across turns.
+    QJsonObject userMessage;
+    userMessage.insert("role", "user");
+    userMessage.insert("content", message);
+    m_messages.append(userMessage);
+
+    sendConversation(/*isPrompt*/ false);
+}
+
+void OllamaApi::sendConversation(bool isPrompt)
+{
     QUrl url = getApiUrl();
     if (!url.isValid())
         return;
     url.setPath("/api/chat");
 
-    // Single-turn request: just this utterance, no prior history.
-    QJsonObject userMessage;
-    userMessage.insert("role", "user");
-    userMessage.insert("content", message);
     QJsonObject body;
     body.insert("model", m_modelName);
-    body.insert("messages", QJsonArray{ userMessage });
+    body.insert("messages", m_messages);
 
     QNetworkRequest request{url};
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
@@ -98,7 +166,7 @@ void OllamaApi::chat(const QString &message)
     // finished handler can emit the full reply.
     auto accumulated = std::make_shared<QString>();
 
-    auto onReply = [this, reply, accumulated](qint64, qint64){
+    auto onReply = [this, reply, accumulated, isPrompt](qint64, qint64){
         OllamaResponse ollamaResponse;
         while (reply->bytesAvailable() > 0) {
             ollamaResponse.reset(reply->readLine());
@@ -106,12 +174,23 @@ void OllamaApi::chat(const QString &message)
                 continue; // partial line: wait for the rest on the next event
             *accumulated += ollamaResponse.getChatContent();
         }
-        emit responseChanged(*accumulated);
+        if (!isPrompt)
+            emit responseChanged(*accumulated);
     };
 
-    auto onReplyFinished = [this, accumulated](){
+    auto onReplyFinished = [this, accumulated, isPrompt](){
         setGenerating(false);
-        emit responseReceived(*accumulated);
+
+        // Keep the assistant turn in history so the session continues.
+        QJsonObject assistantMessage;
+        assistantMessage.insert("role", "assistant");
+        assistantMessage.insert("content", *accumulated);
+        m_messages.append(assistantMessage);
+
+        if (isPrompt)
+            qCDebug(lcLlm) << "session primed; model said:" << *accumulated;
+        else
+            emit responseReceived(*accumulated);
     };
 
     connect(this, &OllamaApi::stopGenerating, reply, &QNetworkReply::abort);
