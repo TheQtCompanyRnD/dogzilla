@@ -394,7 +394,11 @@ Item {
                     console.warn("publishLibrary: skipping", name, e);
                 }
             }
-            libraryPub.publish(JSON.stringify(lib));
+            // Assign the data property (not publish(value)): this stores the
+            // state so the transient_local publisher replays it on connect for
+            // subscribers that join after this early (Component.onCompleted)
+            // call, before the rcl publisher even exists.
+            libraryPub.data = JSON.stringify(lib);
         }
         Component.onCompleted: rosNode.publishLibrary()
     }

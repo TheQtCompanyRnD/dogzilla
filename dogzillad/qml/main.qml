@@ -262,9 +262,9 @@ Ros2.Node {
         onTranscriptReady: (text, confidence) => {
             console.log("heard:", text, "confidence", confidence);
             root.logChat(root.chatHeard, text, confidence);
-            // Voice command? If the utterance names a taught pose ("dogzilla,
-            // please sit"), play it directly -- no LLM round-trip. Otherwise it's
-            // conversation, so hand it to the LLM (async reply below).
+            // Voice command? If the utterance is short and ends with a
+            // taught pose ("please sit"), play it directly -- no LLM round-trip.
+            // Otherwise it's conversation, so hand it to the LLM (async reply below).
             const motion = root.matchMotionCommand(text);
             if (motion) {
                 root.logChat(root.chatSystem, "▶ " + motion, 0.0);
@@ -283,8 +283,14 @@ Ros2.Node {
     // and model to an installed model; both are still placeholders here.
     property OllamaApi ollama: OllamaApi {
         // set to the actual LLM host IP; empty means chat() is a no-op.
+/*
         apiUrl: "http://strn.local:11434"
         model: "qwen3.6:35b"
+        apiUrl: "http://t440u.local:11434"
+        model: "gemma4:e2b"
+*/
+        apiUrl: "http://t440u.local:11434"
+        model: "qwen3.5:4b"
         onResponseReceived: (text) => {
             // If a twin Speak(use_llm) goal is waiting on this reply, speak it
             // as part of that goal so the twin's stop button can interrupt it;
@@ -473,6 +479,7 @@ Ros2.Node {
     function playTrajectory(traj, handle) {
         // One motion at a time: abort/stop any in flight.
         if (motionRunning) {
+            console.warn("playTrajectory: already in motion, aborting");
             motionTimer.stop();
             if (activeMotion)
                 activeMotion.abort({ completed: false });
@@ -568,20 +575,21 @@ Ros2.Node {
             activeMotion.publishFeedback({ currentPoint: k, progress: elapsed / total });
     }
 
-    // If the transcript is a "<wake> ... <pose>" command whose last word(s) name a
-    // motion in the synced library, return that name; else "". Requires the wake
-    // word "dogzilla" to avoid triggering on ordinary conversation.
+    // If the transcript is a "... <pose>" command whose last word(s) name a
+    // motion in the synced library, return that name; else "".
+    // Only when the sentence is 3 words or less, to avoid triggering
+    // on ordinary conversation.
     function matchMotionCommand(text) {
-        const norm = text.toLowerCase().replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
-        // Wake word: match "zilla" so whisper's "dog zilla"/"godzilla" still trigger.
-        if (!norm || norm.indexOf("zilla") < 0)
-            return "";
+        const words = text.toLowerCase().replace(/[.!?:;,]/g, "").trim().split(" ")
+        if (words.length > 3)
+            return "" // don't use long sentences for simple commands
+        const lastWord = words.pop()
         for (const name of Object.keys(root.motionLibrary)) {
-            const n = name.toLowerCase();
-            if (norm === n || norm.endsWith(" " + n))
-                return name;
+            const n = name.toLowerCase()
+            if (lastWord === n)
+                return name
         }
-        return "";
+        return ""
     }
 
     // Reorder a waypoint's positions into canonical joint order. Returns null if it
