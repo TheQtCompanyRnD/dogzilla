@@ -156,7 +156,9 @@ void OllamaApi::sendConversation(bool isPrompt)
 
     QNetworkRequest request{url};
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-    QNetworkReply *reply = post(request, QJsonDocument{body}.toJson());
+    const auto json = QJsonDocument{body}.toJson();
+    QNetworkReply *reply = post(request, json);
+    qCDebug(lcLlm) << "request:" << json;
 
     setGenerating(true);
 
@@ -174,8 +176,10 @@ void OllamaApi::sendConversation(bool isPrompt)
                 continue; // partial line: wait for the rest on the next event
             *accumulated += ollamaResponse.getChatContent();
         }
-        if (!isPrompt)
+        if (!isPrompt) {
+            qCDebug(lcLlm) << "response:" << *accumulated;
             emit responseChanged(*accumulated);
+        }
     };
 
     auto onReplyFinished = [this, accumulated, isPrompt](){
