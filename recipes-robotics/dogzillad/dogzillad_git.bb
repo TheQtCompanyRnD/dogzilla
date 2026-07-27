@@ -59,12 +59,13 @@ do_install() {
     install -d ${D}${bindir}
     install -m 0755 ${B}/dogzillad ${D}${bindir}/dogzillad
 
-    # main.qml is shipped as an editable file (kept scriptable, not baked into
+    # main.qml and prompt.txt are shipped as editable files (kept scriptable, not baked into
     # the binary). dogzillad resolves it via QStandardPaths::AppDataLocation,
     # which searches ${datadir}/dogzillad (= /usr/share/dogzillad) as well as
     # ~/.local/share/dogzillad (a writable per-user override).
     install -d ${D}${datadir}/dogzillad
     install -m 0644 ${S}/qml/main.qml ${D}${datadir}/dogzillad/main.qml
+    install -m 0644 ${S}/qml/prompt.txt ${D}${datadir}/dogzillad/prompt.txt
 
     # qt_add_qml_module may emit a QML plugin tree under the build dir; install
     # it if present (harmless no-op if the QML is compiled into the binary).
