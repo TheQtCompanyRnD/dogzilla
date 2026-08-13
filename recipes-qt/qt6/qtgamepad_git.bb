@@ -44,17 +44,17 @@ QT_MODULE = "qtgamepad"
 QT_MODULE_BRANCH = "dev"
 SRCREV = "6de4c9d2ad753eac40b9f83bebcc01084fae16a9"
 
-# === TEMPORARY: build qtgamepad from Gerrit change 753303 (the polling->event
-# CPU rework + leak fix) via a LOCAL clone, instead of the published dev branch
+# === TEMPORARY: build qtgamepad from Gerrit change 760147 (the polling->event
+# CPU rework + leak fix + red-led-mode fix) via a LOCAL clone, instead of the published dev branch
 # + the patch above. bitbake can't fetch a Gerrit change ref directly, so
 # prepare the clone once (set QTGAMEPAD_SRC to whichever clone you use):
 #   cd ${QTGAMEPAD_SRC}
-#   git fetch https://codereview.qt-project.org/qt/qtgamepad refs/changes/03/753303/1
+#   git fetch https://codereview.qt-project.org/qt/qtgamepad refs/changes/47/760147/2
 #   git checkout -b gerrit-753303 FETCH_HEAD
 # Revert this whole block (and un-comment the patch lines above) once the change
 # merges upstream, restoring the published-git SRCREV pin.
 QTGAMEPAD_SRC ?= "/home/rutledge/dev/qt6/qtgamepad"
-SRC_URI = "git://${QTGAMEPAD_SRC};protocol=file;branch=gerrit-753303;destsuffix=${BB_GIT_DEFAULT_DESTSUFFIX}"
+SRC_URI = "git://${QTGAMEPAD_SRC};protocol=file;branch=gerrit-760147;destsuffix=${BB_GIT_DEFAULT_DESTSUFFIX}"
 SRCREV = "${AUTOREV}"
 # === end TEMPORARY
 
