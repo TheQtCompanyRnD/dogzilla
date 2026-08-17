@@ -56,4 +56,34 @@ $ qml -I . Main.qml
 If both are on the same network (wifi or ethernet), they should talk to each
 other.
 
+## Laptop setup (networking + ROS discovery)
+
+The robot end is handled by the `meta-dogzilla` image: systemd-networkd does
+DHCP on eth0 and falls back to an IPv4 link-local address when no DHCP server
+answers, NetworkManager keeps only the wifi radios, avahi answers to
+`dogzilla.local`, and `ROS_DOMAIN_ID` is baked into `dogzillad.service`.
+
+So an Ubuntu laptop needs a handful of NetworkManager profiles and a matching
+`ROS_DOMAIN_ID`. `services/laptop-setup.sh` reports and applies them:
+
+```
+$ services/laptop-setup.sh check    # what's set, what's missing
+$ services/laptop-setup.sh apply    # sudo only for one dnsmasq drop-in
+```
+
+After that, all three ways of connecting work with `dogzilla.local`: a lab
+switch or venue wifi (both ends take DHCP), a cable straight between robot and
+laptop with nothing typed (both fall back to `169.254.x`, ~35s after plugging
+in), and that same cable with `nmcli con up robot-cable` when you want the robot
+to have a fixed `10.51.0.x` address and internet through the laptop. See the
+header comment in the script for why each setting is there.
+
+Two ROS-level gotchas the script can't fix: Fast DDS binds interfaces at startup
+and won't re-bind, so restart `dogzillad` (and any `ros2` CLI) after switching
+links; and every participant must agree on `ROS_DOMAIN_ID` with no
+`RMW_IMPLEMENTATION` set anywhere.
+
+`services/demo-audio.sh` is a separate optional tool: it bridges the robot's
+audio to the laptop's speakers for recording demo videos.
+
 
