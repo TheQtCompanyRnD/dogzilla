@@ -1,32 +1,34 @@
 // Copyright (C) 2026 The Qt Company Ltd.
 // SPDX-License-Identifier: GPL-3.0-only
 
-#ifndef OLLAMAAPI_H
-#define OLLAMAAPI_H
+#ifndef LANGUAGEMODEL_H
+#define LANGUAGEMODEL_H
 
-#include "chatmodel.h"
-
-#include <QFile>
+#include <QJsonArray>
 #include <QObject>
 #include <QQmlEngine>
 #include <QRestAccessManager>
-#include <QTextCursor>
+#include <QUrl>
 
-class QQuickTextDocument;
-
+// Minimal chat client for the daemon, talking to any OpenAI-compatible endpoint
+// (/v1/chat/completions and /v1/models, supported by both Ollama and llama.cpp's
+// server). Session-based and multi-turn: once apiUrl, model and promptSource are
+// all set, the system prompt in promptSource is sent once to open the session
+// (its reply is only logged, not spoken), and the conversation history is then
+// carried across every chat() call so the dog stays in character. Unlike the
+// digital twin's ChatModel/QTextDocument-backed version, dogzillad has no GUI --
+// it feeds whisper transcripts in via chat() and emits the reply via
+// responseReceived(), which main.qml routes to speak() (TTS + the /speech/log
+// chat topic the twin renders).
 class LanguageModel : public QRestAccessManager
 {
     Q_OBJECT
     QML_ELEMENT
 
     Q_PROPERTY(QUrl apiUrl READ getApiUrl WRITE setApiUrl NOTIFY apiUrlChanged FINAL)
-    Q_PROPERTY(QUrl chatLog READ chatLog WRITE setChatLog NOTIFY chatLogChanged FINAL)
-    Q_PROPERTY(QQuickTextDocument* outputDocument READ outputDocument WRITE setOutputDocument NOTIFY outputDocumentChanged FINAL)
-    Q_PROPERTY(ChatModel* model READ model NOTIFY modelChanged FINAL)
+    Q_PROPERTY(QString model READ model WRITE setModel NOTIFY modelChanged FINAL)
+    Q_PROPERTY(QUrl promptSource READ promptSource WRITE setPromptSource NOTIFY promptSourceChanged FINAL)
     Q_PROPERTY(bool generating READ isGenerating NOTIFY generatingChanged FINAL)
-
-    // workaround for lack of settings array support in QtCore Settings
-    Q_PROPERTY(QStringList savedApiUrls READ savedApiUrls WRITE setSavedApiUrls NOTIFY savedApiUrlsChanged FINAL)
 
 public:
     explicit LanguageModel(QObject *parent = nullptr);
@@ -34,60 +36,47 @@ public:
     const QUrl &getApiUrl() const { return m_apiUrl; }
     void setApiUrl(const QUrl &url);
 
-    QQuickTextDocument *outputDocument() const;
-    void setOutputDocument(QQuickTextDocument *newOutputDocument);
+    QString model() const { return m_modelName; }
+    void setModel(const QString &name);
 
-    ChatModel *model() { return &m_model; }
+    QUrl promptSource() const { return m_promptSource; }
+    void setPromptSource(const QUrl &newPromptSource);
 
     bool isGenerating() const { return m_generating; }
     void setGenerating(bool generating);
 
     Q_INVOKABLE QStringList list();
-    Q_INVOKABLE void startChat(const QString &modelName);
     Q_INVOKABLE void chat(const QString &message);
-    Q_INVOKABLE QString chatWithContext(const QString &message, const QString &rootPath,
-                                        const QStringList &contextPaths = {});
-
-    QStringList savedApiUrls() const;
-    void setSavedApiUrls(const QStringList &list);
-
-    QUrl chatLog() const;
-    void setChatLog(const QUrl &url);
 
 signals:
-    // property notifiers
     void apiUrlChanged();
-    void chatLogChanged();
-    void outputDocumentChanged();
     void modelChanged();
+    void promptSourceChanged();
     void generatingChanged();
-    void savedApiUrlsChanged();
-
-    // other signals
     void stopGenerating();
-    void error(QString error);
-    void requested(QString text);
-    void responded(QString text);
-    void patchGenerated(QString filename, QString diff);
+
+    // Incremental assistant text as the reply streams in (for a live view).
+    void responseChanged(const QString &partial);
+    // The complete assistant reply, once generation finishes. This is what the
+    // dog "says": main.qml connects it to speak().
+    void responseReceived(const QString &response);
 
 private:
-    void findDiffs();
-    void applyDiff(QString diff);
+    // Send the system prompt once, when apiUrl/model/promptSource are all set.
+    void maybeSendPrompt();
+    // POST the current m_messages to /v1/chat/completions. isPrompt=true is the
+    // priming turn: the reply is logged rather than emitted via responseReceived().
+    void sendConversation(bool isPrompt);
 
 private:
     QUrl m_apiUrl;
-    ChatModel m_model;
+    QString m_modelName;
+    QUrl m_promptSource;
+    // Running conversation history (system, then alternating user/assistant),
+    // resent in full on every request so the session keeps its context.
+    QJsonArray m_messages;
+    bool m_promptSent = false;
     bool m_generating = false;
-    bool m_inList = false; // is m_partialBlock a list item?
-    bool m_inCodeBlock = false;
-    int m_lastMarkdownOutputPos = 0; // where was m_appendCursor after last time we called insertMarkdown()
-    int m_generationBeginPos; // where was m_appendCursor when generating started
-    QQuickTextDocument *m_outputDocument = nullptr;
-    QTextCursor m_appendCursor;
-    QString m_partialBlock;
-    QUrl m_chatLogUrl;
-    QFile m_chatLog;
-    QHash<QString, QString> m_contextPaths; // map from @context to discovered file path
 };
 
-#endif // OLLAMAAPI_H
+#endif // LANGUAGEMODEL_H
