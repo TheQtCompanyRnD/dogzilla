@@ -44,6 +44,13 @@ QT_MODULE = "qtgamepad"
 QT_MODULE_BRANCH = "dev"
 SRCREV = "6de4c9d2ad753eac40b9f83bebcc01084fae16a9"
 
+# qtgamepad's CMakeLists.txt does find_package(Qt6 6.13.0 REQUIRED) (the "dev"
+# branch tracks the next Qt version), but we build it against Qt 6.12. The bare
+# QT_NO_PACKAGE_VERSION_CHECK bitbake var does nothing -- nothing reads it and
+# passes it to cmake. It has to reach CMake as a -D argument, exactly like the
+# local -DQT_NO_PACKAGE_VERSION_CHECK=TRUE that makes the standalone build pass.
+EXTRA_OECMAKE += "-DQT_NO_PACKAGE_VERSION_CHECK=TRUE"
+
 # === TEMPORARY: build qtgamepad from Gerrit change 760147 (the polling->event
 # CPU rework + leak fix + red-led-mode fix) via a LOCAL clone, instead of the published dev branch
 # + the patch above. bitbake can't fetch a Gerrit change ref directly, so
