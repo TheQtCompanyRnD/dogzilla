@@ -1,14 +1,17 @@
+// Copyright (C) 2026 The Qt Company Ltd.
+// SPDX-License-Identifier: GPL-3.0-only
+
 #ifndef OLLAMARESPONSE_H
 #define OLLAMARESPONSE_H
 
 #include <QByteArray>
 #include <QJsonDocument>
 
-class OllamaResponse
+class LmResponse
 {
 public:
-    OllamaResponse() = default;
-    OllamaResponse(const QByteArray &data);
+    LmResponse() = default;
+    LmResponse(const QByteArray &data);
 
     void reset(const QByteArray &data);
 

@@ -272,7 +272,7 @@ Ros2.Node {
                 root.playTrajectory(root.motionLibrary[motion], null);
                 return;
             }
-            root.ollama.chat(text)
+            root.lm.chat(text)
         }
         onErrorOccurred: (msg) => console.warn("stt:", msg)
     }
@@ -282,7 +282,7 @@ Ros2.Node {
     // answers out loud (and the line lands in the /speech/log chat the twin
     // shows). Set apiUrl to your Ollama host (e.g. http://192.168.x.x:11434)
     // and model to an installed model; both are still placeholders here.
-    property OllamaApi ollama: OllamaApi {
+    property LanguageModel lm: LanguageModel {
         // set to the actual LLM host IP; empty means chat() is a no-op.
 /*
         apiUrl: "http://strn.local:11434"
@@ -398,7 +398,7 @@ Ros2.Node {
         activeSpokenText = "";
         if (goal.useLlm) {
             handle.publishFeedback({ state: "thinking", spokenSoFar: "" });
-            ollama.chat(goal.text);
+            lm.chat(goal.text);
         } else {
             speakForGoal(goal.text);
         }
