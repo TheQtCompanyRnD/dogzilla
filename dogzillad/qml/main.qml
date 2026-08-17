@@ -79,7 +79,8 @@ Ros2.Node {
         /*!
             Note: to get xbox mode, hold down the mode button on the controller to
             switch to the mode where the green LED is lit. The default mode with the
-            red LED is not as useful: the right joystick doesn't work, etc.
+            red LED is almost as good, but the shoulder axes become binary rather
+            than giving a range of values.
         */
         onJoyAxisEvent:
             (device, axis, value) => {
@@ -94,10 +95,10 @@ Ros2.Node {
                     break;
                 // right stick: side step (strafe) and pitch angle (look up/down)
                 case 2: // JoyAxis.RightX
-                    controller.pitch = value * 15
+                    controller.sideStepSpeed = value * -50
                     break;
-                case 4: // should be RightY
-                    controller.sideStepSpeed = (value - 0.5) * -50
+                case 3: // JoyAxis.RightY
+                    controller.pitch = value * 15
                     break;
                 }
             }
