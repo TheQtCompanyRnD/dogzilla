@@ -1,0 +1,21 @@
+# Overrides systemd's /usr/lib/systemd/network/80-wired.network (same filename in
+# /etc wins). Identical to it, plus LinkLocalAddressing=fallback: take an IPv4
+# link-local address (169.254.x/16) only when DHCP finds no server, so a cable
+# run straight to a laptop works with nothing configured at either end -- avahi
+# then answers dogzilla.local on that address. DHCP keeps being retried in the
+# background, so plugging into a real network -- or the laptop bringing up its
+# `shared` profile -- still gets a lease.
+[Match]
+Type=ether
+Name=!veth*
+KernelCommandLine=!nfsroot
+KernelCommandLine=!ip
+
+[Network]
+DHCP=yes
+LinkLocalAddressing=fallback
+
+[DHCP]
+UseMTU=yes
+RouteMetric=10
+ClientIdentifier=mac
