@@ -87,6 +87,7 @@ DOGZILLA_AUDIO = " \
     pipewire-spa-plugins-alsa \
     pipewire-alsa \
     pipewire-alsa-card-profile \
+	pipewire-tools \
     wireplumber \
     alsa-utils \
     qtspeech \
