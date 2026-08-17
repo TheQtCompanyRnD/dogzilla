@@ -75,7 +75,7 @@ After that, all three ways of connecting work with `dogzilla.local`: a lab
 switch or venue wifi (both ends take DHCP), a cable straight between robot and
 laptop with nothing typed (both fall back to `169.254.x`, ~35s after plugging
 in), and that same cable with `nmcli con up robot-cable` when you want the robot
-to have a fixed `10.51.0.x` address and internet through the laptop. See the
+to have a fixed `10.81.0.x` address and internet through the laptop. See the
 header comment in the script for why each setting is there.
 
 Two ROS-level gotchas the script can't fix: Fast DDS binds interfaces at startup

@@ -21,7 +21,7 @@
 #                        Works with nothing typed, ~35s after plugging in. Good
 #                        for ssh + ROS; no internet for the robot.
 #   Cable + NAT          `nmcli con up robot-cable` -> the laptop serves DHCP on
-#                        10.51.0.0/24 and masquerades, so the robot gets an
+#                        10.81.0.0/24 and masquerades, so the robot gets an
 #                        address in ~5s plus internet through the laptop.
 #
 # Why `robot-cable` is not autoconnect: a `shared` profile that comes up by
@@ -44,11 +44,24 @@
 # Note that ipv4.link-local=enabled on the DHCP profile is NOT a substitute for
 # the separate cable-ll profile: it adds an address alongside a config that
 # succeeded, but a DHCP timeout still fails the activation and drops all of IPv4.
+#
+# Right after a link switch, dogzilla.local can still resolve to the robot's old
+# address. avahi on the robot re-announces by itself -- it watches netlink and
+# doesn't care which daemon configured the interface -- but taking the link down
+# can lose that announcement, leaving the querying end on its cached record until
+# the ~120s mDNS TTL expires. Restart avahi-daemon on either end to skip the
+# wait. `resolvectl flush-caches` won't help if /etc/nsswitch.conf resolves
+# .local via mdns4_minimal (i.e. avahi) rather than through systemd-resolved.
 
 set -euo pipefail
 
 DOMAIN_ID="${DOMAIN_ID:-81}"           # must match the robot's dogzillad.service
-CABLE_SUBNET="${CABLE_SUBNET:-10.51.0.1/24}"   # laptop's address in shared mode
+# Laptop's address in shared mode. The 81 matches ROS_DOMAIN_ID (decimal ASCII
+# 'Q'), purely as a mnemonic. What does matter is that this subnet not overlap
+# the network the laptop is otherwise on: NM's `shared` default is 10.42.0.0/24,
+# and against a venue/lab 10.42.0.0/16 the /24 is more specific, so the laptop
+# routes the robot's *wifi* address out the dead cable and breaks both.
+CABLE_SUBNET="${CABLE_SUBNET:-10.81.0.1/24}"
 LL_PROFILE="cable-ll"
 SHARED_PROFILE="robot-cable"
 DNSMASQ_CONF="/etc/NetworkManager/dnsmasq-shared.d/broadcast.conf"
@@ -231,5 +244,5 @@ EOF
 case "${1:-check}" in
 check) do_check ;;
 apply) do_apply ;;
-*) sed -n '2,50p' "$0"; exit 1 ;;
+*) sed -n '2,54p' "$0"; exit 1 ;;
 esac
