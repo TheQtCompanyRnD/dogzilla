@@ -48,10 +48,10 @@ qt_add_qml_module(dogzillad
         src/whisperspeechtotext.cpp
         src/telemetry.h
         src/telemetry.cpp
-        src/ollamaapi.h
-        src/ollamaapi.cpp
-        src/ollamaresponse.h
-        src/ollamaresponse.cpp
+        src/languagemodel.h
+        src/languagemodel.cpp
+        src/lmresponse.h
+        src/lmresponse.cpp
         src/motionstore.h
         src/motionstore.cpp
 )
