@@ -8,6 +8,18 @@ if status is-interactive
     set -g fish_greeting "dogzilla 🐕  ROS 2 Jazzy + Qt 6.12"
 end
 
+# Put the sbin dirs on PATH. A console login (HDMI + keyboard) gets
+# PATH=/bin:/usr/bin from ENV_PATH in /etc/login.defs, which omits them, so
+# `ip addr`, `wpa_cli` and the rest of /usr/sbin are simply not found there --
+# while an ssh session has them, because sshd supplies its own PATH. Appended,
+# not prepended, so /usr/bin still wins for any duplicated name. Root is
+# unaffected either way: it gets ENV_SUPATH, which already lists sbin.
+for dir in /usr/sbin /sbin
+    if test -d $dir; and not contains $dir $PATH
+        set -gx PATH $PATH $dir
+    end
+end
+
 # ROS 2 Jazzy environment for interactive use (ros2 CLI, ros2 launch, etc).
 # A static equivalent of sourcing /opt/ros/jazzy/setup.bash -- no `bass`/bash
 # subprocess per shell, which is fine because this image's install prefix and
