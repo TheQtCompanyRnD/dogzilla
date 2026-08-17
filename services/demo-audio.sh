@@ -16,15 +16,36 @@
 # robot's 10.42.0.x shared link is offered as the default). Override with
 # LAPTOP_IP=... to skip detection.
 #
-# Mechanism: a resident `pw-cli -m load-module libpipewire-module-pulse-tunnel`
-# on the robot creates a sink that forwards over TCP to this laptop; it's held
-# open by a transient systemd --user unit, so on/off just start/stop that unit
-# (the module unloads when pw-cli is killed) -- no PipeWire restart, so a running
-# dogzillad keeps its audio. The laptop side is a pipewire-pulse TCP server the
-# tunnel connects to.
+# Mechanism, robot side, two pieces held open by transient systemd --user units
+# (so on/off just start/stop them -- no PipeWire restart, and a running dogzillad
+# keeps its audio):
 #
-# Robot requirements: pw-cli and systemd-run (both come with a normal PipeWire +
-# systemd install; older dogzilla images that shipped only wpctl need a rebuild).
+#   1. `pw-cli -m load-module libpipewire-module-pulse-tunnel` -> a sink that
+#      forwards over TCP to this laptop's pipewire-pulse (the laptop side is a
+#      module-native-protocol-tcp server this script loads).
+#   2. `pw-loopback` capturing the *robot speaker sink's monitor* and playing
+#      into that tunnel sink, plus a mute on the robot speaker sink itself.
+#
+# Piece 2 is why we don't simply make the tunnel the default sink: an app that
+# resolves the default output once at startup -- QtTextToSpeech's flite engine
+# does, via QMediaDevices, and so dogzillad's voice does -- pins its stream to
+# the sink that was default *then* and never follows a later default change. So
+# instead of moving streams we leave everything playing to the robot speaker
+# sink and tap its monitor: whatever a stream targeted, the audio lands in the
+# tunnel. Muting that sink silences the speaker without silencing the monitor
+# (PipeWire taps monitor ports ahead of the sink's volume/mute stage).
+#
+# The tunnel sink's volume is forced to 1.0 on every "on": WirePlumber restores
+# whatever it was last set to, and a remembered low value (its own default is
+# well under 10% linear) is otherwise indistinguishable from a broken bridge.
+#
+# Note that "off" is what unmutes the robot speaker, and WirePlumber remembers
+# mute across reboots -- if the bridge dies with the laptop unplugged, run
+# `demo-audio.sh off` (or `wpctl set-mute @DEFAULT_AUDIO_SINK@ 0` on the robot)
+# to get the speaker back.
+#
+# Robot requirements: pw-cli, pw-loopback, wpctl and systemd-run (pipewire-tools
+# + systemd; older dogzilla images that shipped only wpctl need a rebuild).
 
 set -euo pipefail
 
@@ -33,10 +54,13 @@ TCP_PORT="${TCP_PORT:-4713}"
 SINK_NAME="laptop_demo"                 # node.name of the tunnel sink
 SINK_DESC="Laptop (demo)"               # node.description (shown in wpctl)
 ROBOT_SPEAKER_DESC="USB Audio Device"   # substring of the robot's own sink
-TUNNEL_UNIT="demo-audio-tunnel"         # transient user unit on the robot
+TUNNEL_UNIT="demo-audio-tunnel"         # transient user units on the robot
+LOOPBACK_UNIT="demo-audio-loopback"
 
 CHOSEN_IP=""   # set by resolve_laptop_ip
-LAUNCHER='.cache/demo-audio-tunnel.sh'   # robot-side tunnel launcher (rel. to $HOME)
+# Robot-side launcher scripts (paths relative to $HOME).
+TUNNEL_LAUNCHER='.cache/demo-audio-tunnel.sh'
+LOOPBACK_LAUNCHER='.cache/demo-audio-loopback.sh'
 
 # -x: no X11 forwarding (the robot rejects the channel and warns otherwise).
 # LogLevel=ERROR: the *.local ssh config uses UserKnownHostsFile=/dev/null, which
@@ -99,19 +123,44 @@ robot_sink_id() {
         }'
 }
 
-# Load the tunnel on the robot as a resident pw-cli held by a transient unit.
-# The SPA-JSON (spaces, quotes, "(demo)" parens) can't survive being re-parsed
-# by the remote fish login shell, so we build a launcher locally -- values
-# expanded here -- and ship it as raw bytes over stdin, then run it via
-# systemd-run. Stopping the unit kills pw-cli, which unloads the module; no
-# PipeWire restart, so a running dogzillad keeps its audio.
-robot_tunnel_up() {   # $1=laptop ip  $2=port
-    printf '%s\n' \
-        '#!/bin/bash' \
-        "exec pw-cli -m load-module libpipewire-module-pulse-tunnel '{ tunnel.mode=sink pulse.server.address=\"tcp:$1:$2\" stream.props={ node.name=$SINK_NAME node.description=\"$SINK_DESC\" } }'" \
+# Print the node.name of the sink with wpctl id $1 (pw-loopback takes names).
+robot_sink_node_name() {
+    rssh "wpctl inspect $1 2>/dev/null" | sed -n 's/.*node\.name = "\(.*\)".*/\1/p' | head -1
+}
+
+# Ship a robot-side launcher: $1 = path relative to $HOME, $2 = command to exec.
+# The SPA-JSON and quoted props (spaces, quotes, "(demo)" parens) can't survive
+# being re-parsed by the remote fish login shell, so we build the script locally
+# -- values expanded here -- and ship it as raw bytes over stdin.
+ship_launcher() {
+    printf '%s\n' '#!/bin/bash' "exec $2" \
         | ssh "${SSH_OPTS[@]}" "$ROBOT" \
-            "bash -lc 'mkdir -p ~/.cache && cat > \"\$HOME/$LAUNCHER\" && chmod +x \"\$HOME/$LAUNCHER\"'"
-    rssh "systemctl --user stop $TUNNEL_UNIT 2>/dev/null; systemctl --user reset-failed $TUNNEL_UNIT 2>/dev/null; systemd-run --user --unit=$TUNNEL_UNIT --collect \$HOME/$LAUNCHER"
+            "bash -lc 'mkdir -p ~/.cache && cat > \"\$HOME/$1\" && chmod +x \"\$HOME/$1\"'"
+}
+
+# (Re)start transient unit $1 running launcher $2. Stopping the unit kills the
+# process, which unloads its module/nodes; no PipeWire restart involved.
+run_unit() {
+    rssh "systemctl --user stop $1 2>/dev/null; systemctl --user reset-failed $1 2>/dev/null; systemd-run --user --unit=$1 --collect \$HOME/$2"
+}
+
+stop_unit() {
+    rssh "systemctl --user stop $1 2>/dev/null || true; systemctl --user reset-failed $1 2>/dev/null || true"
+}
+
+# The tunnel sink: forwards everything written to it over TCP to the laptop.
+robot_tunnel_up() {   # $1=laptop ip  $2=port
+    ship_launcher "$TUNNEL_LAUNCHER" \
+        "pw-cli -m load-module libpipewire-module-pulse-tunnel '{ tunnel.mode=sink pulse.server.address=\"tcp:$1:$2\" stream.props={ node.name=$SINK_NAME node.description=\"$SINK_DESC\" } }'"
+    run_unit "$TUNNEL_UNIT" "$TUNNEL_LAUNCHER"
+}
+
+# The monitor tap: robot speaker sink's monitor -> tunnel sink. Captures what
+# every stream plays to the speaker, including streams pinned to that sink.
+robot_loopback_up() {   # $1=node.name of the robot speaker sink
+    ship_launcher "$LOOPBACK_LAUNCHER" \
+        "pw-loopback -C \"$1\" --capture-props='stream.capture.sink=true node.name=demo_speaker_tap node.description=\"Demo speaker tap\"' -P $SINK_NAME --playback-props='node.name=demo_tunnel_feed node.description=\"Demo tunnel feed\"'"
+    run_unit "$LOOPBACK_UNIT" "$LOOPBACK_LAUNCHER"
 }
 
 # Ensure the laptop pipewire-pulse TCP server is listening (idempotent). The ACL
@@ -133,6 +182,12 @@ laptop_tcp_down() {
 case "${1:-}" in
 on)
     resolve_laptop_ip
+    spk="$(robot_sink_id "$ROBOT_SPEAKER_DESC")" || true
+    if [ -z "$spk" ]; then
+        echo "ERROR: no robot sink matching '$ROBOT_SPEAKER_DESC'; is the speaker plugged in?" >&2
+        exit 1
+    fi
+    spk_name="$(robot_sink_node_name "$spk")"
     echo "Opening laptop pulse TCP server on :${TCP_PORT} (for ${CHOSEN_IP}) ..."
     laptop_tcp_up
     echo "Starting tunnel on ${ROBOT} -> ${CHOSEN_IP}:${TCP_PORT} ..."
@@ -150,15 +205,25 @@ on)
         echo "  ssh $ROBOT 'systemctl --user status ${TUNNEL_UNIT}'" >&2
         exit 1
     fi
-    rssh "wpctl set-default $id 2>/dev/null"
-    echo "ON: robot audio -> laptop (sink id $id). Robot speaker is silent."
+    echo "Tapping the robot speaker's monitor into the tunnel ..."
+    robot_loopback_up "$spk_name"
+    # Keep the speaker sink the default so every stream -- default-following or
+    # pinned -- flows through the tap; mute it so only the laptop is audible.
+    rssh "wpctl set-default $spk 2>/dev/null; wpctl set-volume $id 1.0 2>/dev/null; wpctl set-mute $spk 1 2>/dev/null"
+    if ! rssh "pw-link -l 2>/dev/null" | grep -q "demo_tunnel_feed"; then
+        echo "ERROR: the monitor tap did not link up. Check:" >&2
+        echo "  ssh $ROBOT 'systemctl --user status ${LOOPBACK_UNIT}'" >&2
+        exit 1
+    fi
+    echo "ON: robot audio -> laptop (tunnel sink id $id). Robot speaker is muted."
     ;;
 off)
-    echo "Restoring robot speaker ..."
-    id="$(robot_sink_id "$ROBOT_SPEAKER_DESC")" || true
-    [ -n "$id" ] && rssh "wpctl set-default $id 2>/dev/null" || true
-    echo "Stopping tunnel unit on ${ROBOT} ..."
-    rssh "systemctl --user stop ${TUNNEL_UNIT} 2>/dev/null || true; systemctl --user reset-failed ${TUNNEL_UNIT} 2>/dev/null || true"
+    echo "Unmuting robot speaker ..."
+    spk="$(robot_sink_id "$ROBOT_SPEAKER_DESC")" || true
+    [ -n "$spk" ] && rssh "wpctl set-default $spk 2>/dev/null; wpctl set-mute $spk 0 2>/dev/null" || true
+    echo "Stopping tap + tunnel units on ${ROBOT} ..."
+    stop_unit "$LOOPBACK_UNIT"
+    stop_unit "$TUNNEL_UNIT"
     echo "Closing laptop pulse TCP server ..."
     laptop_tcp_down
     echo "OFF: robot plays through its own speaker again."
@@ -166,13 +231,13 @@ off)
 status)
     echo "=== laptop pulse TCP server ==="
     pactl list short modules | grep "module-native-protocol-tcp.*port=${TCP_PORT}" || echo "(not loaded)"
-    echo "=== robot tunnel unit ==="
-    rssh "systemctl --user is-active ${TUNNEL_UNIT} 2>/dev/null || true"
-    echo "=== robot sinks (default = *) ==="
+    echo "=== robot units (${TUNNEL_UNIT}, then ${LOOPBACK_UNIT}) ==="
+    rssh "systemctl --user is-active ${TUNNEL_UNIT} ${LOOPBACK_UNIT} 2>/dev/null || true"
+    echo "=== robot sinks (default = *; speaker should read MUTED when on) ==="
     rssh "wpctl status 2>/dev/null" | awk '/Sinks:/{s=1;next} /Sources:/{s=0} s'
     ;;
 *)
-    sed -n '2,29p' "$0"
+    sed -n '2,48p' "$0"
     exit 1
     ;;
 esac
