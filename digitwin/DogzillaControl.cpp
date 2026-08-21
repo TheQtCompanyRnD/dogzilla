@@ -13,10 +13,10 @@ namespace {
         const auto args = qApp->arguments();
         // recover the app arguments to pass to QRos2Context::init(argc, argv)
         std::vector<char*> argv(args.size() + 1, nullptr);
-        std::vector<QString> storage(args.size());
+        std::vector<QByteArray> storage(args.size());
         for (int i = 0; i < args.size(); ++i) {
-            storage[i] = args[i];
-            argv[i] = const_cast<char*>(storage[i].toUtf8().data());
+            storage[i] = args[i].toUtf8();
+            argv[i] = storage[i].data();
         }
         QRos2Context::init(args.size(), argv.data());
         qCDebug(lcCtrl) << "QRos2Context initialized with" << args;
