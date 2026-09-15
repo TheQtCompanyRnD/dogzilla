@@ -263,15 +263,8 @@ Ros2.Node {
         onTranscriptReady: (text, confidence) => {
             console.log("heard:", text, "confidence", confidence);
             root.logChat(root.chatHeard, text, confidence);
-            // Voice command? If the utterance is short and ends with a
-            // taught pose ("please sit"), play it directly -- no LLM round-trip.
-            // Otherwise it's conversation, so hand it to the LLM (async reply below).
-            const motion = root.matchMotionCommand(text);
-            if (motion) {
-                root.logChat(root.chatSystem, "▶ " + motion, 0.0);
-                root.playTrajectory(root.motionLibrary[motion], null);
+            if (root.tryLocalCommand(text))
                 return;
-            }
             root.lm.chat(text)
         }
         onErrorOccurred: (msg) => console.warn("stt:", msg)
@@ -397,6 +390,11 @@ Ros2.Node {
         activeSpeak = handle;
         activeSpokenText = "";
         if (goal.useLlm) {
+            if (root.tryLocalCommand(goal.text)) {
+                handle.succeed({ spokenText: "", completed: true });
+                activeSpeak = null;
+                return;
+            }
             handle.publishFeedback({ state: "thinking", spokenSoFar: "" });
             lm.chat(goal.text);
         } else {
@@ -449,7 +447,7 @@ Ros2.Node {
 
     // Named motions synced from the twin (name -> JointTrajectory {jointNames, points}),
     // so a spoken command like "dogzilla, please sit" can play one locally. See the
-    // /motion/library subscriber and matchMotionCommand below.
+    // /motion/library subscriber and tryLocalCommand below.
     property var motionLibrary: ({})
     // Persists the library to disk so it survives restarts / twin disconnects.
     property MotionStore motionStore: MotionStore {}
@@ -578,21 +576,22 @@ Ros2.Node {
             activeMotion.publishFeedback({ currentPoint: k, progress: elapsed / total });
     }
 
-    // If the transcript is a "... <pose>" command whose last word(s) name a
-    // motion in the synced library, return that name; else "".
-    // Only when the sentence is 3 words or less, to avoid triggering
-    // on ordinary conversation.
-    function matchMotionCommand(text) {
+    // Check whether text is a "... <pose>" command whose last word names a motion in
+    // the synced library (only when the sentence is 3 words or less, to avoid
+    // triggering on ordinary conversation); if so, play it directly and return true.
+    function tryLocalCommand(text) {
         const words = text.toLowerCase().replace(/[.!?:;,]/g, "").trim().split(" ")
         if (words.length > 3)
-            return "" // don't use long sentences for simple commands
+            return false // don't use long sentences for simple commands
         const lastWord = words.pop()
         for (const name of Object.keys(root.motionLibrary)) {
-            const n = name.toLowerCase()
-            if (lastWord === n)
-                return name
+            if (lastWord === name.toLowerCase()) {
+                root.logChat(root.chatSystem, "▶ " + name, 0.0);
+                root.playTrajectory(root.motionLibrary[name], null);
+                return true;
+            }
         }
-        return ""
+        return false;
     }
 
     // Reorder a waypoint's positions into canonical joint order. Returns null if it
