@@ -19,10 +19,11 @@ USERADD_PACKAGES = "${PN}"
 # $6$..$ salt/algo markers silently deleted).
 # -G groups give the pi user hardware access without sudo: dialout (serial ->
 # motor controller + lidar UARTs), audio (mic/speaker), video (camera),
-# input (gamepad/evdev). These exist in base-passwd at useradd time; render/
-# plugdev are created dynamically at rootfs so can't be used here.
+# input (gamepad/evdev), tty (ConsoleDashboard writes to /dev/tty1 directly).
+# These exist in base-passwd at useradd time; render/plugdev are created
+# dynamically at rootfs so can't be used here.
 USERADD_PARAM:${PN} = "-u 1000 -d /home/pi -m -s /usr/bin/fish \
-    -G dialout,audio,video,input \
+    -G dialout,audio,video,input,tty \
     pi"
 
 RDEPENDS:${PN} = "sudo bash fish"
