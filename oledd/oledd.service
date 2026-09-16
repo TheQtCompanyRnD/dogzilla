@@ -1,0 +1,27 @@
+[Unit]
+Description=Dogzilla OLED status display
+After=local-fs.target
+# The bus only exists if dtparam=i2c_arm=on is in config.txt and i2c-dev is loaded.
+ConditionPathExists=/dev/i2c-1
+
+[Service]
+Type=exec
+ExecStart=/usr/bin/oledd --file /tmp/dogzilla-oled.txt
+Restart=always
+RestartSec=2
+Nice=5
+
+# dogzillad (a --user service) writes the text file in the real /tmp, so we must
+# share it: PrivateTmp would give us a different, empty /tmp.
+PrivateTmp=no
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectControlGroups=yes
+NoNewPrivileges=yes
+RestrictAddressFamilies=
+DevicePolicy=closed
+DeviceAllow=/dev/i2c-1 rw
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,119 @@
+# oledd — Dogzilla OLED status display daemon
+
+A small no-dependency C program that shows a text file on the 128x32 SSD1306
+OLED on the dog's back, over `/dev/i2c-1`.
+
+`dogzillad`'s `ConsoleDashboard` can write the four lines into
+`/tmp/dogzilla-oled.txt` instead, and `oledd` redraws whenever that file changes.
+
+## Why userspace and not the kernel driver
+
+The kernel's `ssd130x`/`ssd1307fb` driver does work on this display: back on
+Ubuntu it came up as `/dev/fb1` with a four-line virtual console on it, with
+
+```
+# /boot/firmware/config.txt
+dtparam=i2c_baudrate=921000
+dtoverlay=ssd1306,width=128,height=32,sequential=1,com-invdir=1,inverted
+# /boot/firmware/cmdline.txt
+fbcon=map:10
+```
+`sequential=1` is the parameter that unscrambles the pixels — this panel has
+sequential (not alternative) COM pin wiring, and without it every other row is
+interleaved. `com-invdir`/`inverted` account for it being mounted upside down.
+
+But it panicked the kernel after a while due to `scheduling while atomic` in the
+I2C path, always at the same instant as `brcmfmac`/`wpa_supplicant` activity —
+the tiny display's DRM refresh fighting Wi-Fi interrupts on the Pi 5's RP1;
+baud rate changes didn't avoid it.  Two other dead ends: `/dev/fb1` is not a
+stable name (it depends on whether HDMI was plugged in at boot). And Qt's 
+`linuxfb` platform plugin draws a linear framebuffer, so if we used Qt, it would
+come out with the columns rearranged; the kernel does the page/column
+bit-shuffling for the text console but not for processes that mmap the
+framebuffer.
+
+From userspace a bus hiccup is just an `EIO` from `write(2)`, which `oledd`
+retries with a backoff, no panic.
+
+## Enabling the bus (the one thing that needs a reboot)
+
+The image enables it: `meta-dogzilla` has `dtparam=i2c_arm=on` in 
+`RPI_EXTRA_CONFIG`, and the `oledd` recipe ships the `modules-load.d` snippet. On
+an image built before that, do the same two things by hand on the running robot
+— no image rebuild:
+
+```sh
+# 1. add the I2C bus (config.txt is on the FAT boot partition)
+sudo sh -c 'echo "dtparam=i2c_arm=on" >> /boot/config.txt'   # check the path first
+# 2. make sure the chardev module loads at boot
+sudo install -Dm644 i2c-dev.conf /etc/modules-load.d/i2c-dev.conf
+sudo reboot
+```
+Note there must be **no** `dtoverlay=ssd1306` line: the kernel driver and `oledd`
+must not both own the panel.
+
+After the reboot, `/dev/i2c-1` should exist and the display should answer at `0x3c`:
+
+```sh
+ls -l /dev/i2c-1
+i2cdetect -y 1        # if i2c-tools is in the image
+```
+## Build and run
+
+```sh
+make                              # or: cc -O2 -Wall -o oledd oledd.c
+./oledd -v -t 'hello dog'         # one-shot smoke test on the hardware
+./oledd -n -1 -t 'hello dog'      # render as ASCII art, no hardware needed
+sudo make install                 # /usr/local/bin + /etc/systemd/system
+sudo systemctl enable --now oledd
+```
+Useful knobs when the picture looks wrong:
+
+- `\-C 0x12` / `\-C 0x02` — COM pin config (alternative vs sequential). This is
+  the scrambling knob; `0x02` is right for this 128x32 panel.
+- `\--flip` — 180 degrees; the default matches how the panel sits in the dog.
+- `\-F 6x8` — the more legible Schumacher Clean font, 21 columns instead of 25.
+- `\-c 0..255` — contrast. `\--invert` — black on white.
+- `\-n` — render to stdout instead of the bus, for working on this away from the
+  robot.
+- `\-t 'text'`, `\-1` — draw once and exit, for smoke tests.
+
+## The file protocol
+
+Plain UTF-8 text. One line per 8-pixel page: four lines at 128x32. Lines are
+truncated at 25 columns (5x8 font) or 21 (6x8); extra lines are ignored.
+
+The writer rewrites the file from the start each time and truncates it to the
+new length, in a single `write(2)`, so it always holds exactly one frame and
+never grows — that is what `ConsoleDashboard::writeFrame()` does. `oledd` is
+nonetheless forgiving about it:
+
+- It reads a window at the *end* of the file and keeps only what follows the
+  last cursor-home or clear-screen escape, then strips any other escape
+  sequences. So a writer that streams frames at a tty forever (which is what
+  `ConsoleDashboard` does when `filePath` *is* a tty) also displays correctly.
+- It waits for the file to go quiet (`\-s`, default 50 ms) before drawing, so a
+  frame written a line at a time is never shown half finished, and it leaves
+  the display alone if it catches the file momentarily empty.
+- Redraws are rate-limited (`\-m`, default 100 ms), only changed pages go over
+  the bus, and the file is re-read every few seconds anyway (`\-p`) so a missed
+  notification cannot leave a stale display. The inotify watch is on the *
+  directory*, so a writer that publishes by `rename(2)` works too.
+
+Battery bars (`[║║}`) and `·`/`°` from the dashboard are drawn from the font's
+Latin-1 range, or substituted for the box-drawing characters; see `glyph_cols()`.
+
+## Fonts
+
+`font.h` is generated by `genfont.py` from the X11 misc bitmap fonts, which are
+8 pixels tall — exactly one SSD1306 page, so a glyph column is one byte and the
+blit is a `memcpy`:
+
+- `5x8` = `\-Misc-Fixed-Medium-R-Normal--8-80-75-75-C-50-ISO8859-1`, public
+  domain, full Latin-1, 25 columns.
+- `6x8` = `\-Schumacher-Clean-Medium-R-Normal--8-80-75-75-C-60`, Copyright 1989
+  Dale Schumacher, ASCII only, 21 columns.
+
+Regenerating needs python3 and the fonts installed (`xorg-fonts-misc` /
+`xfonts-base`) — on a workstation, not the robot: `make font`.
+
