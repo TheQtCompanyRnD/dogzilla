@@ -93,7 +93,13 @@ local_conf_header:
     # Added via RPI_EXTRA_CONFIG (raw config.txt lines), NOT the ENABLE_UART var,
     # so meta-raspberrypi does NOT add console=serial0 to cmdline -- the console
     # stays on the dedicated debug UART (ttyAMA10) and the motor port is free.
-    RPI_EXTRA_CONFIG = "enable_uart=1\ndtparam=uart1=on\ndtoverlay=uart1-pi5"
+    # dtparam=i2c_arm=on -> /dev/i2c-1 (GPIO2/3) for the 128x32 SSD1306 OLED,
+    # driven from userspace by oledd. Note there is deliberately NO
+    # dtoverlay=ssd1306 here: the kernel framebuffer driver does work, but it
+    # panics after a while ("scheduling while atomic" when its refresh collides
+    # with Wi-Fi interrupts on the RP1) -- see oledd/README.md in the dogzilla
+    # repo. The kernel driver and oledd must not both own the panel anyway.
+    RPI_EXTRA_CONFIG = "enable_uart=1\ndtparam=uart1=on\ndtoverlay=uart1-pi5\ndtparam=i2c_arm=on"
 
     # Drop PipeWire's libcamera plugin (audio-only for now; v4l2 stays). It pulls
     # libcamera, and meta-ros-common ships its own libcamera_0.5.2 that shadows

@@ -1,4 +1,4 @@
-SUMMARY = "Dogzilla udev rules: stable /dev/lidar and /dev/motor serial symlinks"
+SUMMARY = "Dogzilla udev rules: /dev/lidar and /dev/motor symlinks, I2C access"
 LICENSE = "MIT"
 LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/MIT;md5=0835ade698e0bcf8506ecda2f7b4f302"
 

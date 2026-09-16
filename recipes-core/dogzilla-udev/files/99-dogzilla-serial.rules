@@ -3,3 +3,8 @@
 # group dialout + mode 0660 so the pi user (in dialout) can open them.
 KERNEL=="ttyAMA1", SYMLINK+="lidar", GROUP="dialout", MODE="0660"
 KERNEL=="ttyAMA0", SYMLINK+="motor", GROUP="dialout", MODE="0660"
+
+# The OLED is on I2C bus 1. oledd runs as root so it does not need this, but it
+# lets the pi user drive the display by hand; there is no "i2c" group on this
+# image, and pi is already in dialout for the serial ports above.
+SUBSYSTEM=="i2c-dev", KERNEL=="i2c-1", GROUP="dialout", MODE="0660"

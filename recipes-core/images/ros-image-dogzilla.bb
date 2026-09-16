@@ -69,11 +69,13 @@ DOGZILLA_DEV = " \
 
 # System services. rpi-resize-rootfs grows the rootfs to fill the SD card on
 # first boot (the .wic image ships a rootfs partition sized to its contents).
+# oledd shows dogzillad's status lines on the OLED on the dog's back.
 DOGZILLA_SYSTEM = " \
     rpi-resize-rootfs \
     dogzilla-users \
     dogzilla-udev \
     dogzilla-fan \
+    oledd \
 "
 
 # Audio: PipeWire (+ wireplumber session manager, + pulse-compat server for
