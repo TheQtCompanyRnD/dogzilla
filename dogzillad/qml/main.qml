@@ -63,7 +63,9 @@ Ros2.Node {
 
     property ConsoleDashboard dash: ConsoleDashboard {
         batteryLevel: controller.batteryPercent
-        tty: "/dev/tty1"
+        // oledd(1) watches this file and draws it on the OLED on the dog's back;
+        // for debugging with an HDMI monitor instead, set it to "/dev/tty1"
+        filePath: "/tmp/dogzilla-oled.txt"
     }
 
     // Ros2Node apparently only allows childEntities as children:

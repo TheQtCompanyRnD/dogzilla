@@ -5,27 +5,26 @@
 #include <QQmlEngine>
 #include <QNetworkInformation>
 #include <QObject>
-#include <fstream>
-#include <iostream>
+#include <sstream>
 
 class ConsoleDashboard : public QObject
 {
-    Q_PROPERTY(QString tty READ tty WRITE setTty NOTIFY ttyChanged FINAL)
+    Q_PROPERTY(QString filePath READ filePath WRITE setFilePath NOTIFY filePathChanged FINAL)
     Q_PROPERTY(int batteryLevel READ batteryLevel WRITE setBatteryLevel NOTIFY batteryLevelChanged FINAL)
     Q_OBJECT
     QML_ELEMENT
 public:
     explicit ConsoleDashboard(QObject *parent = nullptr);
 
-    QString tty() const { return m_tty; }
-    void setTty(const QString &tty);
+    QString filePath() const { return m_filePath; }
+    void setFilePath(const QString &path);
 
     int batteryLevel() const { return m_batteryLevel; }
     void setBatteryLevel(int v);
 
 signals:
 
-    void ttyChanged();
+    void filePathChanged();
 
     void batteryLevelChanged();
 
@@ -40,12 +39,14 @@ private:
                             quint64 prevRx,quint64 prevTx,
                             quint64 &rxBandwidth, quint64 &txBandwidth);
     std::string batteryBars();
+    void writeFrame(const std::string &text);
     void onReachabilityChanged(QNetworkInformation::Reachability r);
     void update();
 
 private:
-    QString m_tty;
-    std::ofstream out;
+    QString m_filePath;
+    QFile m_out;
+    bool m_outIsTty = false;
     QNetworkInformation *m_networkInfo = nullptr;
     QFile m_batteryVoltageFile;
     int m_timerId = -1;

@@ -1,5 +1,5 @@
 #include "consoledashboard.h"
-#include <iostream>
+#include <unistd.h>
 #include <QByteArray>
 #include <QDateTime>
 #include <QDirListing>
@@ -164,10 +164,10 @@ std::string ConsoleDashboard::batteryBars()
 
 void ConsoleDashboard::update()
 {
+    std::ostringstream frame;
     const auto now = QDateTime::currentDateTime();
-    // clear the screen every 10th update; otherwise overwrite to limit flicker
-    out << (m_updateCount % 10 ? "\033[H" : "\033c") << now.toString("hh:mm:ss ").toStdString()
-            << batteryBars() << m_batteryLevel << "%" << std::endl;
+    frame << now.toString("hh:mm:ss ").toStdString()
+          << batteryBars() << m_batteryLevel << "%" << std::endl;
 
     int row = 1;
     for (const auto &iface : QNetworkInterface::allInterfaces()) {
@@ -214,34 +214,77 @@ void ConsoleDashboard::update()
                 //          << "perm/lk/temp?" << addr.isPermanent() << addr.isLifetimeKnown() << addr.isTemporary()
                 //          << "ip flags" << ip.isBroadcast() << ip.isGlobal() << ip.isLinkLocal() << ip.isLoopback()
                 //             << ip.isMulticast() << ip.isPrivateUse() << ip.isSiteLocal() << ip.isUniqueLocalUnicast();
-                out << iface.name().first(1).toStdString() << ip.toString().toStdString()
-                    << bandwidthStr.toStdString() << std::endl;
+                frame << iface.name().first(1).toStdString() << ip.toString().toStdString()
+                      << bandwidthStr.toStdString() << std::endl;
                 output = true;
                 ++row;
             }
         }
         if (!output)
-            out << iface.name().toStdString() << " ?  " << std::endl;
+            frame << iface.name().toStdString() << " ?  " << std::endl;
         if (row >= 4)
             break;
     }
     if (row < 4)
-        out << readBatteryVoltage().toStdString() << "V   cpu " << cpuPercent() << "%";
+        frame << readBatteryVoltage().toStdString() << "V   cpu " << cpuPercent() << "%";
+
+    writeFrame(frame.str());
     ++m_updateCount;
 }
 
 /*!
-    The TTY device on which to output the dashboard.
-    If not set, defaults to stdout.
+    Write one frame to \l filePath, in a single write() so that a reader never
+    catches us halfway.
+
+    A plain file is rewritten from the beginning and truncated to the new
+    length, so it holds exactly one frame and never grows. A tty cannot be
+    truncated, so there we home the cursor to overwrite in place instead, and
+    clear the screen outright every tenth frame to sweep away the leftovers of
+    lines that have become shorter.
 */
-void ConsoleDashboard::setTty(const QString &tty)
+void ConsoleDashboard::writeFrame(const std::string &text)
 {
-    if (m_tty == tty)
+    if (!m_out.isOpen())
         return;
-    m_tty = tty;
-    std::ofstream newStream(tty.toStdString());
-    std::swap(out, newStream);
-    emit ttyChanged();
+
+    QByteArray buf;
+    if (m_outIsTty)
+        buf = m_updateCount % 10 ? "\033[H" : "\033c";
+    buf.append(text.data(), qsizetype(text.size()));
+    if (!buf.endsWith('\n'))
+        buf.append('\n');
+
+    if (!m_outIsTty)
+        m_out.seek(0);
+    if (m_out.write(buf) < 0)
+        qCWarning(lcCon) << "failed to write" << m_filePath << m_out.errorString();
+    else if (!m_outIsTty)
+        m_out.resize(m_out.pos());
+}
+
+/*!
+    Where to write the dashboard: either a tty such as \c /dev/tty1 (handy with
+    an HDMI monitor attached), or a plain file such as \c /tmp/dogzilla-oled.txt,
+    which \c oledd watches and draws on the robot's OLED. One or the other, not
+    both.
+*/
+void ConsoleDashboard::setFilePath(const QString &path)
+{
+    if (m_filePath == path)
+        return;
+    m_filePath = path;
+    m_out.close();
+    m_out.setFileName(path);
+    m_outIsTty = false;
+    if (!path.isEmpty()) {
+        if (m_out.open(QFile::WriteOnly | QFile::Truncate | QFile::Unbuffered)) {
+            m_outIsTty = isatty(m_out.handle()) == 1;
+            qCDebug(lcCon) << path << (m_outIsTty ? "is a tty" : "is a file");
+        } else {
+            qCWarning(lcCon) << "failed to open" << path << m_out.errorString();
+        }
+    }
+    emit filePathChanged();
 }
 
 /*!
