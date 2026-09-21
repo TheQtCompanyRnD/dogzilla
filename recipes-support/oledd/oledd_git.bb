@@ -8,8 +8,10 @@ Plain C, no libraries, so it also builds on the robot itself with cc. \
 See oledd/README.md in the dogzilla repo for the whole story."
 HOMEPAGE = "https://github.com/TheQtCompanyRnD/dogzilla"
 
-# Our own application; no upstream license file to checksum.
-LICENSE = "CLOSED"
+# BSD-3-Clause, per the LICENSE at the root of the dogzilla repo. S points at
+# a subdir of that repo, hence the ../ here.
+LICENSE = "BSD-3-Clause"
+LIC_FILES_CHKSUM = "file://../LICENSE;md5=e7df2cb5b828712253329843cc2d34ca"
 
 # Fetched over https from the upstream dogzilla repo (DOGZILLA_GIT_REPO and
 # DOGZILLA_SRCREV are set in meta-dogzilla/conf/layer.conf)

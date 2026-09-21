@@ -5,8 +5,10 @@ subdir (DOGZILLA_GIT_REPO, set in meta-dogzilla/conf/layer.conf). The \
 QtRos2 QML wrapper (Dogzilla.Telemetry) is generated downstream in dogzillad."
 HOMEPAGE = "https://github.com/TheQtCompanyRnD/dogzilla"
 
-# Our own interfaces; no upstream license file to checksum (matches dogzillad).
-LICENSE = "CLOSED"
+# BSD-3-Clause, per the LICENSE at the root of the dogzilla repo. S points at
+# a subdir of that repo, hence the ../ here.
+LICENSE = "BSD-3-Clause"
+LIC_FILES_CHKSUM = "file://../LICENSE;md5=e7df2cb5b828712253329843cc2d34ca"
 
 inherit ros_distro_jazzy
 

@@ -52,3 +52,15 @@ kas build meta-dogzilla/kas/dogzilla-raspberrypi5-jazzy.yml
   temporary home). `NETRC_FILE=~/.netrc` works too, and plain `bitbake` outside
   kas needs none of this. All of it becomes unnecessary once the repos are
   public -- nothing here is baked into the layer.
+- Log in as pi / doggo ; pi has sudo permission with no password. For key-based
+  login, drop your public key in
+  `recipes-core/dogzilla-users/files/home-pi/.ssh/authorized_keys` -- that path
+  is gitignored, along with the rest of the pi home overlay that is per-robot
+  rather than shareable (see `.gitignore`).
+
+## License
+
+The layer metadata (recipes, configs, this README) is MIT; see `COPYING.MIT`.
+The software it builds keeps its own licenses -- notably `qt6-target-hosttools`,
+which redistributes open-source Qt binaries under GPL-3.0-with-Qt-exception and
+the LGPL-3.0/GPL tri-license.

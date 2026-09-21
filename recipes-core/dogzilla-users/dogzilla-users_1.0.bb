@@ -1,9 +1,8 @@
-SUMMARY = "Dogzilla 'pi' user: password, ssh authorized key, and sudo access"
+SUMMARY = "Dogzilla 'pi' user: password, home overlay, and sudo access"
 LICENSE = "MIT"
 LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/MIT;md5=0835ade698e0bcf8506ecda2f7b4f302"
 
 SRC_URI = " \
-    file://authorized_keys \
     file://pi.sudoers \
     file://home-pi \
 "
@@ -31,15 +30,20 @@ RDEPENDS:${PN} = "sudo bash fish"
 do_install() {
     install -d ${D}/home/pi
 
-    # Version-controlled home overlay: drop files under files/home-pi/ and they
-    # land in /home/pi on every rebuild (dotfiles/config, etc.). cp -a to keep
-    # nested dirs and any file modes.
+    # Home overlay: drop files under files/home-pi/ and they land in /home/pi
+    # on every rebuild (dotfiles/config, etc.). cp -a to keep nested dirs and
+    # any file modes. Most of it is tracked in the layer, but .ssh/, .local/
+    # and media/sound/ are gitignored -- per-robot, personal, or not ours to
+    # redistribute, see .gitignore. So the overlay contents differ between
+    # checkouts, and nothing here may assume a given file is present.
     if [ -d ${UNPACKDIR}/home-pi ]; then
         cp -a ${UNPACKDIR}/home-pi/. ${D}/home/pi/
     fi
 
+    # Key-based ssh login is opt-in: put your public key in
+    # files/home-pi/.ssh/authorized_keys (gitignored) and the overlay above
+    # installs it. With no key, log in as pi with the password below.
     install -d ${D}/home/pi/.ssh
-    install -m 0600 ${UNPACKDIR}/authorized_keys ${D}/home/pi/.ssh/authorized_keys
 
     install -d ${D}${sysconfdir}/sudoers.d
     install -m 0440 ${UNPACKDIR}/pi.sudoers ${D}${sysconfdir}/sudoers.d/pi
@@ -56,7 +60,9 @@ pkg_postinst_ontarget:${PN} () {
 
     chown -R pi:pi /home/pi
     chmod 700 /home/pi/.ssh
-    chmod 600 /home/pi/.ssh/authorized_keys
+    if [ -f /home/pi/.ssh/authorized_keys ]; then
+        chmod 600 /home/pi/.ssh/authorized_keys
+    fi
 }
 
 FILES:${PN} = " \

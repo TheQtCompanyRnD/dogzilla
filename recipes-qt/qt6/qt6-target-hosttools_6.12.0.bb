@@ -14,14 +14,34 @@ NOT here -- qtdeclarative DOES build those for the target, so install the real \
 'qtdeclarative-tools' package instead (this recipe deliberately excludes them \
 to avoid file conflicts). \
 \
-Binaries were extracted from the aarch64 SDK (SDKMACHINE=aarch64 nativesdk \
-qtbase) and had their ELF interpreter relocated to the target loader. To \
-regenerate after a Qt version bump, rebuild the aarch64 SDK and re-run the \
-extract+patchelf steps (documented in project memory)."
+Binaries were extracted from the aarch64 SDK (kas/dogzilla-sdk-aarch64.yml, \
+i.e. SDKMACHINE=aarch64 + populate_sdk) and had their ELF interpreter \
+relocated to the target loader. To regenerate after a Qt version bump: \
+rebuild that SDK, take usr/libexec/{moc,rcc,uic,syncqt,...}, usr/bin/{qmake, \
+qtpaths,qdbus*} and usr/lib/cmake/Qt6{Core,Gui,DBus,Widgets}Tools out of its \
+sysroot, repoint each ELF interpreter at the target loader \
+(patchelf --set-interpreter /lib/ld-linux-aarch64.so.1), and re-tar as usr/."
 
-# Prebuilt Qt binaries (upstream Qt is GPL-3.0/LGPL-3.0); packaged here as an
-# opaque prebuilt, so CLOSED to skip per-file license checksumming.
-LICENSE = "CLOSED"
+# Built from open-source Qt, so these binaries carry Qt's open-source terms:
+# the tools themselves are GPL-3.0 with the Qt GPL exception (which is what
+# keeps apps you moc/rcc/uic from inheriting the GPL), and the Qt libraries
+# they link are the usual LGPL-3.0/GPL tri-license. Not CLOSED -- that would
+# misstate the license of code we are redistributing in binary form.
+#
+# The tarball is an opaque prebuilt with no LICENSES/ dir of its own, so the
+# checksums below reference oe-core's copies rather than files in ${S}.
+# Qt-GPL-exception-1.0 has no oe-core copy; it resolves through the
+# LICENSE_PATH that meta-qt6 adds, so it lands in the image license manifest.
+#
+# Redistributing LGPL binaries carries a source-availability obligation. The
+# corresponding source is open-source Qt 6.12 at the qtbase SRCREV that
+# meta-qt6 pins for this build -- keep that pin and this recipe in step.
+LICENSE = "(GPL-3.0-only & Qt-GPL-exception-1.0) & (LGPL-3.0-only | GPL-2.0-only | GPL-3.0-only)"
+LIC_FILES_CHKSUM = " \
+    file://${COMMON_LICENSE_DIR}/GPL-2.0-only;md5=801f80980d171dd6425610833a22dbe6 \
+    file://${COMMON_LICENSE_DIR}/GPL-3.0-only;md5=c79ff39f19dfec6d293b95dea7b07891 \
+    file://${COMMON_LICENSE_DIR}/LGPL-3.0-only;md5=bfccfe952269fff2b407dd11f2f3083b \
+"
 
 PV = "6.12.0"
 

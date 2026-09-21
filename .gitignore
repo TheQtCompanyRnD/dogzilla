@@ -1,0 +1,17 @@
+# Build output, if a kas/bitbake build tree is created inside the layer.
+/build/
+bitbake-cookerdaemon.log
+
+# The pi user's home overlay (recipes-core/dogzilla-users/files/home-pi/) is
+# installed verbatim into /home/pi, so anything dropped there ships in the
+# image. Config worth sharing is tracked explicitly; the rest is local to one
+# robot and must stay out of the repo:
+#
+#   .ssh/        personal authorized_keys -- your key, not everyone's
+#   .local/      per-robot scripts and runtime state (fish history, etc.)
+#   media/sound/ sound assets; the ones the demo uses are not ours to
+#                redistribute, so they are fetched/generated locally
+/recipes-core/dogzilla-users/files/home-pi/.ssh/
+/recipes-core/dogzilla-users/files/home-pi/.local/
+/recipes-core/dogzilla-users/files/home-pi/media/sound/*
+!/recipes-core/dogzilla-users/files/home-pi/media/sound/player.qml

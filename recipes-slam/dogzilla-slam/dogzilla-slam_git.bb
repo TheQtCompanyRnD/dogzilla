@@ -7,8 +7,9 @@ cartographer_node + cartographer_occupancy_grid_node under the /dogzilla \
 namespace, consuming dogzillad's LaserScan and publishing /dogzilla/map."
 HOMEPAGE = "https://github.com/TheQtCompanyRnD/dogzilla"
 
-# Our own launch/config; no upstream license file to checksum (matches dogzillad).
-LICENSE = "CLOSED"
+# BSD-3-Clause, per the LICENSE at the root of the dogzilla repo.
+LICENSE = "BSD-3-Clause"
+LIC_FILES_CHKSUM = "file://LICENSE;md5=e7df2cb5b828712253329843cc2d34ca"
 
 # slam.launch.py + dogzilla_2d.lua come from the same repo as dogzillad.
 # Fetched over https from the upstream dogzilla repo (DOGZILLA_GIT_REPO and
