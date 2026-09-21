@@ -61,9 +61,17 @@ private:
     QString m_serialPort;
     QSerialPort m_port;
     qint32 m_baudRate = 230400; // no reason to change it
-    quint16 m_lastTimeStamp = 0;
+    // Acquisition time of the first ray of the most recent sweep, ms since the
+    // epoch; -1 until the first sweep completes. See emitScanData().
+    qint64 m_scanStartMSecs = -1;
     quint16 m_lastSampleCount = 0;
     bool m_running = false;     // could be in halfway state at startup: spinning but not sending data
+
+    // Resynchronise the scan clock to the wall clock once it drifts further
+    // than this. Must exceed the worst-case event-loop stall -- several
+    // revolutions of serial data can be buffered and then drained in a single
+    // readAndHandle() call -- but stay small enough to follow a real clock step.
+    static constexpr qint64 MaxScanClockDriftMSecs = 1000;
 
     // parallel arrays with latest scan data: ring-buffer-like, rewritten every full-circle scan
     // each bin covers an angle 2π/GridSize

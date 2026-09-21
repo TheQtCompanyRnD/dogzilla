@@ -83,13 +83,46 @@ bool Lidar::maybeOpenSerialPort()
 
 void Lidar::emitScanData()
 {
+    // One full revolution at the currently reported motor speed.
+    const qreal scanTime = m_speed > 0 ? 360 / m_speed : 0;
+    const qint64 scanMSecs = qRound64(scanTime * 1000);
+
+    // header.stamp must be the acquisition time of the *first* ray of the sweep
+    // (sensor_msgs/LaserScan), which is not the time we got round to processing
+    // it: readAndHandle() drains whatever the serial port has buffered, so when
+    // the event loop stalls, several revolutions' worth of packets arrive at
+    // once. Stamping those with "now" gave bursts of scans microseconds apart
+    // (7 within 4 ms was observed) while each still claimed scanTime ~= 0.1 s,
+    // so Cartographer saw overlapping -- sometimes backwards -- scans and threw
+    // away ~440 of every 720 points. Instead run a scan clock of our own,
+    // advancing one revolution per sweep, and resynchronise it to the wall
+    // clock only when it has drifted too far to be jitter (startup, a long
+    // stall, a settimeofday step, or a change in motor speed).
+    //
+    // The MS200 also reports a per-packet timestamp (parsed as `timestamp` in
+    // readAndHandle(), currently only logged) which would be a better clock
+    // still, but its wrap-around period isn't given in the manual.
+    const qint64 sweepStart = QDateTime::currentMSecsSinceEpoch() - scanMSecs;
+    if (m_scanStartMSecs < 0) {
+        m_scanStartMSecs = sweepStart;
+    } else {
+        const qint64 predicted = m_scanStartMSecs + scanMSecs;
+        if (qAbs(sweepStart - predicted) > MaxScanClockDriftMSecs) {
+            qCWarning(lcLdr) << "scan clock resync: drifted" << (sweepStart - predicted)
+                             << "ms from the wall clock; event loop stalled?";
+            // Never go backwards: consumers reject or mis-order such scans.
+            m_scanStartMSecs = qMax(sweepStart, m_scanStartMSecs + 1);
+        } else {
+            m_scanStartMSecs = predicted;
+        }
+    }
+
     QJsonObject data;
     {
-        qint64 msecs = QDateTime::currentMSecsSinceEpoch();
         QJsonObject header;
         QJsonObject stamp;
-        stamp.insert("sec", msecs / qint64(1000));
-        stamp.insert("nanosec", msecs % qint64(1000) * 1000000);
+        stamp.insert("sec", m_scanStartMSecs / qint64(1000));
+        stamp.insert("nanosec", m_scanStartMSecs % qint64(1000) * 1000000);
         header.insert("stamp", stamp);
         header.insert("frameId", "laser_frame");
         data.insert("header", header);
@@ -97,8 +130,8 @@ void Lidar::emitScanData()
     data.insert("angleMin", 0);
     data.insert("angleMax", 2 * M_PI);
     data.insert("angleIncrement", 2 * M_PI / GridSize);
-    data.insert("timeIncrement", m_speed > 0 ? 360 / (GridSize * m_speed) : 0);
-    data.insert("scanTime", m_speed > 0 ? 360 / m_speed : 0);
+    data.insert("timeIncrement", scanTime / GridSize);
+    data.insert("scanTime", scanTime);
     data.insert("rangeMin", m_rangeMin);
     data.insert("rangeMax", m_rangeMax);
     {
