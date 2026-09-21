@@ -280,13 +280,9 @@ Ros2.Node {
     property LanguageModel lm: LanguageModel {
         // set to the actual LLM host IP; empty means chat() is a no-op.
 /*
-        apiUrl: "http://strn.local:11434"
-        model: "qwen3.6:35b"
-        apiUrl: "http://t440u.local:11434"
-        model: "gemma4:e2b"
+        apiUrl: "http://mypc.local:11434"
+        model: "qwen3.6:4b"
 */
-        apiUrl: "http://t440u.local:11434"
-        model: "qwen3.5:4b"
         // promptSource: "/usr/share/dogzillad/prompt.txt"
         promptSource: Qt.resolvedUrl("prompt.txt")
         onResponseReceived: (text) => {
