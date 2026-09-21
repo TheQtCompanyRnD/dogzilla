@@ -42,9 +42,11 @@ IMAGE_INSTALL:append = " \
 "
 
 # On-device development: git + rsync support iterating on dogzillad without
-# reflashing (build on host with the SDK/devtool and deploy over ssh, or build
-# on target directly using the gcc/g++/cmake + -dev packages already installed).
-# bash as an interactive login shell; sudo for the pi user.
+# reflashing (build on the host with the SDK/devtool and deploy over ssh).
+# gcc/g++/cmake + the -dev packages also make plain C/C++ buildable on the
+# robot itself -- oledd is deliberately library-free so it can be -- but not
+# Qt apps; see the note below. bash as an interactive login shell; sudo for
+# the pi user.
 DOGZILLA_DEV = " \
     git \
     rsync \
@@ -53,19 +55,31 @@ DOGZILLA_DEV = " \
     sudo \
     cmake \
     qtbase-tools \
-    qt6-target-hosttools \
     qtdeclarative-tools \
 "
 
-# On-target Qt builds: find_package(Qt6) needs the code-gen tools + Qt6*Tools
-# cmake, which a cross image lacks. qtdeclarative DOES build its tools for the
-# target, so qtdeclarative-tools supplies qml/qmltyperegistrar/qmlcachegen +
-# (via qtdeclarative-dev from dev-pkgs) Qt6Qml/QuickTools cmake. qtbase does NOT
-# build moc/rcc/uic for the target (QT_FORCE_BUILD_TOOLS=OFF; forcing it ON
-# breaks the image's own cross build), so qt6-target-hosttools ships those +
-# Qt6Core/GuiTools cmake as prebuilt aarch64 binaries. Together they let plain
-# `cmake` build Qt apps natively on the Pi. (ROS 2 nodes additionally need the
-# ament build system + -dev files -- tracked separately.)
+# On-target Qt *builds* do not work. find_package(Qt6) wants the code-gen tools
+# (moc/rcc/uic, qmltyperegistrar/qmlcachegen) plus the matching Qt6*Tools cmake
+# packages, and this image ships none of them: qtbase has
+# QT_FORCE_BUILD_TOOLS=OFF (forcing it ON breaks the image's own cross build --
+# see the note in kas/dogzilla-raspberrypi5-jazzy.yml), and no other Qt module
+# builds them for aarch64 either. Verified against the built packages: no
+# moc/rcc/uic/qmltyperegistrar/qmlcachegen binary in any qt* package, and no
+# cmake/Qt6*Tools/ in qtdeclarative-dev. So find_package(Qt6 Core) fails on the
+# device with "Could NOT find Qt6CoreTools".
+#
+# The two -tools packages here are still worth their space, just not for
+# building: qtbase-tools is the qt-cmake wrapper scripts, and
+# qtdeclarative-tools is qml/qmlscene/qmltestrunner -- enough to run QML on the
+# robot directly, which is handy for poking at UI without a rebuild.
+#
+# This gap used to be papered over by a qt6-target-hosttools recipe carrying
+# hand-extracted aarch64 moc/rcc/uic as a tarball committed to this layer. That
+# is gone: a prebuilt that no Qt version bump ever rebuilds goes stale in
+# silence, which is worse than the gap it filled. Build dogzillad with the SDK
+# (populate_sdk) and deploy over ssh, or make Yocto build the target tools
+# properly. (ROS 2 nodes additionally need the ament build system + -dev files
+# -- tracked separately.)
 
 # System services. rpi-resize-rootfs grows the rootfs to fill the SD card on
 # first boot (the .wic image ships a rootfs partition sized to its contents).

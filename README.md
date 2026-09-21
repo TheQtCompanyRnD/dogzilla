@@ -61,6 +61,4 @@ kas build meta-dogzilla/kas/dogzilla-raspberrypi5-jazzy.yml
 ## License
 
 The layer metadata (recipes, configs, this README) is MIT; see `COPYING.MIT`.
-The software it builds keeps its own licenses -- notably `qt6-target-hosttools`,
-which redistributes open-source Qt binaries under GPL-3.0-with-Qt-exception and
-the LGPL-3.0/GPL tri-license.
+The software it builds keeps its own licenses.
