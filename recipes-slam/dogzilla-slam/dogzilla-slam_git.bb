@@ -5,18 +5,19 @@ NOT enabled: SLAM is memory-hungry and situational, so it is started on demand \
 (`systemctl --user start dogzilla-slam`, or remotely via dogzillad). It runs \
 cartographer_node + cartographer_occupancy_grid_node under the /dogzilla \
 namespace, consuming dogzillad's LaserScan and publishing /dogzilla/map."
-HOMEPAGE = "https://git.qt.io/qt-robotics/dogzilla"
+HOMEPAGE = "https://github.com/TheQtCompanyRnD/dogzilla"
 
 # Our own launch/config; no upstream license file to checksum (matches dogzillad).
 LICENSE = "CLOSED"
 
-# Fetch slam.launch.py + dogzilla_2d.lua from the local dogzilla checkout (same
-# repo as dogzillad; DOGZILLA_SRC is set in meta-dogzilla/conf/layer.conf).
-# protocol=file -> no ssh to git.qt.io, no YubiKey per fetch. AUTOREV tracks the
-# last commit on main (commit edits, or use `devtool modify` for live work).
-SRC_URI = "git://${DOGZILLA_SRC};protocol=file;branch=main \
+# slam.launch.py + dogzilla_2d.lua come from the same repo as dogzillad.
+# Fetched over https from the upstream dogzilla repo (DOGZILLA_GIT_REPO and
+# DOGZILLA_SRCREV are set in meta-dogzilla/conf/layer.conf)
+# Bump DOGZILLA_SRCREV there to pick up new commits;
+# `devtool modify dogzilla-slam` for live working-tree iteration.
+SRC_URI = "git://${DOGZILLA_GIT_REPO};protocol=https;branch=main \
            file://dogzilla-slam.service"
-SRCREV = "${AUTOREV}"
+SRCREV = "${DOGZILLA_SRCREV}"
 PV = "1.0+git"
 # S defaults to ${UNPACKDIR}/${BP} (the repo root); the SLAM files live in services/.
 

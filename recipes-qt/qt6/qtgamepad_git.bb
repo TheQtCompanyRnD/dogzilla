@@ -25,24 +25,17 @@ include recipes-qt/qt6/qt6.inc
 # QtUniversalInput QML modules) are skipped and qtgamepad-qmlplugins ships empty.
 DEPENDS += "qtbase qtdeclarative qtdeclarative-native"
 
-# Fix a udev_device leak in the linuxjoystickinput plugin: probeJoypads() runs
-# on a timer and leaks one udev_device (+ its property strings) per
-# already-attached device per poll (confirmed with LeakSanitizer). Carried
-# locally -- qtgamepad's dev branch is unmaintained.
-#
-# DISABLED while building from the Gerrit change (see the TEMPORARY block below),
-# which supersedes this fix. Re-enable both lines when reverting to published git.
-#FILESEXTRAPATHS:prepend := "${THISDIR}/qtgamepad:"
-#SRC_URI += "file://0001-linuxjoystickinput-unref-udev-device-on-early-continue.patch"
-
 # qtgamepad lives in its own repo and has no dedicated SRCREV in
 # meta-qt6/qt6-git.inc, so pin it here. Upstream stopped branching after 6.3;
 # "dev" is the only branch that still tracks recent Qt, so build against it
 # (pinned to its current head for reproducibility). Bump the SRCREV if it
 # fails to build against the qtbase you are using.
+#
+# qt6-git.inc builds the URL from meta-qt6's QT_GIT/QT_GIT_PROJECT, which makes
+# this git://code.qt.io/qt/qtgamepad
 QT_MODULE = "qtgamepad"
 QT_MODULE_BRANCH = "dev"
-SRCREV = "6de4c9d2ad753eac40b9f83bebcc01084fae16a9"
+SRCREV = "e3aa67410f2cded7445e540ea8eccc39114ac7be"
 
 # qtgamepad's CMakeLists.txt does find_package(Qt6 6.13.0 REQUIRED) (the "dev"
 # branch tracks the next Qt version), but we build it against Qt 6.12. The bare
@@ -50,20 +43,6 @@ SRCREV = "6de4c9d2ad753eac40b9f83bebcc01084fae16a9"
 # passes it to cmake. It has to reach CMake as a -D argument, exactly like the
 # local -DQT_NO_PACKAGE_VERSION_CHECK=TRUE that makes the standalone build pass.
 EXTRA_OECMAKE += "-DQT_NO_PACKAGE_VERSION_CHECK=TRUE"
-
-# === TEMPORARY: build qtgamepad from Gerrit change 760147 (the polling->event
-# CPU rework + leak fix + red-led-mode fix) via a LOCAL clone, instead of the published dev branch
-# + the patch above. bitbake can't fetch a Gerrit change ref directly, so
-# prepare the clone once (set QTGAMEPAD_SRC to whichever clone you use):
-#   cd ${QTGAMEPAD_SRC}
-#   git fetch https://codereview.qt-project.org/qt/qtgamepad refs/changes/47/760147/2
-#   git checkout -b gerrit-753303 FETCH_HEAD
-# Revert this whole block (and un-comment the patch lines above) once the change
-# merges upstream, restoring the published-git SRCREV pin.
-QTGAMEPAD_SRC ?= "/home/rutledge/dev/qt6/qtgamepad"
-SRC_URI = "git://${QTGAMEPAD_SRC};protocol=file;branch=gerrit-760147;destsuffix=${BB_GIT_DEFAULT_DESTSUFFIX}"
-SRCREV = "${AUTOREV}"
-# === end TEMPORARY
 
 # The native Linux backend is evdev (built by default); SDL2 is optional and
 # off by default for a headless robot.

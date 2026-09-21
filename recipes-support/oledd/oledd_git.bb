@@ -6,15 +6,18 @@ works, but panics ('scheduling while atomic') when the display's refresh collide
 with Wi-Fi interrupts on the Pi 5's RP1. From userspace a bus hiccup is an EIO. \
 Plain C, no libraries, so it also builds on the robot itself with cc. \
 See oledd/README.md in the dogzilla repo for the whole story."
-HOMEPAGE = "https://git.qt.io/qt-robotics/dogzilla"
+HOMEPAGE = "https://github.com/TheQtCompanyRnD/dogzilla"
 
 # Our own application; no upstream license file to checksum.
 LICENSE = "CLOSED"
 
-# Same local-checkout fetch as dogzillad (see that recipe): protocol=file not ssh;
-# AUTOREV tracks the last commit on main. oledd is the oledd/ subdir of the repo.
-SRC_URI = "git://${DOGZILLA_SRC};protocol=file;branch=main"
-SRCREV = "${AUTOREV}"
+# Fetched over https from the upstream dogzilla repo (DOGZILLA_GIT_REPO and
+# DOGZILLA_SRCREV are set in meta-dogzilla/conf/layer.conf)
+# Bump DOGZILLA_SRCREV there to pick up new commits;
+# `devtool modify oledd` for live working-tree iteration.
+# oledd is the oledd/ subdir of the repo.
+SRC_URI = "git://${DOGZILLA_GIT_REPO};protocol=https;branch=main"
+SRCREV = "${DOGZILLA_SRCREV}"
 PV = "1.0+git"
 S = "${UNPACKDIR}/${BP}/oledd"
 

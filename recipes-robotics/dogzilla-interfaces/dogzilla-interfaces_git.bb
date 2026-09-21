@@ -1,19 +1,22 @@
 SUMMARY = "Dogzilla custom ROS 2 interfaces (telemetry message)"
 DESCRIPTION = "rosidl message package for the Dogzilla robot: msg/Telemetry \
-(fan level + CPU load). Built from the local dogzilla checkout (DOGZILLA_SRC, \
-set in meta-dogzilla/conf/layer.conf); its dogzilla_interfaces/ subdir. The \
+(fan level + CPU load). Built from the dogzilla repo's dogzilla_interfaces/ \
+subdir (DOGZILLA_GIT_REPO, set in meta-dogzilla/conf/layer.conf). The \
 QtRos2 QML wrapper (Dogzilla.Telemetry) is generated downstream in dogzillad."
-HOMEPAGE = "https://git.qt.io/qt-robotics/dogzilla"
+HOMEPAGE = "https://github.com/TheQtCompanyRnD/dogzilla"
 
 # Our own interfaces; no upstream license file to checksum (matches dogzillad).
 LICENSE = "CLOSED"
 
 inherit ros_distro_jazzy
 
-# Fetch from the local checkout over the filesystem (no ssh/YubiKey). The
-# package is the dogzilla_interfaces/ subdir of the repo.
-SRC_URI = "git://${DOGZILLA_SRC};protocol=file;branch=main"
-SRCREV = "${AUTOREV}"
+# Fetched over https from the upstream dogzilla repo (DOGZILLA_GIT_REPO and
+# DOGZILLA_SRCREV are set in meta-dogzilla/conf/layer.conf)
+# Bump DOGZILLA_SRCREV there to pick up new commits;
+# `devtool modify dogzilla-interfaces` for live working-tree iteration.
+# The package is the dogzilla_interfaces/ subdir of the repo.
+SRC_URI = "git://${DOGZILLA_GIT_REPO};protocol=https;branch=main"
+SRCREV = "${DOGZILLA_SRCREV}"
 PV = "1.0+git"
 S = "${UNPACKDIR}/${BP}/dogzilla_interfaces"
 

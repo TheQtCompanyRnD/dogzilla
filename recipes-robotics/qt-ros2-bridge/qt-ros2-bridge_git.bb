@@ -1,7 +1,7 @@
 SUMMARY = "Qt ROS 2 bridge (QtRos2) module"
 DESCRIPTION = "Qt module bridging Qt/QML with ROS 2 (rclcpp), built as a Qt \
 BuildInternals CMake module that finds the ROS 2 packages in the sysroot."
-HOMEPAGE = "https://git.qt.io/qt-robotics/qt-ros2-bridge"
+HOMEPAGE = "https://github.com/TheQtCompanyRnD/qtros"
 LICENSE = "BSD-3-Clause"
 LIC_FILES_CHKSUM = " \
     file://LICENSES/BSD-3-Clause.txt;md5=cb40fa7520502d8c7a3aea47cae1316c \
@@ -9,16 +9,15 @@ LIC_FILES_CHKSUM = " \
     file://LICENSES/LicenseRef-Qt-Commercial.txt;md5=40a1036f91cefc0e3fabad241fb5f187 \
 "
 
-# Fetch from the local working copy over the filesystem (protocol=file) so no
-# SSH connection to git.qt.io is made -- avoids a YubiKey touch on every fetch.
-# QT_ROS2_BRIDGE_SRC is set in meta-dogzilla/conf/layer.conf; override it if
-# your checkout lives elsewhere. AUTOREV tracks the tip of the branch's last
-# *commit* (not uncommitted working-tree edits -- use devtool/externalsrc for
-# live iteration). Pin to a SHA for reproducible builds.
+# Fetched over https from the upstream qtros repo (QTROS_GIT_REPO is set in
+# meta-dogzilla/conf/layer.conf) main branch
+# SRCREV is pinned for reproducibility; bump it to pick up new commits, or set
+#   SRCREV:pn-qt-ros2-bridge = "${AUTOREV}"
+# in local.conf to track the branch head (devtool modify for live iteration).
 # destsuffix and S are left at their oe-core defaults (${UNPACKDIR}/${BP});
 # modern oe-core errors if a recipe still sets S = "${WORKDIR}/git".
-SRC_URI = "git://${QT_ROS2_BRIDGE_SRC};protocol=file;branch=qtify"
-SRCREV = "${AUTOREV}"
+SRC_URI = "git://${QTROS_GIT_REPO};protocol=https;branch=main"
+SRCREV = "9106e1926777cca8f802ca66a86877224c264044"
 PV = "6.8.0+git"
 
 # Qt side: qt_build_repo module needing Qt6 Core + Quick.

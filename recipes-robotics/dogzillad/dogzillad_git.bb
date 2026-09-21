@@ -6,19 +6,19 @@ UniversalInput) for control logic + the qt-ros2-bridge (Qt6Ros2Core) for ROS 2 \
 a plain SDK/on-target CMake build can't find it. Iterate with devtool: \
 'devtool modify dogzillad', edit, 'devtool build dogzillad', \
 'devtool deploy-target dogzillad pi@dogzilla.local'."
-HOMEPAGE = "https://git.qt.io/qt-robotics/dogzilla"
+HOMEPAGE = "https://github.com/TheQtCompanyRnD/dogzilla"
 
 # Our own application; no upstream license file to checksum.
 LICENSE = "CLOSED"
 
-# Fetch from the local "dogzilla" checkout over the filesystem (protocol=file):
-# no SSH to git.qt.io, so no YubiKey touch per fetch. DOGZILLA_SRC is set in
-# meta-dogzilla/conf/layer.conf. AUTOREV tracks the last *commit* on main --
-# commit your edits, or use `devtool modify` for live working-tree iteration.
+# Fetched over https from the upstream dogzilla repo (DOGZILLA_GIT_REPO and
+# DOGZILLA_SRCREV are set in meta-dogzilla/conf/layer.conf)
+# Bump DOGZILLA_SRCREV there to pick up new commits;
+# `devtool modify dogzillad` for live working-tree iteration.
 # The daemon is the dogzillad/ subdir of the repo, so point S at it.
-SRC_URI = "git://${DOGZILLA_SRC};protocol=file;branch=main \
+SRC_URI = "git://${DOGZILLA_GIT_REPO};protocol=https;branch=main \
            file://dogzillad.service"
-SRCREV = "${AUTOREV}"
+SRCREV = "${DOGZILLA_SRCREV}"
 PV = "1.0+git"
 S = "${UNPACKDIR}/${BP}/dogzillad"
 
