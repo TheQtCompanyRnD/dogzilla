@@ -534,6 +534,7 @@ void Controller::setMotorsEngaged(bool v)
         m_motorsEngaged = v;
         qCDebug(lcCtrl) << m_motorsEngaged << "->" << v;
         emit motorsEngagedChanged(v);
+        emit intentionalMovement();
     } else {
         // crouch before disengaging. setTranslationZ(0) doesn't go low enough.
         // angles in radians: lower, upper, hip
@@ -565,6 +566,7 @@ void Controller::setWalkSpeed(qreal v)
     qCDebug(lcCtrl) << "move_x" << m_walkSpeed << lroundf(m_walkSpeed) << arg;
     sendOneArgCommand(Command::VelX, arg);
     emit walkSpeedChanged(m_walkSpeed);
+    emit intentionalMovement();
 }
 
 void Controller::setSteerAngle(qreal v)
@@ -579,6 +581,7 @@ void Controller::setSteerAngle(qreal v)
     qCDebug(lcCtrl) << "steer" << m_steerAngle << lroundf(v) << arg;
     sendOneArgCommand(Command::VelYaw, arg);
     emit steerAngleChanged(v);
+    emit intentionalMovement();
 }
 
 void Controller::setSideStepSpeed(qreal v)
@@ -592,6 +595,7 @@ void Controller::setSideStepSpeed(qreal v)
     qCDebug(lcCtrl) << "move_y" << m_sideStepSpeed << lroundf(v) << arg;
     sendOneArgCommand(Command::VelY, arg);
     emit sideStepSpeedChanged(v);
+    emit intentionalMovement();
 }
 
 void Controller::setMotorSpeed(qreal v)
@@ -611,6 +615,7 @@ void Controller::setTranslationX(qreal v)
     qCDebug(lcCtrl) << "trans_x" << m_translationX << lroundf(v) << arg;
     sendOneArgCommand(Command::TranslationX, arg);
     emit translationXChanged(v);
+    emit intentionalMovement();
 }
 
 void Controller::setTranslationY(qreal v)
@@ -622,6 +627,7 @@ void Controller::setTranslationY(qreal v)
     qCDebug(lcCtrl) << "trans_y" << m_translationY << lroundf(v) << arg;
     sendOneArgCommand(Command::TranslationY, arg);
     emit translationYChanged(v);
+    emit intentionalMovement();
 }
 
 // TODO define the allowed range;
@@ -635,6 +641,7 @@ void Controller::setTranslationZ(qreal v)
     qCDebug(lcCtrl) << "trans_z" << m_translationZ << lroundf(v) << arg;
     sendOneArgCommand(Command::TranslationZ, arg);
     emit translationZChanged(v);
+    emit intentionalMovement();
 }
 
 void Controller::setJointAngles(const QList<double> &angles)
@@ -659,6 +666,7 @@ void Controller::setJointAngles(const QList<double> &angles)
             deg += 106.0;
         sendMotorAngle(i, realToByte(deg, m_motorLimits[perLegIdx]));
     }
+    emit intentionalMovement();
 }
 
 void Controller::setRoll(qreal v)
@@ -670,6 +678,7 @@ void Controller::setRoll(qreal v)
     qCDebug(lcCtrl) << "roll" << m_roll << arg;
     sendOneArgCommand(Command::AttitudeRoll, arg);
     emit rollChanged();
+    emit intentionalMovement();
 }
 
 void Controller::setPitch(qreal v)
@@ -684,6 +693,7 @@ void Controller::setPitch(qreal v)
     // SOF   --   len   mode  addr  data  csum   --   EOF
     sendOneArgCommand(Command::AttitudePitch, arg);
     emit pitchChanged();
+    emit intentionalMovement();
 }
 
 void Controller::setYaw(qreal v)
@@ -695,6 +705,7 @@ void Controller::setYaw(qreal v)
     qCDebug(lcCtrl) << "yaw" << m_yaw << arg;
     sendOneArgCommand(Command::AttitudeYaw, arg);
     emit yawChanged();
+    emit intentionalMovement();
 }
 
 void Controller::tareAttitude()

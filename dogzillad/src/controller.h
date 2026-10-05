@@ -144,6 +144,7 @@ signals:
     void measuredRollChanged();
     void measuredPitchChanged();
     void jointAnglesChanged();
+    void intentionalMovement();
 
 protected:
     void timerEvent(QTimerEvent *ev) override;
