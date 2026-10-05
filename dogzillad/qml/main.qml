@@ -74,7 +74,6 @@ Ros2.Node {
     property Controller controller: Controller {
         serialPort: "/dev/ttyAMA0"
         baudRate: 115200
-        onBatteryPercentChanged: console.log("batt", batteryPercent);
         onIntentionalMovement: sleepTimer.restart()
 
         property Timer sleepTimer: Timer {
