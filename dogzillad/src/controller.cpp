@@ -123,14 +123,10 @@ void Controller::maybeOpenSerialPort()
         if (success) {
             if (!m_batteryPollCountdown)
                 pollBattery();
-            // The firmware exposes no read for motor load state, so we can't
-            // discover whether the legs are engaged -- impose a known one instead:
-            // disengage at startup so m_motorsEngaged (false) matches reality.
-            // Safe for the usual boot (dog resting on its charger); a mid-session
-            // restart just relaxes the legs. Emitting the change syncs QML bindings.
-            sendThunkCommand(Command::UnloadMotor);
-            m_motorsEngaged = false;
-            emit motorsEngagedChanged(false);
+            // stand up (probably already standing) then
+            // lie down nicely at startup to sync with m_motorsEngaged init
+            setMotorsEngaged(true);
+            setMotorsEngaged(false);
         }
     }
 }
@@ -230,6 +226,8 @@ void Controller::pollMotorAngles()
             m_motorsEngaged = false;
             qCDebug(lcCtrl) << m_motorsEngaged << "->" << false;
             emit motorsEngagedChanged(false);
+        } else {
+            qCDebug(lcCtrl) << "disengageCountdown" << m_disengageCountdown;
         }
         if (m_disengageCountdown == 0) {
             killTimer(m_motorPollTimerId);
@@ -542,6 +540,7 @@ void Controller::setMotorsEngaged(bool v)
         const auto upper = qDegreesToRadians(93);
         setJointAngles({lower, upper, 0,  lower, upper, 0,  lower, upper, 0,  lower, upper, 0});
         m_disengageCountdown = 25; // ticks
+        qCDebug(lcCtrl) << m_motorsEngaged << "->" << v << "started countdown" << m_disengageCountdown;
     }
 }
 
