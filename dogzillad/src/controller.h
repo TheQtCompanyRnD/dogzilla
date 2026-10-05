@@ -43,8 +43,10 @@ class Controller : public QObject
     // that drifts ~14 deg/s, so heading should come from odometry instead.
     Q_PROPERTY(qreal measuredRoll READ measuredRoll NOTIFY measuredRollChanged FINAL)
     Q_PROPERTY(qreal measuredPitch READ measuredPitch NOTIFY measuredPitchChanged FINAL)
+    Q_PROPERTY(int imuPollRate READ imuPollRate WRITE setImuPollRate NOTIFY imuPollRateChanged FINAL)
 
     Q_PROPERTY(QList<double> jointAngles READ jointAngles WRITE setJointAngles NOTIFY jointAnglesChanged FINAL)
+    Q_PROPERTY(int jointAnglePollRate READ jointAnglePollRate WRITE setJointAnglePollRate NOTIFY jointAnglePollRateChanged FINAL)
 
 public:
     Controller(QObject * parent = nullptr);
@@ -105,6 +107,8 @@ public:
     qreal measuredRoll() const { return m_measuredRoll; }
     qreal measuredPitch() const { return m_measuredPitch; }
     QList<double> jointAngles() const { return {m_motorAngles.begin(), m_motorAngles.end()}; }
+    int imuPollRate() const { return m_imuPollRate; }
+    int jointAnglePollRate() const { return m_jointAnglePollRate; }
 
 public slots:
     void setSerialPort(const QString &path);
@@ -123,6 +127,8 @@ public slots:
     void setPitch(qreal newPitch);
     void setYaw(qreal newYaw);
     void setJointAngles(const QList<double> &angles);
+    void setJointAnglePollRate(int rate);
+    void setImuPollRate(int rate);
 
     // Re-zero measuredRoll/measuredPitch to the dog's current attitude. Called
     // automatically ~2 s after standing up (see setMotorsEngaged), since the pose
@@ -144,6 +150,8 @@ signals:
     void measuredRollChanged();
     void measuredPitchChanged();
     void jointAnglesChanged();
+    void jointAnglePollRateChanged();
+    void imuPollRateChanged();
     void intentionalMovement();
 
 protected:
@@ -203,6 +211,8 @@ private:
     int m_batteryPollCountdown = 0;
     int m_disengageCountdown = 0;
     int m_tareCountdown = 0; // ticks until auto-tare after standing up; 0 = idle
+    int m_jointAnglePollRate = 100; // timer interval in ms
+    int m_imuPollRate = 100; // timer interval in ms
     uint8_t m_batteryPercent = 0;
     bool m_motorsEngaged = false; // we want to explicitly engage to start moving
 

@@ -289,7 +289,7 @@ void Controller::updateImuPolling()
     const bool wanted = isSignalConnected(m_measuredRollSig)
                      || isSignalConnected(m_measuredPitchSig);
     if (wanted && m_imuPollTimerId < 0) {
-        m_imuPollTimerId = startTimer(100);
+        m_imuPollTimerId = startTimer(m_imuPollRate);
     } else if (!wanted && m_imuPollTimerId >= 0) {
         killTimer(m_imuPollTimerId);
         m_imuPollTimerId = -1;
@@ -525,7 +525,7 @@ void Controller::setMotorsEngaged(bool v)
     setMotorSpeed(50);
     if (v) {
         if (m_motorPollTimerId < 0)
-            m_motorPollTimerId = startTimer(100);
+            m_motorPollTimerId = startTimer(m_jointAnglePollRate);
         setTranslationZ(100); // stand up; TODO this doesn't go high enough
         sendThunkCommand(Command::LoadMotor);
         m_tareCountdown = 20; // ~2 s for the legs to extend and the body to settle level
@@ -720,4 +720,28 @@ void Controller::tareAttitude()
         m_measuredPitch = 0;
         emit measuredPitchChanged();
     }
+}
+
+void Controller::setImuPollRate(int rate)
+{
+    if (m_imuPollRate == rate)
+        return;
+    m_imuPollRate = rate;
+    if (m_imuPollTimerId >= 0) {
+        killTimer(m_imuPollTimerId);
+        m_imuPollTimerId = startTimer(m_imuPollRate);
+    }
+    emit imuPollRateChanged();
+}
+
+void Controller::setJointAnglePollRate(int rate)
+{
+    if (m_jointAnglePollRate == rate)
+        return;
+    m_jointAnglePollRate = rate;
+    if (m_motorPollTimerId >= 0) {
+        killTimer(m_motorPollTimerId);
+        m_motorPollTimerId = startTimer(m_jointAnglePollRate);
+    }
+    emit jointAnglePollRateChanged();
 }
