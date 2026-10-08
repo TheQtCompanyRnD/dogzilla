@@ -31,9 +31,10 @@ qt_add_qml_module(Robot_Dogzilla
         "receivedimageprovider.cpp"
         "motionlibrary.h"
         "motionlibrary.cpp"
+        lidarinstancetable.h lidarinstancetable.cpp
+        occupancyinstancetable.h occupancyinstancetable.cpp
     RESOURCES
         "dogzilla_joints.json"
-        SOURCES lidarinstancetable.h lidarinstancetable.cpp
 )
 
 file(GLOB_RECURSE QML_SOURCES "*.qml")

@@ -6,6 +6,7 @@ import QtQuick3D
 import QtQuick3D.Helpers
 import QtRos2.Core as Ros2
 import QtRos2.GeometryMsgs as GeomMsgs
+import QtRos2.NavMsgs as NavMsgs
 import QtRos2.SensorMsgs as SensorMsgs
 import QtRos2.StdSrvs as StdSrvs
 import Dogzilla
@@ -110,7 +111,7 @@ Item {
             id: lidarRepresentation
             y: 100
             Model {
-                scale: Qt.vector3d(0.1, 0.1, 0.01)
+                scale: Qt.vector3d(0.3, 0.3, 0.03)
                 source: "#Cube"
                 instancing: LidarInstanceTable {
                     ranges: laserSub.ranges
@@ -127,6 +128,29 @@ Item {
             }
         }
 
+        Node {
+            id: mapVoxels
+            // y: -115
+            position: Qt.vector3d(occuSub.info.origin.position.x * 1000, -115, occuSub.info.origin.position.y * 1000)
+            scale: Qt.vector3d(10, 10, 10)
+            Model {
+                source: "#Cube"
+                instancing: OccupancyInstanceTable {
+                    id: occinst
+                    resolution: occuSub.info.resolution
+                    size: Qt.size(occuSub.info.width, occuSub.info.height)
+                    probabilities: occuSub.data
+                    onProbabilitiesChanged: console.log("@", mapVoxels.position)
+                }
+                materials: [
+                    PrincipledMaterial {
+                        alphaMode: PrincipledMaterial.Opaque
+                        cullMode: PrincipledMaterial.NoCulling
+                    }
+                ]
+            }
+        }
+
         Dogzilla {
             id: robotRoot
             // toQuaternion() yields a QtQuick3D-frame orientation (the bridge's
@@ -137,6 +161,8 @@ Item {
             // "Convert to Y-up" rotation.
             readonly property quaternion yUp: Qt.quaternion(0.5, -0.5, -0.5, -0.5)
             rotation: poseSubscriber.pose.orientation.toQuaternion().times(yUp)
+            position: poseSubscriber.pose.position.toVector3D()
+            onPositionChanged: console.log("dog @", position, rotation)
             control: DogzillaControl {
                 id: ctl
             }
@@ -275,9 +301,9 @@ Item {
         GeomMsgs.PoseStampedSubscriber {
             id: poseSubscriber
             topic: `${rosNode.robotNamespace}/body_pose/state` // modern style for command/state topic separation
-            onMessageReceived: function (msg) {
-                console.log(JSON.stringify(msg))
-            }
+            // onMessageReceived: function (msg) {
+            //     console.log(JSON.stringify(msg))
+            // }
         }
 
         SensorMsgs.CompressedImageSubscriber {
@@ -299,6 +325,12 @@ Item {
             // Remote viewer: request best-effort. The publisher stays reliable
             // (onboard SLAM needs it), and reliable-offered satisfies this.
             qos: Ros2.QualityOfService.sensorData()
+        }
+
+        NavMsgs.OccupancyGridSubscriber {
+            id: occuSub
+            topic: `${rosNode.robotNamespace}/map`
+            // onMessageReceived: function(msg) { console.log("occupy!", occinst.size, occinst.probabilities.byteLength, occuSub.info.origin) }
         }
 
         // step sideways
