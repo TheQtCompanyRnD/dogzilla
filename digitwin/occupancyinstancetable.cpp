@@ -77,7 +77,7 @@ QByteArray OccupancyInstanceTable::getInstanceBuffer(int *instanceCount)
                 continue;
             const QPoint pos(i % m_size.width(), i / m_size.width());
             const int gray = 255 - 2 * probability; // 100% solid: white; 0: dark gray
-            auto entry = calculateTableEntry({ float(pos.y() * 5), 0, float(pos.x() * 5) },
+            auto entry = calculateTableEntry({ float(pos.y() * m_resolution), 0, float(pos.x() * m_resolution) },
                                              { m_resolution, float(gray) / 200.0f * m_resolution, m_resolution }, // scale
                                              { 0.0, 0.0, 0.0 }, // eulerRotation
                                              QColor(gray, gray, gray), {});

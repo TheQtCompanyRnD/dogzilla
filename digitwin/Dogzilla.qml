@@ -12,7 +12,7 @@ Node {
 
     required property DogzillaControl control
     property real sceneUnitsPerMeter: 100.0
-    property real instanceScale: 10.0
+    property real instanceScale: 0.01
     scale: Qt.vector3d(instanceScale, instanceScale, instanceScale)
 
 

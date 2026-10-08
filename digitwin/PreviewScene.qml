@@ -81,95 +81,111 @@ Item {
         }
 
         Node {
-            id: cameraViewScreen
-            eulerRotation: Qt.vector3d(180, 0, 180)
-            x: dogsEyeView.width / 2         // center on axis
-            y: dogsEyeView.height / 2 + 100  // center on line of sight
-            z: 1000                          // in front of the dog; TODO calibrate?
-            Image {
-                id: dogsEyeView
-                width: 1920
-                height: 1080
-                cache: false
-                source: "image://camera/" + ReceivedImageProvider.currentFrame
+            id: metricScene
+            scale: Qt.vector3d(100, 100, 100)   // children are in meters
 
-                Text {
-                    anchors {
-                        horizontalCenter: parent.horizontalCenter
-                        bottom: parent.bottom
-                        margins: 6
+            Node {
+                id: mapVoxels
+                // y: -115
+                position: Qt.vector3d(occuSub.info.origin.position.y, 0, occuSub.info.origin.position.x)
+                // position: Qt.vector3d(posSlider.value, 0, -1)
+                // scale: Qt.vector3d(100, 100, 100)
+                Model {
+                    source: "#Cube"
+                    scale: Qt.vector3d(0.01, 0.01, 0.01)
+                    instancing: OccupancyInstanceTable {
+                        id: occinst
+                        resolution: occuSub.info.resolution
+                        size: Qt.size(occuSub.info.width, occuSub.info.height)
+                        probabilities: occuSub.data
+                        onProbabilitiesChanged: console.log("@", occuSub.info.origin.position, mapVoxels.position)
                     }
-                    color: "white"
-                    text: cameraNode.eulerRotation.x.toFixed(2) + ", " +
-                          cameraNode.eulerRotation.y.toFixed(2) + ", " +
-                          cameraNode.eulerRotation.z.toFixed(2)
+                    materials: [
+                        PrincipledMaterial {
+                            alphaMode: PrincipledMaterial.Opaque
+                            cullMode: PrincipledMaterial.NoCulling
+                        }
+                    ]
                 }
             }
-        }
 
-        Node {
-            id: lidarRepresentation
-            y: 100
-            Model {
-                scale: Qt.vector3d(0.3, 0.3, 0.03)
-                source: "#Cube"
-                instancing: LidarInstanceTable {
-                    ranges: laserSub.ranges
-                    intensities: laserSub.intensities
-                    angleIncrement: laserSub.angleIncrement
+            Dogzilla {
+                id: robotRoot
+                // Because of the way the urdf was exported, units are cm here.
+                // toQuaternion() yields a QtQuick3D-frame orientation (the bridge's
+                // Quaternion uses Qt's axis convention), so apply the body orientation in
+                // *scene* space — outside the model's Z-up→Y-up conversion (R_conv):
+                // bodyOrientation ∘ R_conv. (R_conv ∘ q would act in the model's Z-up frame
+                // and a pitch would read as a roll.) yUp must match Dogzilla.qml's root
+                // "Convert to Y-up" rotation.
+                readonly property quaternion yUp: Qt.quaternion(0.5, -0.5, -0.5, -0.5)
+                readonly property vector3d rosPosition: poseSubscriber.pose.position.toVector3D()
+                rotation: poseSubscriber.pose.orientation.toQuaternion().times(yUp)
+                position: Qt.vector3d(rosPosition.y, rosPosition.z, rosPosition.x)
+                // position: poseSubscriber.pose.position.toVector3D() // different axes in ROS than in QQ3D
+                // scale: Qt.vector3d(0.1, 0.1, 0.1)
+                onPositionChanged: console.log("dog @", rosPosition, position, rotation)
+                control: DogzillaControl {
+                    id: ctl
                 }
-                materials: [
-                    PrincipledMaterial {
-                        alphaMode: PrincipledMaterial.Opaque
-                        cullMode: PrincipledMaterial.NoCulling
-                        emissiveFactor: Qt.vector3d(0.1, 0.1, 0.1)
-                    }
-                ]
-            }
-        }
 
-        Node {
-            id: mapVoxels
-            // y: -115
-            position: Qt.vector3d(occuSub.info.origin.position.x * 1000, -115, occuSub.info.origin.position.y * 1000)
-            scale: Qt.vector3d(10, 10, 10)
-            Model {
-                source: "#Cube"
-                instancing: OccupancyInstanceTable {
-                    id: occinst
-                    resolution: occuSub.info.resolution
-                    size: Qt.size(occuSub.info.width, occuSub.info.height)
-                    probabilities: occuSub.data
-                    onProbabilitiesChanged: console.log("@", mapVoxels.position)
+                Node {
+                    id: cameraViewScreen
+                    scale: Qt.vector3d(0.1, 0.1, 0.1)
+                    eulerRotation: Qt.vector3d(0, -90, -90)
+                    z: 75
+                    y: 100
+                    x: 100 // cm in front of the dog; TODO calibrate? make it intersect the nearest wall?
+                    Image {
+                        id: dogsEyeView
+                        width: 1920
+                        height: 1080
+                        cache: false
+                        source: "image://camera/" + ReceivedImageProvider.currentFrame
+
+                        Text {
+                            anchors {
+                                horizontalCenter: parent.horizontalCenter
+                                bottom: parent.bottom
+                                margins: 6
+                            }
+                            color: "white"
+                            text: cameraNode.eulerRotation.x.toFixed(2) + ", " +
+                                  cameraNode.eulerRotation.y.toFixed(2) + ", " +
+                                  cameraNode.eulerRotation.z.toFixed(2)
+                        }
+                    }
                 }
-                materials: [
-                    PrincipledMaterial {
-                        alphaMode: PrincipledMaterial.Opaque
-                        cullMode: PrincipledMaterial.NoCulling
-                    }
-                ]
-            }
-        }
 
-        Dogzilla {
-            id: robotRoot
-            // toQuaternion() yields a QtQuick3D-frame orientation (the bridge's
-            // Quaternion uses Qt's axis convention), so apply the body orientation in
-            // *scene* space — outside the model's Z-up→Y-up conversion (R_conv):
-            // bodyOrientation ∘ R_conv. (R_conv ∘ q would act in the model's Z-up frame
-            // and a pitch would read as a roll.) yUp must match Dogzilla.qml's root
-            // "Convert to Y-up" rotation.
-            readonly property quaternion yUp: Qt.quaternion(0.5, -0.5, -0.5, -0.5)
-            rotation: poseSubscriber.pose.orientation.toQuaternion().times(yUp)
-            position: poseSubscriber.pose.position.toVector3D()
-            onPositionChanged: console.log("dog @", position, rotation)
-            control: DogzillaControl {
-                id: ctl
+                Node {
+                    id: lidarRepresentation
+                    z: 10
+                    eulerRotation: Qt.vector3d(0, 90, 90)
+                    scale: Qt.vector3d(0.1, 0.1, 0.1)
+                    Model {
+                        scale: Qt.vector3d(0.2, 0.2, 0.02)
+                        source: "#Cube"
+                        instancing: LidarInstanceTable {
+                            ranges: laserSub.ranges
+                            intensities: laserSub.intensities
+                            angleIncrement: laserSub.angleIncrement
+                        }
+                        materials: [
+                            PrincipledMaterial {
+                                alphaMode: PrincipledMaterial.Opaque
+                                cullMode: PrincipledMaterial.NoCulling
+                                emissiveFactor: Qt.vector3d(0.1, 0.1, 0.1)
+                            }
+                        ]
+                    }
+                }
             }
+
         }
         AxisHelper {
-            y: -115
-            scale: Qt.vector3d(0.2, 0.2, 0.2)
+            // y: -115
+            // scale down the axes so they aren't overwhelming; grid lines are now decimeters
+            scale: Qt.vector3d(0.1, 0.1, 0.1)
         }
     }
 
