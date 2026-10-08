@@ -199,20 +199,16 @@ Item {
     Ros2.Node {
         id: rosNode
         nodeName: "digitwin"
-        // The robot's namespace: all of its topics live under it, and its
-        // daemon node is ${robotNamespace}/dogzillad. Kept separate from
-        // this node's own name so `ros2 node list` reads honestly
-        // (/digitwin vs /dogzilla/dogzillad).
-        readonly property string robotNamespace: "/dogzilla"
+        nodeNamespace: "/dogzilla"
 
         SensorMsgs.BatteryStateSubscriber {
             id: batterySub
-            topic: `${rosNode.robotNamespace}/battery_state`
+            topic: "battery_state"
         }
 
         SensorMsgs.TemperatureSubscriber {
             id: tempSub
-            topic: `${rosNode.robotNamespace}/telemetry/temperature`
+            topic: "telemetry/temperature"
             onTemperatureChanged: {
                 panel.addTemperatureSample(
                     tempSub.header.stamp.sec + tempSub.header.stamp.nanosec / 1e9,
@@ -222,7 +218,7 @@ Item {
 
         StampedTelemetrySubscriber {
             id: teleSub
-            topic: `${rosNode.robotNamespace}/telemetry/system`
+            topic: "telemetry/system"
             onMessageReceived: (msg) => {
                 panel.addTelemetrySample(
                     teleSub.header.stamp.sec + teleSub.header.stamp.nanosec / 1e9,
@@ -239,14 +235,14 @@ Item {
         // values are rejected by the robot's declared bounds.
         Ros2.RemoteParameter {
             id: masterParam
-            remoteNode: `${rosNode.robotNamespace}/dogzillad`
+            remoteNode: "dogzillad"
             name: "audio.master"
             autoApply: panel.masterVolumeLive
             value: panel.desiredMasterVolume
         }
         Ros2.RemoteParameter {
             id: micParam
-            remoteNode: `${rosNode.robotNamespace}/dogzillad`
+            remoteNode: "dogzillad"
             name: "audio.mic"
             autoApply: panel.micVolumeLive
             value: panel.desiredMicVolume
@@ -260,7 +256,7 @@ Item {
         // property bool motorsTouched: false
         Ros2.RemoteParameter {
             id: engageParam
-            remoteNode: `${rosNode.robotNamespace}/dogzillad`
+            remoteNode: "dogzillad"
             name: "motors.engaged"
             autoApply: false
             value: panel.motorsEngaged
@@ -269,18 +265,18 @@ Item {
         // TODO stop using the deprecated single-value pub/sub types
         BoolPublisher {
             id: listenPublisher
-            topic: `${rosNode.robotNamespace}/speech/listen`
+            topic: "speech/listen"
         }
 
         StringSubscriber {
             id: speechStateSub
-            topic: `${rosNode.robotNamespace}/speech/state`
+            topic: "speech/state"
             onMessageChanged: ptt.state = message
         }
 
         ChatMessageSubscriber {
             id: msgSub
-            topic: `${rosNode.robotNamespace}/speech/log`
+            topic: "speech/log"
             onMessageReceived: (msg) => panel.addChatMessage(msg)
         }
 
@@ -291,19 +287,19 @@ Item {
         // autonomous STT->LLM voice, which has no goal here to cancel.
         SpeakActionClient {
             id: speakAction
-            topic: `${rosNode.robotNamespace}/speech/speak`
+            topic: "speech/speak"
         }
 
         // The stop button's "shut up now": silences TTS on the robot however the
         // speech started (twin goal or autonomous). std_srvs/Trigger for an ack.
         StdSrvs.TriggerServiceClient {
             id: stopSpeech
-            topic: `${rosNode.robotNamespace}/speech/stop`
+            topic: "speech/stop"
         }
 
         SensorMsgs.JointStateSubscriber {
             id: jointStateSubscriber
-            topic: `${rosNode.robotNamespace}/joint_states`
+            topic: "joint_states"
             qos.queueSize: 1
             qos.reliability: Ros2.QualityOfService.ReliabilityBestEffort
             qos.history: Ros2.QualityOfService.HistoryKeepLast
@@ -316,7 +312,7 @@ Item {
 
         GeomMsgs.PoseStampedSubscriber {
             id: poseSubscriber
-            topic: `${rosNode.robotNamespace}/body_pose/state` // modern style for command/state topic separation
+            topic: "body_pose/state" // modern style for command/state topic separation
             // onMessageReceived: function (msg) {
             //     console.log(JSON.stringify(msg))
             // }
@@ -324,7 +320,7 @@ Item {
 
         SensorMsgs.CompressedImageSubscriber {
             id: imageSubscriber
-            topic: `${rosNode.robotNamespace}/camera/image/compressed`
+            topic: "camera/image/compressed"
             // Match the publisher's best-effort: tolerate dropped frames over Wi-Fi.
             qos: Ros2.QualityOfService.sensorData()
             onMessageReceived: function(msg) {
@@ -337,7 +333,7 @@ Item {
 
         SensorMsgs.LaserScanSubscriber {
             id: laserSub
-            topic: `${rosNode.robotNamespace}/sensor_msgs/msg/LaserScan`
+            topic: "sensor_msgs/msg/LaserScan"
             // Remote viewer: request best-effort. The publisher stays reliable
             // (onboard SLAM needs it), and reliable-offered satisfies this.
             qos: Ros2.QualityOfService.sensorData()
@@ -345,7 +341,7 @@ Item {
 
         NavMsgs.OccupancyGridSubscriber {
             id: occuSub
-            topic: `${rosNode.robotNamespace}/map`
+            topic: "map"
             // onMessageReceived: function(msg) { console.log("occupy!", occinst.size, occinst.probabilities.byteLength, occuSub.info.origin) }
         }
 
@@ -363,13 +359,13 @@ Item {
 
         GeomMsgs.TwistPublisher {
             id: cmdVel
-            topic: `${rosNode.robotNamespace}/cmd_vel` // legacy ROS1-style command topic, still in use
+            topic: "cmd_vel" // legacy ROS1-style command topic, still in use
             linear: Qt.vector3d(rosNode.walkSpeed, rosNode.strafeSpeed, 0)
             angular: Qt.vector3d(0, 0, rosNode.turnSpeed)
         }
 
         GeomMsgs.PoseStampedPublisher {
-            topic: `${rosNode.robotNamespace}/body_pose/command` // modern style for command/state topic separation
+            topic: "body_pose/command" // modern style for command/state topic separation
             header.frameId: "base_link" // name of link (main body part) as declared in dogzilla.urdf
             pose.orientation: GeomMsgs.Quaternion.fromEulerAngles(0, rosNode.pitch, 0)
         }
@@ -378,7 +374,7 @@ Item {
         // Plays a taught JointTrajectory; feedback drives the panel's progress.
         PlayMotionActionClient {
             id: motionAction
-            topic: `${rosNode.robotNamespace}/motion/play`
+            topic: "motion/play"
         }
         property bool motionPlaying: false
         // Fraction 0..1 through the motion (the panel maps this to a highlighted
@@ -430,7 +426,7 @@ Item {
         // that connects later still gets the current set. Called on any library edit.
         StringPublisher {
             id: libraryPub
-            topic: `${rosNode.robotNamespace}/motion/library`
+            topic: "motion/library"
             qos: Ros2.QualityOfService.transientLocal()
         }
         function publishLibrary() {
