@@ -160,19 +160,73 @@ Ros2.Node {
         }
     }
 
-    // Feedback from the IMU, published symmetric with body_pose/command.
-    // measuredRoll/measuredPitch are tared real degrees (relative to startup, or
-    // to the last controller.tareAttitude()). Yaw is published as 0: the firmware's
-    // yaw is a free-running gyro integral that drifts ~14 deg/s, so the twin's
-    // heading should come from odometry, not here. Referencing the measured*
-    // properties is also how the Controller detects interest and starts IMU polling.
-    // (Same fromEulerAngles pattern the digital twin uses on the command side.)
+    // Receive side of tf2: owns a tf2_ros::Buffer fed from /dogzilla/tf and
+    // /dogzilla/tf_static, so a single lookup resolves the whole SLAM chain
+    // (map->odom->base_link) without us caring how many hops it has, or which
+    // node published each one. Cartographer currently supplies all of it
+    // (provide_odom_frame = true, since we have no wheel/legged odometry);
+    // slam_toolbox would supply only map->odom and expect odom->base_link from
+    // an odometry source. Either way this lookup is unchanged.
+    FrameTransformer {
+        id: tf
+    }
+
+    // Where SLAM thinks base_link is, in the map frame. Sampled on a timer
+    // rather than bound to tf.transformsChanged: cartographer publishes /tf at
+    // pose_publish_period_sec (200 Hz by default), which is far more than a
+    // digital twin needs, and the tf2 buffer interpolates, so fixed-rate
+    // sampling is both cheaper and smoother than following every update.
+    // Empty childFrameId means the lookup failed (SLAM not up yet, or the
+    // transform aged out) - keep the last good pose and stop republishing
+    // rather than snapping the twin back to the origin.
+    property transformStamped mapToBaseLink
+    readonly property bool localized: mapToBaseLink.childFrameId !== ""
+
+    property Timer tfSampleTimer: Timer {
+        interval: 100 // 10 Hz: matches the lidar, and is plenty for the twin
+        repeat: true
+        running: true
+        onTriggered: {
+            const t = tf.lookupTransform("map", "base_link")
+            if (t.childFrameId !== "")
+                root.mapToBaseLink = t
+        }
+    }
+
+    // Fused body pose, published symmetric with body_pose/command.
+    //
+    // Position and yaw come from SLAM (map frame); roll and pitch come from the
+    // IMU. That split is deliberate: the firmware's yaw is a free-running gyro
+    // integral that drifts ~14 deg/s and is useless as a heading, while the
+    // lidar/scan-matcher has no idea about gravity, so it reports the body as
+    // level no matter how the gait rocks it. measuredRoll/measuredPitch are
+    // tared real degrees (relative to startup, or to the last
+    // controller.tareAttitude()). Referencing the measured* properties is also
+    // how the Controller detects interest and starts IMU polling.
+    //
+    // frameId is therefore "map", not base_link: a consumer that transforms
+    // this pose gets the position right, and the roll/pitch are gravity-
+    // relative, which is what "map" implies for a 2D SLAM map anyway.
+    //
+    // autoPublish coalesces the bindings below into one publish per event-loop
+    // iteration, so the 10 Hz timer above sets the actual rate; autoStamp fills
+    // header.stamp from the node clock because we leave it zero here.
     PoseStampedPublisher {
         id: posePub
         topic: `${root.nodeNamespace}/body_pose/state`
+        header.frameId: "map"
+        // Object-literal form rather than pose.position.x/y/z: one level of
+        // grouped binding on the publisher's own property, like TwistPublisher's
+        // linear/angular above. (translation is a vector3, position a point, so
+        // they do not assign to each other directly.)
+        pose.position: ({ x: root.mapToBaseLink.transform.translation.x,
+                          y: root.mapToBaseLink.transform.translation.y,
+                          z: root.mapToBaseLink.transform.translation.z })
+        // Quaternion.fromEulerAngles is ROS roll/pitch/yaw in degrees about
+        // X/Y/Z, Z-up - not QtQuick3D's pitch/yaw/roll in a Y-up frame.
         pose.orientation: Quaternion.fromEulerAngles(controller.measuredRoll,
-                                                      controller.measuredPitch,
-                                                      0)
+                                                     controller.measuredPitch,
+                                                     root.mapToBaseLink.transform.rotation.rpyDegrees.z)
     }
 
     CompressedImagePublisher {
