@@ -192,7 +192,7 @@ private:
     qreal m_sideStepSpeed = 0;
     qreal m_translationX;
     qreal m_translationY;
-    qreal m_translationZ;
+    qreal m_translationZ = 0;
     qreal m_roll;
     qreal m_pitch;
     qreal m_yaw;
@@ -205,7 +205,7 @@ private:
     bool m_rollTared = false;  // auto-tare to the first sample so the default zero is sane
     bool m_pitchTared = false;
     bool m_imuPollingUpdatePending = false; // a deferred updateImuPolling() is queued
-    std::array<double, 12> m_motorAngles;
+    std::array<double, 12> m_motorAngles {};
     int m_motorPollTimerId = -1;
     int m_imuPollTimerId = -1;
     int m_batteryPollCountdown = 0;

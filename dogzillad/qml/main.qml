@@ -193,6 +193,68 @@ Ros2.Node {
         }
     }
 
+    /*
+        Height of base_link above the floor (m), by forward kinematics from
+        measured joint angles. Geometry is from dogzilla.urdf: hip joint origins
+        in base_link, then the upper- and lower-leg joint offsets. The foot is
+        modeled as a sphere fitted to the tip of the lower-leg mesh (center in
+        the lower-leg frame, radius kFootRadius). Each foot is rotated by the
+        IMU's roll/pitch (same ROS fixed-axis convention as posePub's orientation)
+        and the lowest one is taken to be on the floor. The belly (base_link
+        mesh bottom, 1.8 mm below the origin) puts a lower bound on it.
+        Checked: standing ~106 mm with all four feet within 1 mm; crouch ~24 mm.
+    */
+    readonly property real bodyHeight: legKinematics.bodyHeight(controller.jointAngles,
+                                                                controller.measuredRoll,
+                                                                controller.measuredPitch)
+    property QtObject legKinematics: QtObject {
+        // jointAngles order: lf, rf, lh, rh; each leg (lower, upper, hip)
+        readonly property var legs: [
+            { hip: [ 0.09332,  0.022407, 0.01454], side:  1,
+              upper: [-0.018325,  0.049313, 0], lower: [0, -0.00072, -0.059896], foot: [-0.0230, -0.018325, -0.0726] },
+            { hip: [ 0.09332, -0.022517, 0.01454], side: -1,
+              upper: [-0.018325, -0.049313, 0], lower: [0,  0,       -0.059896], foot: [-0.0230,  0.018325, -0.0726] },
+            { hip: [-0.05668,  0.022407, 0.01454], side:  1,
+              upper: [-0.018325,  0.049313, 0], lower: [0, -0.00072, -0.059896], foot: [-0.0230, -0.018325, -0.0726] },
+            { hip: [-0.05668, -0.022517, 0.01454], side: -1,
+              upper: [-0.018325, -0.049313, 0], lower: [0,  0,       -0.059896], foot: [-0.0230,  0.018325, -0.0726] },
+        ]
+        readonly property real kFootRadius: 0.0100
+        readonly property real kBellyDepth: 0.0018
+
+        function add(a, b) { return [a[0] + b[0], a[1] + b[1], a[2] + b[2]] }
+        function rotX(v, t) { // hip joints
+            const c = Math.cos(t), s = Math.sin(t)
+            return [v[0], v[1] * c - v[2] * s, v[1] * s + v[2] * c]
+        }
+        function rotY(v, t) { // upper and lower leg joints
+            const c = Math.cos(t), s = Math.sin(t)
+            return [v[0] * c + v[2] * s, v[1], -v[0] * s + v[2] * c]
+        }
+
+        // foot sphere center in base_link
+        function footPosition(leg, lowerAngle, upperAngle, hipAngle) {
+            const knee = add(leg.lower, rotY(leg.foot, lowerAngle))
+            const hip = add(leg.upper, rotY(knee, upperAngle))
+            return add(leg.hip, rotX(hip, leg.side * hipAngle)) // right hip axis is -X
+        }
+
+        function bodyHeight(angles, rollDeg, pitchDeg) {
+            if (!angles || angles.length !== 12)
+                return 0
+            const r = rollDeg * Math.PI / 180, p = pitchDeg * Math.PI / 180
+            let lowest = -kBellyDepth
+            for (let i = 0; i < 4; ++i) {
+                const f = footPosition(legs[i], angles[i * 3], angles[i * 3 + 1], angles[i * 3 + 2])
+                // z of Ry(pitch) * Rx(roll) * f, i.e. in a level frame at base_link
+                const z = -f[0] * Math.sin(p)
+                        + Math.cos(p) * (f[1] * Math.sin(r) + f[2] * Math.cos(r))
+                lowest = Math.min(lowest, z - kFootRadius)
+            }
+            return -lowest
+        }
+    }
+
     // Fused body pose, published symmetric with body_pose/command.
     //
     // Position and yaw come from SLAM (map frame); roll and pitch come from the
@@ -219,9 +281,11 @@ Ros2.Node {
         // grouped binding on the publisher's own property, like TwistPublisher's
         // linear/angular above. (translation is a vector3, position a point, so
         // they do not assign to each other directly.)
+        // 2D SLAM always reports z = 0, so the height of base_link above the
+        // floor comes from leg kinematics instead (see bodyHeight above).
         pose.position: ({ x: root.mapToBaseLink.transform.translation.x,
                           y: root.mapToBaseLink.transform.translation.y,
-                          z: root.mapToBaseLink.transform.translation.z })
+                          z: root.bodyHeight })
         // Quaternion.fromEulerAngles is ROS roll/pitch/yaw in degrees about
         // X/Y/Z, Z-up - not QtQuick3D's pitch/yaw/roll in a Y-up frame.
         pose.orientation: Quaternion.fromEulerAngles(controller.measuredRoll,
