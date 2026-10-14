@@ -7,6 +7,7 @@ import QtQuick3D.Helpers
 import QtRos2.Core as Ros2
 import QtRos2.GeometryMsgs as GeomMsgs
 import QtRos2.NavMsgs as NavMsgs
+import QtRos2.Quick3D
 import QtRos2.SensorMsgs as SensorMsgs
 import QtRos2.StdSrvs as StdSrvs
 import Dogzilla
@@ -157,26 +158,42 @@ Item {
                     }
                 }
 
-                Node {
-                    id: lidarRepresentation
-                    z: 10
-                    eulerRotation: Qt.vector3d(0, 90, 90)
-                    scale: Qt.vector3d(0.1, 0.1, 0.1)
-                    Model {
-                        scale: Qt.vector3d(0.2, 0.2, 0.02)
-                        source: "#Cube"
-                        instancing: LidarInstanceTable {
-                            ranges: laserSub.ranges
-                            intensities: laserSub.intensities
-                            angleIncrement: laserSub.angleIncrement
-                        }
-                        materials: [
-                            PrincipledMaterial {
-                                alphaMode: PrincipledMaterial.Opaque
-                                cullMode: PrincipledMaterial.NoCulling
-                                emissiveFactor: Qt.vector3d(0.1, 0.1, 0.1)
+                // Dogzilla's own space is centimeters with ROS axes (after its yUp rotation),
+                // and its origin is base_footprint. This root FrameNode stands for base_link.
+                // A root FrameNode keeps the position it is given, and TF positions the FrameNodes inside it.
+                FrameNode {
+                    frame: "base_link"
+                    rosNode: rosNode
+                    position: Qt.vector3d(0, 0, 1)        // base_footprint -> base_link (URDF base_joint), cm
+                    scale: Qt.vector3d(100, 100, 100)     // TF meters -> Dogzilla's cm
+
+                    FrameNode {
+                        id: lidarRepresentation
+                        frame: laserSub.header.frameId    // "laser_frame", as the scan reports it
+                        visible: valid                    // hidden until tf_static has arrived
+
+                        Node {
+                            // How LidarInstanceTable lays out points: millimeters, angle measured from +Z in its XZ plane
+                            eulerRotation: Qt.vector3d(0, 90, 90)
+                            scale: Qt.vector3d(0.001, 0.001, 0.001)
+
+                            Model {
+                                scale: Qt.vector3d(0.2, 0.2, 0.02)
+                                source: "#Cube"
+                                instancing: LidarInstanceTable {
+                                    ranges: laserSub.ranges
+                                    intensities: laserSub.intensities
+                                    angleIncrement: laserSub.angleIncrement
+                                }
+                                materials: [
+                                    PrincipledMaterial {
+                                        alphaMode: PrincipledMaterial.Opaque
+                                        cullMode: PrincipledMaterial.NoCulling
+                                        emissiveFactor: Qt.vector3d(0.1, 0.1, 0.1)
+                                    }
+                                ]
                             }
-                        ]
+                        }
                     }
                 }
             }
