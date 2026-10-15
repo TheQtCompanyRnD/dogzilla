@@ -8,7 +8,7 @@ Wants=dogzillad.service
 After=dogzillad.service
 # One SLAM backend at a time: they all publish /dogzilla/map and map->odom, so
 # starting either one stops the other.
-Conflicts=dogzilla-slam-cartographer.service
+Conflicts=dogzilla-slam-cartographer.service dogzilla-slam-toolbox-icp.service
 
 [Service]
 Type=exec

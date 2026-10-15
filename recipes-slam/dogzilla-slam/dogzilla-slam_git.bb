@@ -1,7 +1,7 @@
 SUMMARY = "Dogzilla onboard 2D SLAM (Cartographer or slam_toolbox): launch + config + on-demand user services"
 DESCRIPTION = "Installs the Dogzilla 2D SLAM launch files and configs (Cartographer \
 .lua; slam_toolbox .yaml), plus one systemd --user unit per backend \
-(dogzilla-slam-cartographer, dogzilla-slam-toolbox). The units Conflict= with each \
+(dogzilla-slam-cartographer, dogzilla-slam-toolbox, dogzilla-slam-toolbox-icp). The units Conflict= with each \
 other and are installed but NOT enabled: SLAM is memory-hungry and situational, so \
 it is started on demand (`systemctl --user start dogzilla-slam-<backend>`, or \
 remotely via dogzillad). Either backend consumes dogzillad's LaserScan and \
@@ -19,7 +19,8 @@ LIC_FILES_CHKSUM = "file://LICENSE;md5=e7df2cb5b828712253329843cc2d34ca"
 # `devtool modify dogzilla-slam` for live working-tree iteration.
 SRC_URI = "git://${DOGZILLA_GIT_REPO};protocol=https;branch=main \
            file://dogzilla-slam-cartographer.service \
-           file://dogzilla-slam-toolbox.service"
+           file://dogzilla-slam-toolbox.service \
+           file://dogzilla-slam-toolbox-icp.service"
 SRCREV = "${DOGZILLA_SRCREV}"
 PV = "1.0+git"
 # S defaults to ${UNPACKDIR}/${BP} (the repo root); the SLAM files live in services/.
@@ -32,6 +33,7 @@ inherit allarch
 RDEPENDS:${PN} = " \
     cartographer-ros \
     slam-toolbox \
+    rtabmap-odom \
     tf2-ros \
     ros2launch \
     ros2cli \
@@ -55,10 +57,13 @@ do_install() {
         ${D}${systemd_user_unitdir}/dogzilla-slam-cartographer.service
     install -m 0644 ${UNPACKDIR}/dogzilla-slam-toolbox.service \
         ${D}${systemd_user_unitdir}/dogzilla-slam-toolbox.service
+    install -m 0644 ${UNPACKDIR}/dogzilla-slam-toolbox-icp.service \
+        ${D}${systemd_user_unitdir}/dogzilla-slam-toolbox-icp.service
 }
 
 FILES:${PN} = " \
     ${datadir}/dogzilla-slam \
     ${systemd_user_unitdir}/dogzilla-slam-cartographer.service \
     ${systemd_user_unitdir}/dogzilla-slam-toolbox.service \
+    ${systemd_user_unitdir}/dogzilla-slam-toolbox-icp.service \
 "
