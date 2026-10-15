@@ -14,7 +14,7 @@ inherit ros_distro_jazzy
 
 # Fetched over https from the upstream dogzilla repo (DOGZILLA_GIT_REPO and
 # DOGZILLA_SRCREV are set in meta-dogzilla/conf/layer.conf)
-# Bump DOGZILLA_SRCREV there to pick up new commits;
+# DOGZILLA_SRCREV tracks the branch head (AUTOREV) unless pinned;
 # `devtool modify dogzilla-interfaces` for live working-tree iteration.
 # The package is the dogzilla_interfaces/ subdir of the repo.
 SRC_URI = "git://${DOGZILLA_GIT_REPO};protocol=https;branch=main"

@@ -15,7 +15,7 @@ LIC_FILES_CHKSUM = "file://../LICENSE;md5=e7df2cb5b828712253329843cc2d34ca"
 
 # Fetched over https from the upstream dogzilla repo (DOGZILLA_GIT_REPO and
 # DOGZILLA_SRCREV are set in meta-dogzilla/conf/layer.conf)
-# Bump DOGZILLA_SRCREV there to pick up new commits;
+# DOGZILLA_SRCREV tracks the branch head (AUTOREV) unless pinned;
 # `devtool modify oledd` for live working-tree iteration.
 # oledd is the oledd/ subdir of the repo.
 SRC_URI = "git://${DOGZILLA_GIT_REPO};protocol=https;branch=main"
