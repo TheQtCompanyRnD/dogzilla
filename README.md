@@ -7,7 +7,9 @@ to the stock Ubuntu install.
 The image (`ros-image-dogzilla`) provides:
 
 - **ROS 2 Jazzy** core (`ros-core`) + Python bindings (`rclpy`)
-- **Cartographer** SLAM (`cartographer-ros`)
+- 2D SLAM backends: **Cartographer** and **slam_toolbox** (on-demand
+  `dogzilla-slam-cartographer` / `dogzilla-slam-toolbox` user services), plus
+  RTAB-Map and MOLA installed for experiments
 - **Qt 6.12** (pre-release branch) runtime: `qtbase`, `qtdeclarative`,
   `qtserialport`, `qtmultimedia`, and a ported `qtgamepad`
 - **Qt ROS** (`qt-ros2-bridge`), built from the `qtros` repo
@@ -29,8 +31,9 @@ kas build meta-dogzilla/kas/dogzilla-raspberrypi5-jazzy.yml
 - The robot's own code is fetched from two upstream repos over **https**
   - [`TheQtCompanyRnD/dogzilla`](https://github.com/TheQtCompanyRnD/dogzilla) --
     `dogzillad`, `dogzilla-interfaces`, `oledd` and `dogzilla-slam` are all
-    built from subdirs of this one repo, so its revision is pinned once, as
-    `DOGZILLA_SRCREV` in `conf/layer.conf`.
+    built from subdirs of this one repo, so its revision is set once, as
+    `DOGZILLA_SRCREV` in `conf/layer.conf` (it tracks the head of `main`;
+    pin it in `local.conf` for a reproducible build).
   - [`TheQtCompanyRnD/qtros`](https://github.com/TheQtCompanyRnD/qtros) --
     Qt ROS; `SRCREV` is pinned in the recipe.
 

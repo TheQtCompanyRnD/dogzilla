@@ -1,23 +1,26 @@
 [Unit]
-Description=Dogzilla onboard 2D SLAM (Cartographer)
+Description=Dogzilla onboard 2D SLAM (slam_toolbox)
 # Loosely coupled to dogzillad: order after it so the LaserScan and the latched
-# /tf_static are up first (avoids Cartographer TF-lookup-timeout noise), but do
-# NOT Require it -- Cartographer waits for /scan + transient-local /tf_static on
+# /tf_static are up first (avoids slam_toolbox TF-lookup-timeout noise), but do
+# NOT Require it -- slam_toolbox waits for /scan + transient-local /tf_static on
 # its own, so a dogzillad restart should not tear SLAM down.
 Wants=dogzillad.service
 After=dogzillad.service
+# One SLAM backend at a time: they all publish /dogzilla/map and map->odom, so
+# starting either one stops the other.
+Conflicts=dogzilla-slam-cartographer.service
 
 [Service]
 Type=exec
 # Same domain as dogzillad + the laptop twin. A --user unit does NOT inherit the
 # /etc/fish/conf.d domain, so set it explicitly (keep in sync with dogzillad).
 Environment=ROS_DOMAIN_ID=81
-# Source the ROS 2 env, then run the SLAM launch (cartographer_node +
-# cartographer_occupancy_grid_node under /dogzilla, publishing /dogzilla/map).
-ExecStart=/bin/sh -c '. /opt/ros/jazzy/setup.sh && exec ros2 launch /usr/share/dogzilla-slam/slam.launch.py'
+# Source the ROS 2 env, then run the SLAM launch (slam_toolbox + an identity
+# odom->base_link under /dogzilla, publishing /dogzilla/map).
+ExecStart=/bin/sh -c '. /opt/ros/jazzy/setup.sh && exec ros2 launch /usr/share/dogzilla-slam/slam_toolbox.launch.py'
 Restart=on-failure
 RestartSec=2
-# Cartographer's map + pose graph grow with explored area / session length, so
+# The pose graph and map grow with explored area / session length, so
 # this is the memory-hungry, expendable service: cap it and make it the first
 # OOM-kill victim so a runaway mapping session is bounced instead of taking
 # down dogzillad and the rest of the system.
@@ -26,7 +29,7 @@ OOMScoreAdjust=500
 
 # NOTE: installed but NOT statically enabled (the recipe ships no
 # default.target.wants symlink) -- SLAM is started on demand:
-#   systemctl --user start dogzilla-slam
+#   systemctl --user start dogzilla-slam-toolbox
 # [Install] is kept so it can be `systemctl --user enable`d later if desired.
 [Install]
 WantedBy=default.target
