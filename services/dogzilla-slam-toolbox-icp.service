@@ -1,0 +1,25 @@
+[Unit]
+Description=Dogzilla onboard 2D SLAM (slam_toolbox + ICP odometry)
+# Loosely coupled to dogzillad: order after it so the LaserScan and the latched
+# /tf_static are already up (avoids Cartographer TF-lookup-timeout noise at
+# boot), but do NOT Require it. slam_toolbox waits for /scan and the
+# transient-local /tf_static on its own, so a dogzillad crash/restart should
+# not tear SLAM down.
+Wants=dogzillad.service
+After=dogzillad.service
+# One SLAM backend at a time (both publish /dogzilla/map and map->odom).
+Conflicts=dogzilla-slam-cartographer.service dogzilla-slam-toolbox.service
+
+[Service]
+ExecStart=%h/.config/dogzilla/slam.sh slam_toolbox odometry:=icp
+Type=exec
+Restart=on-failure
+# The pose graph and map grow with explored area / session length, so
+# this is the memory-hungry, expendable service. Cap it, and make it the first
+# OOM-kill victim, so a runaway mapping session is bounced (Restart=on-failure)
+# instead of taking down dogzillad and the rest of the system.
+MemoryMax=2G
+OOMScoreAdjust=500
+
+[Install]
+WantedBy=default.target

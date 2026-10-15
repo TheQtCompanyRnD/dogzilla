@@ -14,7 +14,8 @@ BIN_DIR  ?= $(HOME)/.local/bin
 SLAM_DIR ?= $(HOME)/.config/dogzilla
 UNIT_DIR ?= $(HOME)/.config/systemd/user
 
-SLAM_SERVICES := dogzilla-slam-cartographer.service dogzilla-slam-toolbox.service
+SLAM_SERVICES := dogzilla-slam-cartographer.service dogzilla-slam-toolbox.service \
+	dogzilla-slam-toolbox-icp.service
 # Started/enabled by default; the other SLAM backend is started on demand
 # (`systemctl --user start dogzilla-slam-toolbox`: Conflicts= stops the first).
 SERVICES := dogzillad.service dogzilla-slam-cartographer.service

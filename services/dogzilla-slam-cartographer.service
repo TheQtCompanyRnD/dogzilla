@@ -8,7 +8,7 @@ Description=Dogzilla onboard 2D SLAM (Cartographer)
 Wants=dogzillad.service
 After=dogzillad.service
 # One SLAM backend at a time (both publish /dogzilla/map and map->odom).
-Conflicts=dogzilla-slam-toolbox.service
+Conflicts=dogzilla-slam-toolbox.service dogzilla-slam-toolbox-icp.service
 
 [Service]
 ExecStart=%h/.config/dogzilla/slam.sh cartographer
