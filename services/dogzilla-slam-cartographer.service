@@ -7,9 +7,11 @@ Description=Dogzilla onboard 2D SLAM (Cartographer)
 # not tear SLAM down.
 Wants=dogzillad.service
 After=dogzillad.service
+# One SLAM backend at a time (both publish /dogzilla/map and map->odom).
+Conflicts=dogzilla-slam-toolbox.service
 
 [Service]
-ExecStart=%h/.config/dogzilla/slam.sh
+ExecStart=%h/.config/dogzilla/slam.sh cartographer
 Type=exec
 Restart=on-failure
 # Cartographer's map + pose graph grow with explored area / session length, so

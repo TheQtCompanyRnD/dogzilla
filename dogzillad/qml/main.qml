@@ -861,17 +861,19 @@ Ros2.Node {
         onValueEdited: (v) => controller.motorsEngaged = v
     }
 
-    // Onboard SLAM (the dogzilla-slam systemd --user unit), start/stoppable
+    // Onboard SLAM (a dogzilla-slam-* systemd --user unit), start/stoppable
     // from the twin. Same pattern as motors.engaged: systemd is the source of
     // truth (ServiceController follows it over D-Bus, so a `systemctl --user`
     // restart from a shell is reflected too) and valueEdited routes sets to it.
     property ServiceController slamService: ServiceController {
-        unit: "dogzilla-slam"
+        // Which SLAM backend the twin's switch drives: dogzilla-slam-cartographer
+        // or dogzilla-slam-toolbox (they Conflict=, so starting one stops the other)
+        unit: "dogzilla-slam-cartographer"
     }
     Ros2.Parameter {
         name: "slam.running"
         value: slamService.running
-        description: "Onboard SLAM (dogzilla-slam.service) is running"
+        description: "Onboard SLAM backend (see slamService.unit) is running"
         onValueEdited: (v) => slamService.running = v
     }
 

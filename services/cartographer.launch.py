@@ -1,7 +1,7 @@
 # Copyright (C) 2026 The Qt Company Ltd.
 # SPDX-License-Identifier: LicenseRef-Qt-Commercial OR BSD-3-Clause
 #
-# Onboard 2D SLAM for the Dogzilla S2, meant to run on the Pi 5 alongside
+# Onboard 2D SLAM (Cartographer backend) for the Dogzilla S2, meant to run on the Pi 5 alongside
 # dogzillad (which publishes the LaserScan and the base_link->laser_frame TF).
 #
 #   dogzillad --/dogzilla/sensor_msgs/msg/LaserScan (remapped to scan)--> cartographer_node
@@ -22,7 +22,9 @@
 # IMU later (helps with the gait rocking the lidar), publish a sensor_msgs/Imu
 # and set use_imu_data=true with tracking_frame set to the IMU frame.
 #
-# Usage:  ros2 launch slam.launch.py
+# Usage:  ros2 launch cartographer.launch.py
+# (Alternative backend: slam_toolbox.launch.py. Both publish /dogzilla/map and
+# map->odom, so run only one at a time; the systemd units Conflict= to enforce it.)
 # Prereq: sudo apt install ros-$ROS_DISTRO-cartographer-ros
 
 import os

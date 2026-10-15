@@ -1,7 +1,7 @@
 #!/bin/bash
+# Run one SLAM backend: slam.sh cartographer | slam_toolbox
 . /opt/ros/jazzy/setup.bash
-# Resolve the launch + dogzilla_2d.lua relative to this script, so they only
-# need to be deployed together (e.g. all of slam.sh, slam.launch.py and
-# dogzilla_2d.lua in ~/bin).
+# Resolve the launch + config files relative to this script, so they only need
+# to be deployed together (see the Makefile).
 DIR="$(dirname "$(readlink -f "$0")")"
-exec ros2 launch "$DIR/slam.launch.py"
+exec ros2 launch "$DIR/${1:?usage: slam.sh cartographer|slam_toolbox}.launch.py"

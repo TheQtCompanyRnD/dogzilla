@@ -12,7 +12,7 @@
 // ActiveState changes pushed by systemd -- including those made from a shell
 // with `systemctl --user` -- update the properties live.
 //
-// `unit` is the unit name ("dogzilla-slam", ".service" is assumed if no suffix
+// `unit` is the unit name ("dogzilla-slam-toolbox", ".service" is assumed if no suffix
 // is given); set it to retarget the controller, so one class serves any unit.
 // `running` is true while the unit is active or activating; writing it
 // requests a start or stop (asynchronously: the property only changes once
