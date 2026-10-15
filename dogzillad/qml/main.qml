@@ -861,6 +861,20 @@ Ros2.Node {
         onValueEdited: (v) => controller.motorsEngaged = v
     }
 
+    // Onboard SLAM (the dogzilla-slam systemd --user unit), start/stoppable
+    // from the twin. Same pattern as motors.engaged: systemd is the source of
+    // truth (ServiceController follows it over D-Bus, so a `systemctl --user`
+    // restart from a shell is reflected too) and valueEdited routes sets to it.
+    property ServiceController slamService: ServiceController {
+        unit: "dogzilla-slam"
+    }
+    Ros2.Parameter {
+        name: "slam.running"
+        value: slamService.running
+        description: "Onboard SLAM (dogzilla-slam.service) is running"
+        onValueEdited: (v) => slamService.running = v
+    }
+
     // System telemetry (fan level, CPU temperature, CPU load) at 1 Hz, for the
     // twin's line charts -- e.g. watch PTT silence the fan and the temp/CPU
     // response.

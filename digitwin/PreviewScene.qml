@@ -279,6 +279,14 @@ Item {
             value: panel.motorsEngaged
         }
 
+        Ros2.RemoteParameter {
+            id: slamParam
+            remoteNode: "dogzillad"
+            name: "slam.running"
+            autoApply: false
+            value: panel.slamRunning
+        }
+
         // TODO stop using the deprecated single-value pub/sub types
         BoolPublisher {
             id: listenPublisher
@@ -486,6 +494,8 @@ Item {
                 batteryLevel: batterySub.percentage
                 motorsEngaged: engageParam.reported ?? false
                 onMotorsEngagedChanged: engageParam.autoApply = true
+                slamRunning: slamParam.reported ?? false
+                onSlamRunningChanged: slamParam.autoApply = true
                 robotMasterVolume: masterParam.reported ?? 0
                 robotMicVolume: micParam.reported ?? 0
 

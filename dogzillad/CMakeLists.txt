@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.27)
 project(dogzilla LANGUAGES CXX)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Qml Network SerialPort UniversalInput Multimedia Concurrent)
+find_package(Qt6 REQUIRED COMPONENTS Core Qml Network SerialPort UniversalInput Multimedia Concurrent DBus)
 find_package(Qt6Ros2Core REQUIRED)
 find_package(WrapRos2 REQUIRED)
 find_package(rclcpp REQUIRED)
@@ -40,6 +40,8 @@ qt_add_qml_module(dogzillad
         src/lidar.cpp
         src/fancontroller.h
         src/fancontroller.cpp
+        src/servicecontroller.h
+        src/servicecontroller.cpp
         src/volumecontroller.h
         src/volumecontroller.cpp
         src/audiocapture.h
@@ -95,6 +97,7 @@ target_link_libraries(dogzillad PRIVATE
     Qt::UniversalInput
     Qt6::Multimedia
     Qt6::Concurrent
+    Qt6::DBus
     Qt6::Ros2Core
     ${rclcpp_LIBRARIES}
     whisper

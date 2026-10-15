@@ -13,6 +13,7 @@ ColumnLayout {
     signal sendText(string text)
     property alias batteryLevel: batteryIndicator.level
     property alias motorsEngaged: engageSwitch.checked
+    property alias slamRunning: slamSwitch.checked
 
     // Robot audio mixer, one row per channel. Each slider owns the *desired*
     // value for its channel (PreviewScene binds it into that channel's
@@ -117,6 +118,11 @@ ColumnLayout {
                 Layout.alignment: Qt.AlignVCenter
                 id: engageSwitch
                 text: checked ? "Engaged" : "Relaxed"
+            }
+            Switch {
+                Layout.alignment: Qt.AlignVCenter
+                id: slamSwitch
+                text: "SLAM"
             }
             BatteryIndicator {
                 id: batteryIndicator
