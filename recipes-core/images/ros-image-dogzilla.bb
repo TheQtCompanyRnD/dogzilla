@@ -148,9 +148,21 @@ DOGZILLA_QT = " \
     qt-ros2-bridge \
 "
 
-# ROS 2: SLAM via cartographer, and Python client library for ROS nodes.
+# ROS 2: every SLAM stack meta-ros provides for Jazzy, so they can be tried
+# without rebuilding the image: cartographer (what dogzilla-slam runs now),
+# slam_toolbox, RTAB-Map (rtabmap-slam + rtabmap-odom for scan/ICP odometry) and
+# MOLA (LiDAR odometry + loop closure, via its ROS 2 bridge); plus nav2's
+# map_server (map_saver_cli) and amcl for saving and relocalizing in a map.
+# Also the Python client library for ROS nodes.
 DOGZILLA_ROS = " \
     cartographer-ros \
+    slam-toolbox \
+    rtabmap-ros \
+    mola \
+    mola-lidar-odometry \
+    mola-bridge-ros2 \
+    nav2-map-server \
+    nav2-amcl \
     rclpy \
     dogzillad \
     dogzilla-slam \
