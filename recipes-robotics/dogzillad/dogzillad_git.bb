@@ -98,7 +98,9 @@ do_install() {
 # by DOGZILLA_AUDIO (qtspeech) -- not RDEPENDed here because those are dynamically
 # named subpackages (libqt6texttospeech-qmlplugins etc.) that aren't statically
 # RPROVIDEd at parse time, same as we rely on the image for qtmultimedia.
-RDEPENDS:${PN} += "dogzilla-users whisper-cpp dogzilla-interfaces"
+# dbus: the session bus (/run/user/<uid>/bus) that ServiceController uses to
+# reach the systemd user manager; QtDBus itself comes with qtbase (dbus PACKAGECONFIG).
+RDEPENDS:${PN} += "dogzilla-users whisper-cpp dogzilla-interfaces dbus"
 
 # The generated Dogzilla.Interfaces QML wrapper (from qtros2_generate_from_package)
 # is a static plugin (.a) that gets linked into the dogzillad executable, but its
