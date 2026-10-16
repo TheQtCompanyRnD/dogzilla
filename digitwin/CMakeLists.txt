@@ -4,7 +4,7 @@ project(Robot_Dogzilla)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(QT_QML_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Quick Quick3D Ros2Core)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui GuiPrivate Quick Quick3D Ros2Core)
 find_package(dogzilla_interfaces REQUIRED)
 # qtros2_generate_from_package() (used below) lives in rosidl_generator_qtros2,
 # whose cmake config is installed alongside Qt6Ros2Core's (see QtRos2Macros.cmake)
@@ -33,6 +33,7 @@ qt_add_qml_module(Robot_Dogzilla
         "motionlibrary.cpp"
         lidarinstancetable.h lidarinstancetable.cpp
         occupancyinstancetable.h occupancyinstancetable.cpp
+        occupancywallgeometry.h occupancywallgeometry.cpp
     RESOURCES
         "dogzilla_joints.json"
 )
@@ -61,6 +62,8 @@ qtros2_generate_from_package(
 )
 
 target_link_libraries(Robot_Dogzilla PUBLIC Qt6::Gui Qt6::Quick Qt6::Quick3D DogzillaInterfacesMsgs)
+# qTriangulate() caps the extruded occupancy-map walls
+target_link_libraries(Robot_Dogzilla PRIVATE Qt6::GuiPrivate)
 
 # The generated Dogzilla.Interfaces module is a STATIC qml plugin, which the `qml`
 # runtime tool cannot dlopen. Link its plugin (+init) into our already-SHARED

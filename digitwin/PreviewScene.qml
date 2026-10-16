@@ -86,24 +86,22 @@ Item {
             scale: Qt.vector3d(100, 100, 100)   // children are in meters
 
             Node {
-                id: mapVoxels
-                // y: -115
+                visible: panel.slamRunning
                 position: Qt.vector3d(occuSub.info.origin.position.y, 0, occuSub.info.origin.position.x)
-                // position: Qt.vector3d(posSlider.value, 0, -1)
-                // scale: Qt.vector3d(100, 100, 100)
                 Model {
-                    source: "#Cube"
-                    scale: Qt.vector3d(0.01, 0.01, 0.01)
-                    instancing: OccupancyInstanceTable {
-                        id: occinst
+                    geometry: OccupancyWallGeometry {
+                        id: mapWalls
                         resolution: occuSub.info.resolution
                         size: Qt.size(occuSub.info.width, occuSub.info.height)
                         probabilities: occuSub.data
-                        onProbabilitiesChanged: console.log("@", occuSub.info.origin.position, mapVoxels.position)
+                        wallHeight: 0.1
                     }
                     materials: [
                         PrincipledMaterial {
-                            alphaMode: PrincipledMaterial.Opaque
+                            baseColor: "#c9ced6"
+                            roughness: 0.55
+                            vertexColorsEnabled: true
+                            emissiveFactor: Qt.vector3d(0.07, 0.07, 0.08) // no ambient light in this scene
                             cullMode: PrincipledMaterial.NoCulling
                         }
                     ]
@@ -365,7 +363,7 @@ Item {
         NavMsgs.OccupancyGridSubscriber {
             id: occuSub
             topic: "map"
-            // onMessageReceived: function(msg) { console.log("occupy!", occinst.size, occinst.probabilities.byteLength, occuSub.info.origin) }
+            // onMessageReceived: function(msg) { console.log("occupancy", mapWalls.size, mapWalls.probabilities.byteLength, occuSub.info.origin) }
         }
 
         // step sideways
