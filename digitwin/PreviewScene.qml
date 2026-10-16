@@ -122,10 +122,8 @@ Item {
                 readonly property quaternion yUp: Qt.quaternion(0.5, -0.5, -0.5, -0.5)
                 readonly property vector3d rosPosition: poseSubscriber.pose.position.toVector3D()
                 rotation: poseSubscriber.pose.orientation.toQuaternion().times(yUp)
-                position: Qt.vector3d(rosPosition.y, rosPosition.z, rosPosition.x)
-                // position: poseSubscriber.pose.position.toVector3D() // different axes in ROS than in QQ3D
-                // scale: Qt.vector3d(0.1, 0.1, 0.1)
-                onPositionChanged: console.log("dog @", rosPosition, position, rotation)
+                position: panel.slamRunning ? Qt.vector3d(rosPosition.y, rosPosition.z, rosPosition.x) : Qt.vector3d(0, 0, 0)
+                // onPositionChanged: console.log("dog @", rosPosition, position, rotation)
                 control: DogzillaControl {
                     id: ctl
                 }
