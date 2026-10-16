@@ -1,3 +1,6 @@
+// Copyright (C) 2026 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR BSD-3-Clause
+
 // Teach pendant: pose the dog by jogging per-joint sliders (model only), capture
 // poses as timed waypoints, and play the sequence back on the real robot via the
 // PlayMotion action. Jogging writes DogzillaControl.<joint>Angle (degrees), which
