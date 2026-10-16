@@ -1,0 +1,51 @@
+From f8fb982a0f90ad9fd9fbcecd705c42ad1e33af06 Mon Sep 17 00:00:00 2001
+From: Shawn Rutledge <shawn.rutledge@qt.io>
+Date: Thu, 15 Oct 2026 22:51:45 +0200
+Subject: [PATCH] Do not ask for the Boost.System component
+
+Boost 1.89 no longer builds a compiled boost_system library (it has been
+header-only since 1.69 and the stub was dropped), so there is no
+boost_systemConfig.cmake and the find_package(Boost REQUIRED system ...)
+calls fail outright:
+
+  Could not find a package configuration file provided by "boost_system"
+  (requested version 1.89.0)
+
+Nothing in slam_toolbox or karto_sdk uses boost::system, so just drop the
+component from both CMakeLists.
+
+Upstream-Status: Pending
+---
+ CMakeLists.txt               | 2 +-
+ lib/karto_sdk/CMakeLists.txt | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 4d1fb5a..441199c 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -80,7 +80,7 @@ find_package(Ceres REQUIRED COMPONENTS SuiteSparse)
+ 
+ set(CMAKE_INCLUDE_CURRENT_DIR ON)
+ add_definitions(-DQT_NO_KEYWORDS)
+-find_package(Boost REQUIRED system serialization filesystem thread)
++find_package(Boost REQUIRED serialization filesystem thread)
+ 
+ include_directories(include lib/karto_sdk/include
+                             ${EIGEN3_INCLUDE_DIRS}
+diff --git a/lib/karto_sdk/CMakeLists.txt b/lib/karto_sdk/CMakeLists.txt
+index a620bfd..83ea53b 100644
+--- a/lib/karto_sdk/CMakeLists.txt
++++ b/lib/karto_sdk/CMakeLists.txt
+@@ -11,7 +11,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
+ find_package(ament_cmake REQUIRED)
+ find_package(rclcpp REQUIRED)
+ find_package(Eigen3 REQUIRED)
+-find_package(Boost REQUIRED system serialization filesystem thread)
++find_package(Boost REQUIRED serialization filesystem thread)
+ find_package(TBB REQUIRED NO_CMAKE_PACKAGE_REGISTRY)
+ 
+ set(dependencies
+-- 
+2.56.0
+

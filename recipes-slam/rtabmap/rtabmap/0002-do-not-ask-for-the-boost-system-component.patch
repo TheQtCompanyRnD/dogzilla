@@ -1,0 +1,37 @@
+From 46bcea7489e704f480fe5bd169c3854ef48c2418 Mon Sep 17 00:00:00 2001
+From: Shawn Rutledge <shawn.rutledge@qt.io>
+Date: Fri, 16 Oct 2026 06:01:38 +0200
+Subject: [PATCH] Do not ask for the Boost.System component
+
+Boost.System has been header-only since 1.69 and Boost 1.89 ships no
+compiled boost_system, so the REQUIRED find_package fails outright:
+
+  Could not find a package configuration file provided by "boost_system"
+  (requested version 1.89.0)
+
+Drop it from both component lists; nothing here uses boost::system.
+
+Upstream-Status: Pending
+---
+ CMakeLists.txt | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index b7d36de7..a70fb3d8 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -576,9 +576,9 @@ IF(WITH_POINTMATCHER)
+ ENDIF(WITH_POINTMATCHER)
+ 
+ IF(libpointmatcher_FOUND OR GTSAM_FOUND)
+-    find_package(Boost COMPONENTS thread filesystem system program_options date_time REQUIRED)
++    find_package(Boost COMPONENTS thread filesystem program_options date_time REQUIRED)
+     IF(Boost_MINOR_VERSION GREATER 47)
+-        find_package(Boost COMPONENTS thread filesystem system program_options date_time chrono timer serialization REQUIRED)
++        find_package(Boost COMPONENTS thread filesystem program_options date_time chrono timer serialization REQUIRED)
+     ENDIF(Boost_MINOR_VERSION GREATER 47)
+     IF(WIN32)
+         MESSAGE(STATUS "Boost_LIBRARY_DIRS=${Boost_LIBRARY_DIRS}")
+-- 
+2.56.0
+

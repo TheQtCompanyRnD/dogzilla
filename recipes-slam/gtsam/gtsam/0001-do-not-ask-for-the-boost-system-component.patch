@@ -1,0 +1,51 @@
+From 5bfe87ca4d7382810fcb3a804ce65703dd4e40df Mon Sep 17 00:00:00 2001
+From: Shawn Rutledge <shawn.rutledge@qt.io>
+Date: Thu, 15 Oct 2026 23:27:22 +0200
+Subject: [PATCH] Do not ask for the Boost.System component
+
+Boost.System has been header-only since 1.69 and Boost 1.89 stopped shipping
+the compiled stub altogether, so there is no boost_system CMake config and no
+Boost_SYSTEM_LIBRARY. HandleBoost.cmake then fails its own check with
+
+  Missing required Boost components >= v1.65, please install/upgrade Boost
+  or configure your search paths.
+
+Drop system from the requested components, from the required-components
+check, and from GTSAM_BOOST_LIBRARIES; the headers come in via the other
+Boost targets.
+
+Upstream-Status: Pending
+---
+ cmake/HandleBoost.cmake | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/cmake/HandleBoost.cmake b/cmake/HandleBoost.cmake
+index 6c742cf..b9348ee 100644
+--- a/cmake/HandleBoost.cmake
++++ b/cmake/HandleBoost.cmake
+@@ -23,12 +23,12 @@ endif()
+ 
+ # Store these in variables so they are automatically replicated in GTSAMConfig.cmake and such.
+ set(BOOST_FIND_MINIMUM_VERSION 1.65)
+-set(BOOST_FIND_MINIMUM_COMPONENTS serialization system filesystem thread program_options date_time timer chrono regex)
++set(BOOST_FIND_MINIMUM_COMPONENTS serialization filesystem thread program_options date_time timer chrono regex)
+ 
+ find_package(Boost ${BOOST_FIND_MINIMUM_VERSION} COMPONENTS ${BOOST_FIND_MINIMUM_COMPONENTS})
+ 
+ # Required components
+-if(NOT Boost_SERIALIZATION_LIBRARY OR NOT Boost_SYSTEM_LIBRARY OR NOT Boost_FILESYSTEM_LIBRARY OR
++if(NOT Boost_SERIALIZATION_LIBRARY OR NOT Boost_FILESYSTEM_LIBRARY OR
+     NOT Boost_THREAD_LIBRARY OR NOT Boost_DATE_TIME_LIBRARY)
+   message(FATAL_ERROR "Missing required Boost components >= v1.65, please install/upgrade Boost or configure your search paths.")
+ endif()
+@@ -37,7 +37,6 @@ option(GTSAM_DISABLE_NEW_TIMERS "Disables using Boost.chrono for timing" OFF)
+ # Allow for not using the timer libraries on boost < 1.48 (GTSAM timing code falls back to old timer library)
+ set(GTSAM_BOOST_LIBRARIES
+   Boost::serialization
+-  Boost::system
+   Boost::filesystem
+   Boost::thread
+   Boost::date_time
+-- 
+2.56.0
+

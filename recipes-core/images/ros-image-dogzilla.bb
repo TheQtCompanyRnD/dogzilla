@@ -148,19 +148,30 @@ DOGZILLA_QT = " \
     qt-ros2-bridge \
 "
 
-# ROS 2: every SLAM stack meta-ros provides for Jazzy, so they can be tried
+# ROS 2: the SLAM stacks that build for a headless Jazzy, so they can be tried
 # without rebuilding the image: cartographer (what dogzilla-slam runs now),
-# slam_toolbox, RTAB-Map (rtabmap-slam + rtabmap-odom for scan/ICP odometry) and
-# MOLA (LiDAR odometry + loop closure, via its ROS 2 bridge); plus nav2's
-# map_server (map_saver_cli) and amcl for saving and relocalizing in a map.
-# Also the Python client library for ROS nodes.
+# slam_toolbox, and RTAB-Map (rtabmap-slam + rtabmap-odom for scan/ICP
+# odometry); plus nav2's map_server (map_saver_cli) and amcl for saving and
+# relocalizing in a map. Also the Python client library for ROS nodes.
+#
+# The RTAB-Map packages are listed one by one rather than via the rtabmap-ros
+# metapackage: that pulls rtabmap-viz and rtabmap-rviz-plugins, which are Qt 5 /
+# RViz GUIs and cannot build here. slam_toolbox and rtabmap itself are
+# blacklisted upstream for the same headless reasons and are un-blacklisted by
+# the bbappends in recipes-slam/ -- see those for what had to be patched out.
+#
+# MOLA is NOT here. mola-lidar-odometry needs mrpt-lib*, which needs glfw
+# (x11/wayland only -- meta-oe is still on glfw 3.3.8, which has no NULL
+# backend), and those mrpt-lib* recipes also git-clone MRPT from GitHub inside
+# do_compile via ExternalProject, which no Yocto build can do. Revisit only if
+# meta-ros grows real MRPT recipes.
 DOGZILLA_ROS = " \
     cartographer-ros \
     slam-toolbox \
-    rtabmap-ros \
-    mola \
-    mola-lidar-odometry \
-    mola-bridge-ros2 \
+    rtabmap-slam \
+    rtabmap-odom \
+    rtabmap-util \
+    rtabmap-launch \
     nav2-map-server \
     nav2-amcl \
     rclpy \

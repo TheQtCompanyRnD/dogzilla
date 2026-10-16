@@ -1,0 +1,62 @@
+From 30551b55eb3b44c27ee0410423fe15b58058ee48 Mon Sep 17 00:00:00 2001
+From: Shawn Rutledge <shawn.rutledge@qt.io>
+Date: Thu, 15 Oct 2026 23:53:13 +0200
+Subject: [PATCH] Stop using the removed Boost.Filesystem v2 API
+
+Boost 1.89 no longer provides the deprecated boost::filesystem::complete()
+and boost::filesystem::extension() free functions, so IO.cpp fails with
+
+  error: 'complete' is not a member of 'boost::filesystem'
+  error: 'extension' is not a member of 'boost::filesystem'
+
+Use absolute() and path::extension() instead. The version-conditional
+branches around complete() covered Boost older than 1.50 and are dropped
+with it.
+
+Upstream-Status: Pending
+---
+ pointmatcher/IO.cpp | 14 +++-----------
+ 1 file changed
+
+diff --git a/pointmatcher/IO.cpp b/pointmatcher/IO.cpp
+index ff10f5e..3509348 100644
+--- a/pointmatcher/IO.cpp
++++ b/pointmatcher/IO.cpp
+@@ -358,15 +358,7 @@ void PointMatcherSupport::validateFile(const std::string& fileName)
+ 
+ 	ifstream ifs(fileName.c_str());
+ 	if (!ifs.good() || !boost::filesystem::is_regular_file(fullPath))
+-	#if BOOST_FILESYSTEM_VERSION >= 3
+-		#if BOOST_VERSION >= 105000
+-				throw runtime_error(string("Cannot open file ") + boost::filesystem::complete(fullPath).generic_string());
+-		#else
+-				throw runtime_error(string("Cannot open file ") + boost::filesystem3::complete(fullPath).generic_string());
+-		#endif
+-	#else
+-		throw runtime_error(string("Cannot open file ") + boost::filesystem::complete(fullPath).native_file_string());
+-    #endif
++		throw runtime_error(string("Cannot open file ") + boost::filesystem::absolute(fullPath).generic_string());
+ }
+ 
+ 
+@@ -375,7 +367,7 @@ template<typename T>
+ typename PointMatcher<T>::DataPoints PointMatcher<T>::DataPoints::load(const std::string& fileName)
+ {
+ 	const boost::filesystem::path path(fileName);
+-	const string& ext(boost::filesystem::extension(path));
++	const string ext(path.extension().string());
+ 	if (boost::iequals(ext, ".vtk"))
+ 		return PointMatcherIO<T>::loadVTK(fileName);
+ 	else if (boost::iequals(ext, ".csv"))
+@@ -809,7 +801,7 @@ template<typename T>
+ void PointMatcher<T>::DataPoints::save(const std::string& fileName, bool binary, unsigned precision) const
+ {
+ 	const boost::filesystem::path path(fileName);
+-	const string& ext(boost::filesystem::extension(path));
++	const string ext(path.extension().string());
+ 	if (boost::iequals(ext, ".vtk"))
+ 		return PointMatcherIO<T>::saveVTK(*this, fileName, binary, precision);
+ 
+-- 
+2.56.0
+

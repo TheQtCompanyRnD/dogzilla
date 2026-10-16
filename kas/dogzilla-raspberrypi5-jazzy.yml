@@ -130,6 +130,39 @@ local_conf_header:
     # the target sysroot" globally, pulling the target qmltyperegistrar into
     # every Qt module's cross build. Do not retry; use the SDK.
 
+    # ~130 of meta-ros' generated jazzy recipes declare rosidl_default_generators
+    # as a plain <depend>, which drags the *target* recipe into the sysroot and
+    # breaks do_configure with "Findrosidl_core_generators.cmake ... did not find
+    # one". meta-dogzilla's class rewrites those deps to the -native generators +
+    # the runtime package, the way correctly-declared interface packages do. See
+    # meta-dogzilla/classes/ros-rosidl-generators-fixup.bbclass.
+    INHERIT += "ros-rosidl-generators-fixup"
+
+    # Don't build OpenCV's example programs. They land in opencv-apps (which
+    # FILES as ${bindir}/*), and one of them is a *directory* /usr/bin/cpp --
+    # which collides with gcc's /usr/bin/cpp symlink from the tools-sdk image
+    # feature, so do_rootfs dies with
+    #   check_data_file_clashes: Package opencv-apps want to install
+    #   /.../rootfs/usr/bin/cpp  But that path is a symlink
+    # OpenCV arrives via cv-bridge (RTAB-Map); its demo binaries are of no use
+    # on the robot, so turn them off at the source rather than unpicking the
+    # clash. opencv-apps itself survives (it still carries ${datadir}/opencv4).
+    PACKAGECONFIG:remove:pn-opencv = "samples"
+
+    # meta-ros' generated recipes routinely declare LICENSE = "BSD" (the
+    # package.xml wording) while shipping a BSD-3-Clause/BSD-2-Clause file, so
+    # do_rootfs' license manifest check fails them in bulk:
+    #   QA Issue: The license listed BSD was not in the licenses collected for
+    #   recipe <gtsam|libnabo|libpointmatcher|rtabmap-*|geographic-msgs|...>
+    #   [license-file-missing]
+    # meta-ros already downgrades the related "license-exists" check in its
+    # shared kas config (see kas/common.yml); do the same for this one rather
+    # than hand-correcting LICENSE in a dozen generated recipes. The license
+    # text still ships in the image manifest -- only the strict name match is
+    # relaxed.
+    ERROR_QA:remove = "license-file-missing"
+    WARN_QA:append = " license-file-missing"
+
     # Many ROS/ament packages embed the build prefix in their generated
     # <pkg>Config.cmake / ament-index files. whinlatter oe-core promoted the
     # "buildpaths" QA check to a fatal error; downgrade it to a warning so the

@@ -1,0 +1,39 @@
+From 02fe4730d799e3c0ed6c3751eb46630bd5197a4e Mon Sep 17 00:00:00 2001
+From: Shawn Rutledge <shawn.rutledge@qt.io>
+Date: Fri, 16 Oct 2026 06:55:46 +0200
+Subject: [PATCH] nav2_package: do not force -Werror
+
+nav2_package() turns every warning into an error for every package that
+calls it. With GCC 15 and this ROS 2 Jazzy snapshot, headers *in the
+sysroot* -- not nav2's own code -- emit warnings that are then fatal:
+
+  rosidl_runtime_cpp/traits.hpp: 'std::__cxx11::wstring_convert' is
+      deprecated [-Werror=deprecated-declarations]
+  rclcpp/exceptions/exceptions.hpp: declaration of 'invalid_index' shadows
+      a member of 'rclcpp::exceptions::InvalidNodeNameError' [-Werror=shadow]
+
+A downstream integrator cannot fix warnings in someone else's installed
+headers, and -Werror is a developer-workflow setting, not a property of
+the code. Keep all the -W flags, drop only -Werror.
+
+Upstream-Status: Inappropriate [embedded specific]
+---
+ cmake/nav2_package.cmake | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/cmake/nav2_package.cmake b/cmake/nav2_package.cmake
+index 3f49771..01ca1c3 100644
+--- a/cmake/nav2_package.cmake
++++ b/cmake/nav2_package.cmake
+@@ -37,7 +37,7 @@ macro(nav2_package)
+   endif()
+ 
+   if(CMAKE_CXX_COMPILER_ID MATCHES "GNU" OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+-    add_compile_options(-Wall -Wextra -Wpedantic -Werror -Wdeprecated -fPIC -Wshadow -Wnull-dereference)
++    add_compile_options(-Wall -Wextra -Wpedantic -Wdeprecated -fPIC -Wshadow -Wnull-dereference)
+     add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:-Wnon-virtual-dtor>")
+   endif()
+ 
+-- 
+2.56.0
+

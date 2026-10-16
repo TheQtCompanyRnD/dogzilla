@@ -1,0 +1,56 @@
+From 46e91f1137de74f943a7e82c484511415c0409f0 Mon Sep 17 00:00:00 2001
+From: Shawn Rutledge <shawn.rutledge@qt.io>
+Date: Fri, 16 Oct 2026 06:51:18 +0200
+Subject: [PATCH] Do not ask for the Boost.System component
+
+Boost.System has been header-only since 1.69 and Boost 1.89 no longer ships
+a compiled boost_system, so the REQUIRED find_package fails outright:
+
+  Could not find a package configuration file provided by "boost_system"
+  (requested version 1.89.0)
+
+Nothing here needs it. Drop it from the build-time component lists and from
+libpointmatcherConfig.cmake.in as well -- otherwise every consumer of the
+installed config (rtabmap, for one) hits the same error.
+
+Upstream-Status: Pending
+---
+ CMakeLists.txt                 | 4 ++--
+ libpointmatcherConfig.cmake.in | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 6f3dece..27c03e6 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -126,9 +126,9 @@ endif()
+ #--------------------
+ # DEPENDENCY:  boost
+ #--------------------
+-find_package(Boost REQUIRED COMPONENTS thread filesystem system program_options date_time)
++find_package(Boost REQUIRED COMPONENTS thread filesystem program_options date_time)
+ if (Boost_MINOR_VERSION GREATER 47)
+-	find_package(Boost REQUIRED COMPONENTS thread filesystem system program_options date_time chrono)
++	find_package(Boost REQUIRED COMPONENTS thread filesystem program_options date_time chrono)
+ endif ()
+ 
+ #--------------------
+diff --git a/libpointmatcherConfig.cmake.in b/libpointmatcherConfig.cmake.in
+index 1feb400..2c135d1 100644
+--- a/libpointmatcherConfig.cmake.in
++++ b/libpointmatcherConfig.cmake.in
+@@ -6,9 +6,9 @@
+ 
+ include(CMakeFindDependencyMacro)
+ find_dependency(libnabo REQUIRED)
+-find_package(Boost COMPONENTS thread filesystem system program_options date_time REQUIRED)
++find_package(Boost COMPONENTS thread filesystem program_options date_time REQUIRED)
+ if (Boost_MINOR_VERSION GREATER 47)
+-  find_package(Boost COMPONENTS thread filesystem system program_options date_time chrono REQUIRED)
++  find_package(Boost COMPONENTS thread filesystem program_options date_time chrono REQUIRED)
+ endif ()
+ include(${CMAKE_CURRENT_LIST_DIR}/libpointmatcher-config.cmake)
+ 
+-- 
+2.56.0
+
