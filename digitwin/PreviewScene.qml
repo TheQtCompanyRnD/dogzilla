@@ -30,8 +30,10 @@ Item {
 
         SceneEnvironment {
             id: sceneEnvironment
-            clearColor: "#222"
-            backgroundMode: SceneEnvironment.Color
+            backgroundMode: SceneEnvironment.SkyBox
+            lightProbe: Texture { source: "materials/skybox.ktx" }
+            probeExposure: 1.0
+            tonemapMode: SceneEnvironment.TonemapModeHejlDawson
             antialiasingMode: SceneEnvironment.MSAA
             antialiasingQuality: SceneEnvironment.High
         }
@@ -41,7 +43,7 @@ Item {
             eulerRotation: Qt.vector3d(-10, 150, 0)
             PerspectiveCamera {
                 id: sceneCamera
-                z: 1000
+                z: 100
                 property real stickDistance: 300
                 property real halfV: stickDistance * Math.tan(sceneCamera.fieldOfView / 2 * Math.PI / 180)
                 property real halfH: halfV * (view3D.width / view3D.height)
