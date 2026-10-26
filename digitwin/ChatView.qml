@@ -28,7 +28,7 @@ ListView {
             anchors.leftMargin: 1
             width: Math.min(messageText.implicitWidth + 24, listView.width)
             height: messageText.implicitHeight + 24
-            color: conversationDelegate.source ? "#323031" : "transparent"
+            color: conversationDelegate.source ? "#aa323031" : "transparent"
 
             Text {
                 id: messageText
@@ -37,6 +37,7 @@ ListView {
                 wrapMode: Label.Wrap
                 textFormat: Text.MarkdownText
                 text: conversationDelegate.message
+                font.pointSize: 12
                 color: "white"
             }
         }

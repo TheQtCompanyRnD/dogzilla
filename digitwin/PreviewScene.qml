@@ -497,7 +497,7 @@ Item {
         anchors.top: parent.top
         anchors.bottom: parent.bottom
         anchors.margins: 12
-        anchors.bottomMargin: 170
+        anchors.bottomMargin: bottomRow.height + 10
         width: Math.min(420, Math.max(280, parent.width * 0.28))
         TabBar {
             id: tabBar
@@ -541,16 +541,41 @@ Item {
     }
 
     RowLayout {
-        spacing: 30
+        id: bottomRow
+        spacing: 80
         anchors {
             bottom: parent.bottom
             right: parent.right
-            rightMargin: 160
-            bottomMargin: 40
+            left: parent.left
+        }
+        height: root.width / 12
+
+        ThumbStickControl {
+            id: leftStickControl
+            lightProbe: sceneEnvironment.lightProbe
+            Layout.preferredWidth: bottomRow.height
+            Layout.alignment: Qt.AlignLeft | Qt.AlignTop
+            // Layout.verticalCenter: parent.ver
+            Text {
+                anchors {
+                    left: parent.left
+                    bottom: parent.bottom
+                    margins: 6
+                }
+                color: "white"
+                text: `${leftStickControl.axes.x.toFixed(2)} ${leftStickControl.axes.y.toFixed(2)}` +
+                      ` turn ${rosNode.turnSpeed.toFixed(2)} walk ${rosNode.walkSpeed.toFixed(2)}`
+            }
+        }
+
+        Item {
+            Layout.fillWidth: true
         }
 
         Rectangle {
             id: ptt
+            Layout.topMargin: 20
+            Layout.alignment: Qt.AlignLeft | Qt.AlignTop
             width: 60
             height: width
             radius: 6
@@ -626,45 +651,21 @@ Item {
             }
         }
         */
-    }
-
-    ThumbStickControl {
-        id: rightStickControl
-        lightProbe: sceneEnvironment.lightProbe
-        width: parent.width / 7
-        anchors {
-            bottom: parent.bottom
-            right: parent.right
-        }
-        Text {
-            anchors {
-                right: parent.right
-                bottom: parent.bottom
-                margins: 6
+        ThumbStickControl {
+            id: rightStickControl
+            lightProbe: sceneEnvironment.lightProbe
+            Layout.preferredWidth: bottomRow.height
+            Layout.alignment: Qt.AlignRight | Qt.AlignTop
+            Text {
+                anchors {
+                    right: parent.right
+                    bottom: parent.bottom
+                    margins: 6
+                }
+                color: "white"
+                text: `${rightStickControl.axes.x.toFixed(2)} ${rightStickControl.axes.y.toFixed(2)}` +
+                      ` strafe ${rosNode.strafeSpeed.toFixed(2)} pitch ${rosNode.pitch.toFixed(2)}`
             }
-            color: "white"
-            text: `${rightStickControl.axes.x.toFixed(2)} ${rightStickControl.axes.y.toFixed(2)}` +
-                  ` strafe ${rosNode.strafeSpeed.toFixed(2)} pitch ${rosNode.pitch.toFixed(2)}`
-        }
-    }
-
-    ThumbStickControl {
-        id: leftStickControl
-        lightProbe: sceneEnvironment.lightProbe
-        width: parent.width / 6
-        anchors {
-            bottom: parent.bottom
-            left: parent.left
-        }
-        Text {
-            anchors {
-                left: parent.left
-                bottom: parent.bottom
-                margins: 6
-            }
-            color: "white"
-            text: `${leftStickControl.axes.x.toFixed(2)} ${leftStickControl.axes.y.toFixed(2)}` +
-                  ` turn ${rosNode.turnSpeed.toFixed(2)} walk ${rosNode.walkSpeed.toFixed(2)}`
         }
     }
 }

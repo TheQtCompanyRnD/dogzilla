@@ -5,7 +5,7 @@ import QtQuick3D
 
 Item {
     id: root
-    width: 320
+    width: 160
     height: width
     property bool polar: true
 
@@ -30,7 +30,7 @@ Item {
     property Texture lightProbe
     // Node scale of the 3D stick; the camera is fixed, so the stick's size
     // on screen follows the control's size
-    property real stickScale: 3.7
+    property real stickScale: 7
 
     // Own transparent scene, so nothing else can occlude the stick
     View3D {
