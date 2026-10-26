@@ -86,6 +86,54 @@ Item {
             camera: sceneCamera
         }
 
+        Model {
+            id: floor
+            property real floorSize: 4       // full width/depth of the floor, in scene units
+            property real floorThickness: 0.02
+            property real floorTileSize: 2    // scene units covered by one texture tile
+            readonly property real tiles: floorSize / floorTileSize
+
+            source: "#Cube"
+            scale: Qt.vector3d(floorSize, floorThickness, floorSize)
+            position: Qt.vector3d(0, -2, 0)
+            materials: PrincipledMaterial {
+
+                baseColorMap: Texture {
+                    source: "materials/weathered_brown_planks_diff_2k.jpg"
+                    tilingModeHorizontal: Texture.Repeat
+                    tilingModeVertical: Texture.Repeat
+                    scaleU: floor.tiles
+                    scaleV: floor.tiles
+                }
+                roughnessMap: Texture {
+                    source: "materials/weathered_brown_planks_rough_2k.jpg"
+                    tilingModeHorizontal: Texture.Repeat
+                    tilingModeVertical: Texture.Repeat
+                    scaleU: floor.tiles
+                    scaleV: floor.tiles
+                }
+                roughness: 1.0
+                normalMap: Texture {
+                    // converted from the _nor_gl_2k.exr source (OpenGL
+                    // normal-map convention, matching Qt Quick 3D) -- kept
+                    // as a plain PNG for guaranteed Texture-loader support
+                    source: "materials/weathered_brown_planks_nor_gl_2k.png"
+                    tilingModeHorizontal: Texture.Repeat
+                    tilingModeVertical: Texture.Repeat
+                    scaleU: floor.tiles
+                    scaleV: floor.tiles
+                }
+                heightMap: Texture {
+                    source: "materials/weathered_brown_planks_disp_2k.png"
+                    tilingModeHorizontal: Texture.Repeat
+                    tilingModeVertical: Texture.Repeat
+                    scaleU: floor.tiles
+                    scaleV: floor.tiles
+                }
+                heightAmount: 0.03
+            }
+        }
+
         Node {
             id: metricScene
             scale: Qt.vector3d(100, 100, 100)   // children are in meters
@@ -135,7 +183,7 @@ Item {
                     id: cameraViewScreen
                     scale: Qt.vector3d(0.1, 0.1, 0.1)
                     eulerRotation: Qt.vector3d(0, -90, -90)
-                    z: 75
+                    z: 100
                     y: 100
                     x: 100 // cm in front of the dog; TODO calibrate? make it intersect the nearest wall?
                     Image {
