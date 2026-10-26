@@ -51,14 +51,16 @@ Ros2.Node {
                 "rh_hip_joint",
           ]
         position: controller.jointAngles
-       // could also include velocity, effort
-   }
+        publishInterval: 5000
+        // could also include velocity, effort
+    }
 
     BatteryStatePublisher {
         id: bsp
         topic: `${root.nodeNamespace}/battery_state`
         percentage: controller.batteryPercent / 100
         present: true
+        publishInterval: 5000
     }
 
     property ConsoleDashboard dash: ConsoleDashboard {
