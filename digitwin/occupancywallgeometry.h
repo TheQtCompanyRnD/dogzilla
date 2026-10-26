@@ -12,6 +12,8 @@ class OccupancyWallGeometry : public QQuick3DGeometry
     Q_OBJECT
     QML_ELEMENT
 
+    Q_PROPERTY(Mode mode READ mode WRITE setMode NOTIFY modeChanged FINAL)
+    Q_PROPERTY(qreal uvSize READ uvSize WRITE setUvSize NOTIFY uvSizeChanged FINAL)
     Q_PROPERTY(QSize size READ size WRITE setSize NOTIFY sizeChanged FINAL)
     Q_PROPERTY(qreal resolution READ resolution WRITE setResolution NOTIFY resolutionChanged FINAL)
     Q_PROPERTY(QByteArray probabilities READ probabilities WRITE setProbabilities NOTIFY probabilitiesChanged FINAL)
@@ -23,7 +25,19 @@ class OccupancyWallGeometry : public QQuick3DGeometry
     Q_PROPERTY(int vertexCount READ vertexCount NOTIFY geometryRebuilt FINAL)
 
 public:
+    enum Mode {
+        Walls,
+        Floor
+    };
+    Q_ENUM(Mode)
+
     OccupancyWallGeometry(QQuick3DObject *parent = nullptr);
+
+    Mode mode() const { return m_mode; }
+    void setMode(Mode newMode);
+
+    qreal uvSize() const { return m_uvSize; }
+    void setUvSize(qreal newUvSize);
 
     QSize size() const { return m_size; }
     void setSize(const QSize &newSize);
@@ -50,6 +64,8 @@ public:
     int vertexCount() const { return m_vertexCount; }
 
 signals:
+    void modeChanged();
+    void uvSizeChanged();
     void sizeChanged();
     void resolutionChanged();
     void probabilitiesChanged();
@@ -63,6 +79,8 @@ private:
     void scheduleRebuild();
     void rebuild();
 
+    Mode m_mode = Walls;
+    float m_uvSize = 1;
     QSize m_size;
     float m_resolution = 0.05f;
     QByteArray m_probabilities;

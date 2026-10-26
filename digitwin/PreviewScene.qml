@@ -57,6 +57,43 @@ Item {
             camera: sceneCamera
         }
 
+        PrincipledMaterial {
+            id: floorMaterial
+            baseColorMap: Texture {
+                source: "materials/weathered_brown_planks_diff_2k.jpg"
+                tilingModeHorizontal: Texture.Repeat
+                tilingModeVertical: Texture.Repeat
+                scaleU: floor.tiles
+                scaleV: floor.tiles
+            }
+            roughnessMap: Texture {
+                source: "materials/weathered_brown_planks_rough_2k.jpg"
+                tilingModeHorizontal: Texture.Repeat
+                tilingModeVertical: Texture.Repeat
+                scaleU: floor.tiles
+                scaleV: floor.tiles
+            }
+            roughness: 1.0
+            normalMap: Texture {
+                // converted from the _nor_gl_2k.exr source (OpenGL
+                // normal-map convention, matching Qt Quick 3D) -- kept
+                // as a plain PNG for guaranteed Texture-loader support
+                source: "materials/weathered_brown_planks_nor_gl_2k.png"
+                tilingModeHorizontal: Texture.Repeat
+                tilingModeVertical: Texture.Repeat
+                scaleU: floor.tiles
+                scaleV: floor.tiles
+            }
+            heightMap: Texture {
+                source: "materials/weathered_brown_planks_disp_2k.png"
+                tilingModeHorizontal: Texture.Repeat
+                tilingModeVertical: Texture.Repeat
+                scaleU: floor.tiles
+                scaleV: floor.tiles
+            }
+            heightAmount: 0.03
+        }
+
         Model {
             id: floor
             property real floorSize: 4       // full width/depth of the floor, in scene units
@@ -67,42 +104,9 @@ Item {
             source: "#Cube"
             scale: Qt.vector3d(floorSize, floorThickness, floorSize)
             position: Qt.vector3d(0, -2, 0)
-            materials: PrincipledMaterial {
-
-                baseColorMap: Texture {
-                    source: "materials/weathered_brown_planks_diff_2k.jpg"
-                    tilingModeHorizontal: Texture.Repeat
-                    tilingModeVertical: Texture.Repeat
-                    scaleU: floor.tiles
-                    scaleV: floor.tiles
-                }
-                roughnessMap: Texture {
-                    source: "materials/weathered_brown_planks_rough_2k.jpg"
-                    tilingModeHorizontal: Texture.Repeat
-                    tilingModeVertical: Texture.Repeat
-                    scaleU: floor.tiles
-                    scaleV: floor.tiles
-                }
-                roughness: 1.0
-                normalMap: Texture {
-                    // converted from the _nor_gl_2k.exr source (OpenGL
-                    // normal-map convention, matching Qt Quick 3D) -- kept
-                    // as a plain PNG for guaranteed Texture-loader support
-                    source: "materials/weathered_brown_planks_nor_gl_2k.png"
-                    tilingModeHorizontal: Texture.Repeat
-                    tilingModeVertical: Texture.Repeat
-                    scaleU: floor.tiles
-                    scaleV: floor.tiles
-                }
-                heightMap: Texture {
-                    source: "materials/weathered_brown_planks_disp_2k.png"
-                    tilingModeHorizontal: Texture.Repeat
-                    tilingModeVertical: Texture.Repeat
-                    scaleU: floor.tiles
-                    scaleV: floor.tiles
-                }
-                heightAmount: 0.03
-            }
+            materials: floorMaterial
+            // fallback slab for when there is no map
+            visible: false // !(panel.slamRunning && mapFloor.vertexCount > 0)
         }
 
         Node {
@@ -111,7 +115,18 @@ Item {
 
             Node {
                 visible: panel.slamRunning
-                position: Qt.vector3d(occuSub.info.origin.position.y, 0, occuSub.info.origin.position.x)
+                position: Qt.vector3d(occuSub.info.origin.position.y, -0.01, occuSub.info.origin.position.x)
+                Model {
+                    geometry: OccupancyWallGeometry {
+                        id: mapFloor
+                        mode: OccupancyWallGeometry.Floor
+                        resolution: occuSub.info.resolution
+                        size: Qt.size(occuSub.info.width, occuSub.info.height)
+                        probabilities: occuSub.data
+                        uvSize: floor.floorSize
+                    }
+                    materials: floorMaterial
+                }
                 Model {
                     geometry: OccupancyWallGeometry {
                         id: mapWalls
