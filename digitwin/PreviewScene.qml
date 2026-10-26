@@ -44,35 +44,6 @@ Item {
             PerspectiveCamera {
                 id: sceneCamera
                 z: 100
-                property real stickDistance: 300
-                property real halfV: stickDistance * Math.tan(sceneCamera.fieldOfView / 2 * Math.PI / 180)
-                property real halfH: halfV * (view3D.width / view3D.height)
-
-                Node {
-                    id: rightStick
-                    x: ((rightStickControl.x + rightStickControl.width  / 2) / view3D.width  - 0.5) * 2 * sceneCamera.halfH
-                    y: (0.5 - (rightStickControl.y + rightStickControl.height / 2) / view3D.height) * 2 * sceneCamera.halfV
-                    z: -sceneCamera.stickDistance
-                    // Perspective compensation: rotate to face the camera eye at the origin
-                    eulerRotation.y: -Math.atan2(x, sceneCamera.stickDistance) * 180 / Math.PI
-                    eulerRotation.x: Math.atan2(y, sceneCamera.stickDistance) * 180 / Math.PI
-                    ThumbStick {
-                        axes: rightStickControl.axes
-                    }
-                }
-
-                Node {
-                    id: leftStick
-                    x: ((leftStickControl.x + leftStickControl.width  / 2) / view3D.width  - 0.5) * 2 * sceneCamera.halfH
-                    y: (0.5 - (leftStickControl.y + leftStickControl.height / 2) / view3D.height) * 2 * sceneCamera.halfV
-                    z: -sceneCamera.stickDistance
-                    // Perspective compensation: rotate to face the camera eye at the origin
-                    eulerRotation.y: -Math.atan2(x, sceneCamera.stickDistance) * 180 / Math.PI
-                    eulerRotation.x: Math.atan2(y, sceneCamera.stickDistance) * 180 / Math.PI
-                    ThumbStick {
-                        axes: leftStickControl.axes
-                    }
-                }
             }
 
             DirectionalLight {
@@ -659,6 +630,7 @@ Item {
 
     ThumbStickControl {
         id: rightStickControl
+        lightProbe: sceneEnvironment.lightProbe
         width: parent.width / 7
         anchors {
             bottom: parent.bottom
@@ -678,6 +650,7 @@ Item {
 
     ThumbStickControl {
         id: leftStickControl
+        lightProbe: sceneEnvironment.lightProbe
         width: parent.width / 6
         anchors {
             bottom: parent.bottom

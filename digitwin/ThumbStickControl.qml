@@ -1,6 +1,7 @@
 // Copyright (C) 2026 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR BSD-3-Clause
 import QtQuick
+import QtQuick3D
 
 Item {
     id: root
@@ -24,6 +25,39 @@ Item {
                  Qt.point(0, 0))
 
     property alias knobVisible: knob.visible
+
+    // Shared with the main scene so the 3D stick gets the same reflections
+    property Texture lightProbe
+    // Node scale of the 3D stick; the camera is fixed, so the stick's size
+    // on screen follows the control's size
+    property real stickScale: 3.7
+
+    // Own transparent scene, so nothing else can occlude the stick
+    View3D {
+        anchors.fill: parent
+        camera: stickCamera
+        environment: SceneEnvironment {
+            backgroundMode: SceneEnvironment.Transparent
+            lightProbe: root.lightProbe
+            tonemapMode: SceneEnvironment.TonemapModeHejlDawson
+            antialiasingMode: SceneEnvironment.MSAA
+            antialiasingQuality: SceneEnvironment.High
+        }
+
+        PerspectiveCamera {
+            id: stickCamera
+            z: 300
+        }
+
+        DirectionalLight {
+            eulerRotation: Qt.vector3d(-30, 30, 0)
+        }
+
+        ThumbStick {
+            axes: root.axes
+            scale: Qt.vector3d(root.stickScale, root.stickScale, root.stickScale)
+        }
+    }
 
     Item {
         id: knobHolder
