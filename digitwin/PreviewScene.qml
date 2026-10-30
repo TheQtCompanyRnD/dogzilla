@@ -157,8 +157,14 @@ Item {
                 // and a pitch would read as a roll.) yUp must match Dogzilla.qml's root
                 // "Convert to Y-up" rotation.
                 readonly property quaternion yUp: Qt.quaternion(0.5, -0.5, -0.5, -0.5)
+                // The pose is a ROS (Z-up) quaternion on the wire; the scene is Y-up, with
+                // (x, y, z)_scene = (y, z, x)_ros (same as the position below).
+                readonly property quaternion sceneOrientation: {
+                    const q = poseSubscriber.pose.orientation
+                    return Qt.quaternion(q.w, q.y, q.z, q.x)
+                }
                 readonly property vector3d rosPosition: poseSubscriber.pose.position.toVector3D()
-                rotation: poseSubscriber.pose.orientation.toQuaternion().times(yUp)
+                rotation: sceneOrientation.times(yUp)
                 position: panel.slamRunning && tabBar.currentIndex !== 1 ?
                               Qt.vector3d(rosPosition.y, rosPosition.z, rosPosition.x) :
                               Qt.vector3d(0, 0, 0)
@@ -429,7 +435,7 @@ Item {
         GeomMsgs.PoseStampedPublisher {
             topic: "body_pose/command" // modern style for command/state topic separation
             header.frameId: "base_link" // name of link (main body part) as declared in dogzilla.urdf
-            pose.orientation: GeomMsgs.Quaternion.fromEulerAngles(0, rosNode.pitch, 0)
+            pose.orientation: GeomMsgs.Quaternion.fromRpyDegrees(0, rosNode.pitch, 0)
         }
 
         // ---- Teach pendant plumbing ------------------------------------------

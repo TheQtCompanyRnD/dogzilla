@@ -288,11 +288,11 @@ Ros2.Node {
         pose.position: ({ x: root.mapToBaseLink.transform.translation.x,
                           y: root.mapToBaseLink.transform.translation.y,
                           z: root.bodyHeight })
-        // Quaternion.fromEulerAngles is ROS roll/pitch/yaw in degrees about
-        // X/Y/Z, Z-up - not QtQuick3D's pitch/yaw/roll in a Y-up frame.
-        pose.orientation: Quaternion.fromEulerAngles(controller.measuredRoll,
-                                                     controller.measuredPitch,
-                                                     root.mapToBaseLink.transform.rotation.rpyDegrees.z)
+        // fromRpyDegrees is ROS roll/pitch/yaw in degrees about X/Y/Z, Z-up (REP-103), double precision:
+        // the quaternion goes on the wire as ROS expects, not as a Qt Quick 3D quaternion.
+        pose.orientation: Quaternion.fromRpyDegrees(controller.measuredRoll,
+                                                    controller.measuredPitch,
+                                                    root.mapToBaseLink.transform.rotation.rpyDegrees.z)
     }
 
     CompressedImagePublisher {
